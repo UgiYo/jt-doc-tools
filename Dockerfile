@@ -93,7 +93,10 @@ RUN GPU_EXCL=$(python docker-gpu-excl.py) \
          exit 1; \
        fi \
     # 啟動所需的相依必須齊全（缺了要在**建置時**就知道，不是使用者按下按鈕才發現）
-    && /app/.venv/bin/python -c "import fastapi, fitz, PIL, pillow_heif, pdfplumber, docx, odf, openpyxl, pyzipper, httpx, psutil, pyotp, qrcode, pdf2docx, rapidfuzz, fontTools, numpy, lxml, pymupdf4llm, markdown_it, jwt, onelogin.saml2.auth, xmlsec, truststore, ldap3; print('deps OK')"
+    && /app/.venv/bin/python -c "import fastapi, fitz, PIL, pillow_heif, pdfplumber, docx, odf, openpyxl, pyzipper, httpx, psutil, pyotp, qrcode, pdf2docx, rapidfuzz, fontTools, numpy, lxml, pymupdf4llm, markdown_it, jwt, onelogin.saml2.auth, xmlsec, truststore, ldap3; print('deps OK')" \
+    # PPT 圖片文字編輯器 smoke test：實際建立圖片、載入容器內 Noto CJK、
+    # 執行 edit_text，並驗證 PNG/JPEG 都能被 Pillow 重新解碼。
+    && /app/.venv/bin/python -c "import io; from PIL import Image,ImageDraw,ImageFont; from app.tools.ppt_image_text_editor.image_edit import edit_text; font='/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc'; f=ImageFont.truetype(font,24); im=Image.new('RGB',(320,100),'white'); ImageDraw.Draw(im).text((20,30),'原始文字 ABC',font=f,fill='black'); src=io.BytesIO(); im.save(src,'PNG'); png=edit_text(src.getvalue(),box=(18,25,210,65),new_text='修改文字 123',output_format='PNG'); p=Image.open(io.BytesIO(png)); p.load(); assert p.format=='PNG' and p.size==(320,100); jpg=edit_text(src.getvalue(),box=(18,25,210,65),new_text='中文測試 XYZ',output_format='JPEG'); j=Image.open(io.BytesIO(jpg)); j.load(); assert j.format=='JPEG' and j.size==(320,100); assert png[:8]==b'\\x89PNG\\r\\n\\x1a\\n' and jpg[:2]==b'\\xff\\xd8'; print('ppt image editor smoke OK')"
 
 # --- 執行身分與資料目錄 ---
 # 不以 root 執行；資料目錄掛成 volume（升級換映像檔時資料留著）
