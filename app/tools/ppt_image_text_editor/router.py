@@ -38,6 +38,35 @@ def _safe_id(uid: str) -> str:
     return uid
 
 
+def _parse_edits(edits_json: str) -> list[dict]:
+    try:
+        edits = json.loads(edits_json)
+        if not isinstance(edits, list):
+            raise ValueError
+        return edits
+    except Exception as exc:
+        raise HTTPException(400, "edits_json 格式錯誤") from exc
+
+
+def _apply_edits(image_bytes: bytes, edits: list[dict], output_format: str = "PNG") -> bytes:
+    img_bytes, _ = to_png(image_bytes)
+    ordered = sorted(edits, key=lambda x: int(x.get("top", 0)), reverse=True)
+    for edit_index, e in enumerate(ordered):
+        try:
+            left, top = int(e["left"]), int(e["top"])
+            width, height = int(e["width"]), int(e["height"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(400, "修改座標格式錯誤") from exc
+        final_format = output_format if edit_index == len(ordered) - 1 else "PNG"
+        img_bytes = edit_text(
+            img_bytes,
+            box=(left, top, left + width, top + height),
+            new_text=str(e.get("new_text", "")),
+            output_format=final_format,
+        )
+    return img_bytes
+
+
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return request.app.state.templates.TemplateResponse(request, "ppt_image_text_editor.html", {"request": request})
@@ -105,15 +134,24 @@ async def preview(uid: str, index: int, request: Request):
     return Response(png, media_type="image/png")
 
 
+@router.post("/preview/{uid}/{index}")
+async def rendered_preview(uid: str, index: int, request: Request, edits_json: str = Form(...)):
+    uid = _safe_id(uid); _uo.require(uid, request)
+    edits = _parse_edits(edits_json)
+    manifest = json.loads(_manifest(uid).read_text(encoding="utf-8"))
+    media_path = (manifest.get("media_map") or {}).get(str(index))
+    if not media_path:
+        raise HTTPException(404, "image not analyzed")
+    image_edits = [e for e in edits if int(e.get("image_index", -1)) == index]
+    original = read_media(_src(uid).read_bytes(), media_path)
+    png = _apply_edits(original, image_edits, "PNG") if image_edits else to_png(original)[0]
+    return Response(png, media_type="image/png", headers={"Cache-Control": "no-store"})
+
+
 @router.post("/export/{uid}")
 async def export(uid: str, request: Request, edits_json: str = Form(...)):
     uid = _safe_id(uid); _uo.require(uid, request)
-    try:
-        edits = json.loads(edits_json)
-        if not isinstance(edits, list):
-            raise ValueError
-    except Exception:
-        raise HTTPException(400, "edits_json 格式錯誤")
+    edits = _parse_edits(edits_json)
     manifest = json.loads(_manifest(uid).read_text(encoding="utf-8"))
     media_map = manifest.get("media_map") or {}
     raw = _src(uid).read_bytes()
@@ -125,16 +163,8 @@ async def export(uid: str, request: Request, edits_json: str = Form(...)):
         by_media.setdefault(media_path, []).append(e)
     replacements = {}
     for media_path, media_edits in by_media.items():
-        img_bytes, _ = to_png(read_media(raw, media_path))
-        output_format = image_format_for_path(media_path)
-        ordered_edits = sorted(media_edits, key=lambda x: int(x.get("top", 0)), reverse=True)
-        for edit_index, e in enumerate(ordered_edits):
-            left, top = int(e["left"]), int(e["top"])
-            width, height = int(e["width"]), int(e["height"])
-            final_format = output_format if edit_index == len(ordered_edits) - 1 else "PNG"
-            img_bytes = edit_text(img_bytes, box=(left, top, left + width, top + height),
-                                  new_text=str(e.get("new_text", "")), output_format=final_format)
-        replacements[media_path] = img_bytes
+        original = read_media(raw, media_path)
+        replacements[media_path] = _apply_edits(original, media_edits, image_format_for_path(media_path))
     out = replace_media(raw, replacements)
     out_path = _work_dir() / f"{uid}_edited.pptx"
     out_path.write_bytes(out)
