@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "components/icons.html" import icon %}
+{% block title %}{{ tr('PPT 圖片文字編輯') }} · {{ app_name }}{% endblock %}
+{% block content %}
+<h1>{{ icon('presentation', size=22) }} {{ tr('PPT 圖片文字編輯') }}</h1>
+<p class="muted">{{ tr('上傳 PPTX，OCR 辨識圖片中的文字；修改後只替換 PPTX 內原始圖片媒體，盡量保留投影片其他物件、位置、裁切與動畫關係。') }}</p>
+<div class="panel">
+  <input id="pptFile" type="file" accept=".pptx">
+  <label>{{ tr('OCR 語言') }} <input id="langs" value="chi_tra+eng"></label>
+  <button class="btn btn-primary" id="analyze">{{ tr('上傳並分析') }}</button>
+  <span id="status" class="muted"></span>
+</div>
+<div id="results"></div>
+<div class="panel" id="exportPanel" hidden>
+  <button class="btn btn-primary" id="exportBtn">{{ tr('套用修改並下載 PPTX') }}</button>
+</div>
+<style nonce="{{ request.state.csp_nonce }}">
+.pite-card{display:grid;grid-template-columns:minmax(260px,1fr) minmax(320px,1fr);gap:16px;margin-bottom:16px}.pite-preview{position:relative;overflow:auto;background:#f8fafc;border:1px solid var(--border);padding:8px}.pite-preview img{display:block;max-width:100%;height:auto}.pite-words{max-height:520px;overflow:auto}.pite-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center;border-bottom:1px solid var(--border);padding:6px 0}.pite-row small{grid-column:1/-1;color:#64748b}@media(max-width:900px){.pite-card{grid-template-columns:1fr}}
+</style>
+<script nonce="{{ request.state.csp_nonce }}">
+let uploadId=null, analyzed=[];
+const $=s=>document.querySelector(s);
+$('#analyze').addEventListener('click', async()=>{
+ const f=$('#pptFile').files[0]; if(!f){alert('{{ tr("請選擇 PPTX") }}');return}
+ $('#status').textContent='{{ tr("上傳中…") }}';
+ let fd=new FormData(); fd.append('file',f);
+ let r=await fetch('/tools/ppt-image-text-editor/upload',{method:'POST',body:fd}); let u=await r.json();
+ if(!r.ok){$('#status').textContent=u.detail||'upload failed';return} uploadId=u.upload_id;
+ $('#status').textContent='{{ tr("OCR 分析中…") }}';
+ r=await fetch(`/tools/ppt-image-text-editor/images/${uploadId}?langs=${encodeURIComponent($('#langs').value)}`); let d=await r.json();
+ if(!r.ok){$('#status').textContent=d.detail||'OCR failed';return} analyzed=d.images||[]; render(); $('#exportPanel').hidden=false; $('#status').textContent=`${analyzed.length} {{ tr("張圖片") }}`;
+});
+function render(){const root=$('#results');root.innerHTML=''; analyzed.forEach(img=>{
+ const p=document.createElement('div'); p.className='panel pite-card';
+ const left=document.createElement('div'); left.className='pite-preview'; left.innerHTML=`<img src="${img.preview_url}"><div class="muted">Slides: ${img.slides.join(', ')} · ${img.engine||''}</div>`;
+ const right=document.createElement('div'); right.className='pite-words';
+ (img.words||[]).forEach((w,wi)=>{const row=document.createElement('div');row.className='pite-row';row.dataset.changed='0';row.innerHTML=`<input class="old" value="${esc(w.text)}" readonly><input class="new" value="${esc(w.text)}"><small>x=${w.left}, y=${w.top}, ${w.width}×${w.height}, conf=${Math.round(w.conf||0)}</small>`;row.querySelector('.new').addEventListener('input',()=>row.dataset.changed=(row.querySelector('.new').value!==w.text?'1':'0'));right.appendChild(row)});
+ p.append(left,right);root.appendChild(p);
+ });}
+function esc(s){return String(s).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;')}
+$('#exportBtn').addEventListener('click',async()=>{let edits=[];document.querySelectorAll('.pite-card').forEach((card,ii)=>{const img=analyzed[ii];card.querySelectorAll('.pite-row').forEach((row,wi)=>{if(row.dataset.changed==='1'){const w=img.words[wi];edits.push({image_index:img.index,left:w.left,top:w.top,width:w.width,height:w.height,old_text:w.text,new_text:row.querySelector('.new').value})}})});if(!edits.length){alert('{{ tr("尚未修改任何文字") }}');return}let fd=new FormData();fd.append('edits_json',JSON.stringify(edits));let r=await fetch(`/tools/ppt-image-text-editor/export/${uploadId}`,{method:'POST',body:fd});if(!r.ok){let d=await r.json();alert(d.detail||'export failed');return}let b=await r.blob();let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='edited.pptx';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)});
+</script>
+{% endblock %}
