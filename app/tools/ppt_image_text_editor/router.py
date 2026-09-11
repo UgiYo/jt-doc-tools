@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, HTMLResponse, Response
 from ...config import settings
 from ...core import upload_owner as _uo
 from ...core import ocr_engine as _oe
-from .image_edit import edit_text, to_png
+from .image_edit import edit_text, image_format_for_path, to_png
 from .pptx_core import list_slide_images, read_media, replace_media
 
 router = APIRouter()
@@ -126,11 +126,14 @@ async def export(uid: str, request: Request, edits_json: str = Form(...)):
     replacements = {}
     for media_path, media_edits in by_media.items():
         img_bytes, _ = to_png(read_media(raw, media_path))
-        for e in sorted(media_edits, key=lambda x: int(x.get("top", 0)), reverse=True):
+        output_format = image_format_for_path(media_path)
+        ordered_edits = sorted(media_edits, key=lambda x: int(x.get("top", 0)), reverse=True)
+        for edit_index, e in enumerate(ordered_edits):
             left, top = int(e["left"]), int(e["top"])
             width, height = int(e["width"]), int(e["height"])
+            final_format = output_format if edit_index == len(ordered_edits) - 1 else "PNG"
             img_bytes = edit_text(img_bytes, box=(left, top, left + width, top + height),
-                                  new_text=str(e.get("new_text", "")))
+                                  new_text=str(e.get("new_text", "")), output_format=final_format)
         replacements[media_path] = img_bytes
     out = replace_media(raw, replacements)
     out_path = _work_dir() / f"{uid}_edited.pptx"
