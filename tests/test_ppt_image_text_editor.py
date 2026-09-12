@@ -57,3 +57,25 @@ def test_image_editors_are_registered_for_the_ui():
 
     ids = {tool.metadata.id for tool in discover_tools()}
     assert {"ppt-image-text-editor", "image-text-editor"} <= ids
+
+
+def test_standalone_image_editor_applies_edits():
+    from app.tools.image_text_editor.router import _apply
+
+    image = Image.new("RGB", (200, 80), "white")
+    draw = ImageDraw.Draw(image)
+    draw.text((20, 20), "Before", fill="black")
+    source = io.BytesIO()
+    image.save(source, "PNG")
+
+    edited = _apply(source.getvalue(), [{
+        "left": 18,
+        "top": 18,
+        "width": 80,
+        "height": 30,
+        "new_text": "After",
+    }])
+
+    result = Image.open(io.BytesIO(edited))
+    assert result.size == (200, 80)
+    assert result.format == "PNG"

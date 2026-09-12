@@ -71,7 +71,12 @@ def _apply(image_bytes: bytes, edits: list[dict], output_format: str = "PNG") ->
         except (KeyError, TypeError, ValueError) as exc:
             raise HTTPException(400, "修改座標格式錯誤") from exc
         fmt = output_format if i == len(ordered) - 1 else "PNG"
-        current = edit_text(current, (left, top, left + width, top + height), str(e.get("new_text", "")), output_format=fmt)
+        current = edit_text(
+            current,
+            box=(left, top, left + width, top + height),
+            new_text=str(e.get("new_text", "")),
+            output_format=fmt,
+        )
     return current
 
 
