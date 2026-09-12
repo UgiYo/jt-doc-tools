@@ -50,3 +50,10 @@ def test_edit_text_keeps_canvas_size():
     edited=edit_text(b.getvalue(),box=(18,18,95,45),new_text='GitLab')
     out=Image.open(io.BytesIO(edited))
     assert out.size==(200,80)
+
+
+def test_image_editors_are_registered_for_the_ui():
+    from app.tool_registry import discover_tools
+
+    ids = {tool.metadata.id for tool in discover_tools()}
+    assert {"ppt-image-text-editor", "image-text-editor"} <= ids
