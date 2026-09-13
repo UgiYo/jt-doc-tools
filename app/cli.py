@@ -800,13 +800,28 @@ def svc_update() -> int:
         _restore_ownership(root, owner)
         svc_start()
         return 1
+    # **標籤要用 `--force` 拉**。標籤是會動的：重新打過的 release、
+    # 或上游改寫過歷史（2026-09-13 為了移除一筆誤入版控的個人資料就做過一次）。
+    # 沒有 `--force` 時 git 會逐個回報 `would clobber existing tag` 並
+    # **以離開碼 1 結束** —— 而這裡一看到非零就中止升級，於是**每一台既有安裝
+    # 都再也更新不了**（實測：離開碼 1，訊息只說 fetch failed，沒有人看得出
+    # 原因是標籤）。
+    #
+    # 分成兩步：**分支是必要的、標籤是附加的**。分支拉不到才算失敗；
+    # 標籤拉不到只警告 —— 升級真正需要的只有 `origin/main`。
     rc = subprocess.call(
-        [git_exe, "-C", str(root), "fetch", "--tags", "origin"], env=git_env)
+        [git_exe, "-C", str(root), "fetch", "origin"], env=git_env)
     if rc != 0:
         print("git fetch failed, restoring: starting previous service", file=sys.stderr)
         _restore_ownership(root, owner)
         svc_start()
         return rc
+    rc_tags = subprocess.call(
+        [git_exe, "-C", str(root), "fetch", "--tags", "--force", "origin"],
+        env=git_env)
+    if rc_tags != 0:
+        print("note: tags could not be fetched (harmless — the upgrade only "
+              "needs origin/main)", file=sys.stderr)
     # 用 fetch + reset --hard 而非 pull --ff-only：後者在 remote 被 force-push
     # (歷史重寫) 時會 abort「Not possible to fast-forward」。reset --hard 強制
     # 對齊 origin/main 是 fresh-checkout 的標準作法 — 我們不在 install 內做開發

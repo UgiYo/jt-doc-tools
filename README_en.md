@@ -1,6 +1,23 @@
 [繁體中文](README.md) ｜ **English**
 
-# Jason Tools Document Toolbox v1.15.40
+# Jason Tools Document Toolbox v1.15.41
+
+> ### ⚠ Installed with git before 2026-09-13? Run one command before this upgrade
+>
+> The project's git history was rewritten on 2026-09-13 (to remove a piece of data that should never have been committed), so every tag now points at a
+> new commit. **An older `jtdt update` fails at the `git fetch --tags` step with
+> `would clobber existing tag`**, reporting only `git fetch failed` —
+> nothing points at the tags as the cause. Run this once and it is fixed for good:
+>
+> ```bash
+> # Linux / macOS
+> sudo git -C /opt/jt-doc-tools fetch --tags --force origin
+> # Windows (run PowerShell as Administrator)
+> git -C "C:\Program Files\jt-doc-tools" fetch --tags --force origin
+> ```
+>
+> `jtdt update` then works as usual. **Unaffected**: tarball installs, the Windows installer,
+> and anything installed after 2026-09-13. Fixed from v1.15.41 onwards.
 
 > An integrated PDF / Office document platform: 48 tools covering **form filling and stamping**, **watermarks**, **merge / split / rotate / reorder**, **format conversion**, **scan assembly**, **de-identification**, **word counts**, **annotation reports**, **diffs**, **sentence-by-sentence translation**, **list processing**, **e-invoice handling**, **VAT number lookup**, **a page editor**, **encryption and decryption**, and more.
 >

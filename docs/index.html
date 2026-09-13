@@ -1289,6 +1289,12 @@
       </div>
       <div>
         <strong>升級 / 移除</strong>
+        <p class="upg-warn"><b>⚠ 2026-09-13 之前用 git 安裝的，這一版升級前要先跑一行。</b>
+        專案改寫過 git 歷史（移除一筆誤入版控的資料），舊版的 <code>jtdt update</code>
+        會在 <code>git fetch --tags</code> 失敗（<code>would clobber existing tag</code>），
+        訊息只說 <code>git fetch failed</code>。先跑
+        <code>git -C &lt;安裝目錄&gt; fetch --tags --force origin</code> 一次即可永久解決。
+        tarball 安裝與 Windows 安裝程式不受影響；v1.15.41 起已修正。</p>
         <div class="cmd-block">
           <div class="cmd-os">Linux / macOS</div>
           <div><code>sudo jtdt update</code></div>

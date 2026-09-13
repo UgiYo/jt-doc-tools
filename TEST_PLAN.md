@@ -77,6 +77,15 @@ JTDT_DATA_DIR=$(mktemp -d) JTDT_CSRF_DISABLE=1 \
 > 另外 `Start-Process -Wait` **等不到真正結束**（交棒是非同步的），所以驗收要
 > 等幾秒再看結果，不可以 `-Wait` 一回來就判定。
 
+> **⚠ 上游改寫過歷史之後**（例如為了移除誤入版控的資料）：既有安裝的本地標籤
+> 還指著舊 commit，**`git fetch --tags` 會以離開碼 1 結束**。v1.15.41 起
+> `jtdt update` 已經把分支與標籤分開拉、標籤帶 `--force`，但**那個修正本身要
+> 靠更新才拿得到** —— 已經卡住的安裝要先手動跑一次：
+>
+> ```bash
+> git -C <安裝目錄> fetch --tags --force origin
+> ```
+
 ### 每次打 tag 之後
 
 - [ ] `Build Windows installer` 這個 workflow **completed success**
@@ -453,7 +462,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 
 <!-- BEGIN test-index (由 tools/build_test_plan_index.py 產生，不要手改) -->
 
-共 **260 支測試檔**。說明取自每支檔案自己的開頭說明，
+共 **261 支測試檔**。說明取自每支檔案自己的開頭說明，
 跑 `python tools/build_test_plan_index.py` 重建。
 
 > 這裡**刻意不列函式數** —— 那個數字每加一條測試就會變，
@@ -702,6 +711,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_ttc_subfont.py` | `.ttc` 要挑對子字型，否則寫進 PDF 的中文是**日文字形** |
 | `test_ui_locale.py` | 介面語言切換端點 `/ui-locale` 的安全性（開放重導） |
 | `test_update_backup.py` | 升級前的備份：**該留的要留、空間不夠要在停服務之前就擋下來** |
+| `test_update_fetch_survives_moved_tags.py` | `jtdt update` 的 fetch 不可以被「移動過的標籤」擋死 |
 | `test_upgrade_v1_14_6.py` | 升級到 v1.14.6：既有客戶的資料目錄要能無痛接上 |
 | `test_upload_limits.py` | 這台機器實際能收多大的檔案 —— 系統狀態頁的「可上傳的檔案大小」 |
 | `test_upload_validation_parity.py` | 上傳的檔案不是 PDF 時要回 400，不是 500 |

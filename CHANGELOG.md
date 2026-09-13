@@ -6,6 +6,47 @@
 
 ---
 
+## [1.15.41] - 2026-09-13
+
+### ⚠⚠ `jtdt update` 會被「移動過的標籤」擋死 —— 既有安裝全部更新不了
+
+標籤是會動的：重新打過的 release，或上游改寫過歷史。這時候本地標籤指著舊
+commit、遠端指著新的，而 `git fetch --tags`（沒有 `--force`）會逐個回報：
+
+```
+ ! [rejected]  v1.15.26 -> v1.15.26  (would clobber existing tag)
+```
+
+**並以離開碼 1 結束** —— 而 `jtdt update` 一看到非零就中止升級並還原，
+訊息只說 `git fetch failed`。也就是**每一台用 git 安裝的機器都再也更新不了**，
+而且**完全看不出原因是標籤**。
+
+實測（在還沒動過的 Windows 測試機上量的）：
+
+| 指令 | 離開碼 |
+|---|---:|
+| `git fetch --tags origin` | **1** |
+| `git fetch origin`（不帶 --tags）| 0 |
+| `git fetch --tags --force origin` | 0 |
+
+修法是**把分支與標籤分成兩次拉**：**分支是必要的、標籤是附加的** ——
+升級真正需要的只有 `origin/main`。分支拉不到才算失敗；標籤拉不到只印一行警告。
+拉標籤一律帶 `--force`。
+
+> **已經卡住的安裝**（本地標籤還停在舊 commit）跑一次這行就恢復，
+> 之後 `jtdt update` 正常：
+>
+> ```bash
+> git -C <安裝目錄> fetch --tags --force origin
+> ```
+>
+> Windows 的安裝目錄預設是 `C:\Program Files\jt-doc-tools`，
+> Linux 是 `/opt/jt-doc-tools`。
+
+守門 `tests/test_update_fetch_survives_moved_tags.py`（走 AST，兩條變異各驗一次）。
+
+---
+
 ## [1.15.40] - 2026-09-13
 
 ### ⚠⚠ 自己拉四個角：手柄的座標系是**圖框**，圖卻畫在框中間（使用者回報）

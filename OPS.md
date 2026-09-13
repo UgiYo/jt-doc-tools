@@ -35,6 +35,27 @@
 
 降版會被拒（避免毀資料）。失敗會自動 rollback。
 
+### ⚠ 2026-09-13 之前安裝的（用 git 裝的）第一次升級要多跑一行
+
+本專案在 2026-09-13 改寫過 git 歷史（移除一筆誤入版控的資料），所有標籤都
+指向新的 commit。**本地標籤還停在舊 commit 時，`git fetch --tags` 會以離開碼
+1 結束**（`would clobber existing tag`），而舊版的 `jtdt update` 一看到非零就
+中止升級，訊息只說 `git fetch failed` —— 看不出原因是標籤。
+
+跑一次這行就永久解決，之後 `jtdt update` 正常：
+
+```bash
+# Linux / macOS
+sudo git -C /opt/jt-doc-tools fetch --tags --force origin
+
+# Windows（以系統管理員身分執行 PowerShell）
+git -C "C:\Program Files\jt-doc-tools" fetch --tags --force origin
+```
+
+**不受影響的**：用 tarball 安裝（沒有 `.git`）、用 Windows 安裝程式安裝、
+或 2026-09-13 之後才安裝的。v1.15.41 起 `jtdt update` 會把分支與標籤分開拉、
+標籤一律帶 `--force`，不會再發生。
+
 ## 企業 TLS 攔截環境（更新 / 下載出現 CERTIFICATE_VERIFY_FAILED）
 
 公司若有 **TLS 檢查代理 / 防火牆**會把外部 HTTPS 憑證換成自家 CA。徵狀：

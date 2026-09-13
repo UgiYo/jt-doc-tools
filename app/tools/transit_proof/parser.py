@@ -88,26 +88,69 @@ def _to_24h(ampm: str, hh: int, mm: str) -> str:
 
 
 def _clean_address(s: str) -> str:
-    """Uber 的地址前面常掛著國碼 / 郵遞區號，而且城市名會重複一次。
+    """把 Uber 地址前面的雜訊清掉，只留真正的地址。
+
+    實際看到的前綴有好幾種（使用者 2026-09-13 截圖回報「有的有 TW 有的有
+    Taiwan」）：`TWN`、`TW`、`Taiwan`、`台灣`，而且**郵遞區號可能在國名前面
+    也可能在後面**，城市名還會重複一次。所以要**反覆剝**，不是剝一次。
 
     形狀（**杜撰的示意，不是真實地址**）：
         `TWN某某市某某市甲區一路1號`
         `00000台灣某某市乙區二街2號`
+        `Taiwan某某市甲區一路1號`
 
-    **只清掉確定是雜訊的部分**（國碼、郵遞區號、重複的城市名）——
-    里名、樓層這些對報帳的人可能有用，不要自作主張刪掉。
+    **只清掉確定是雜訊的部分** —— 里名、巷弄、樓層對報帳的人可能有用，
+    不要自作主張刪掉。
     """
     s = (s or "").strip()
-    s = re.sub(r"^TWN\s*", "", s)
-    s = re.sub(r"^\d{3,6}\s*", "", s)          # 郵遞區號
-    s = re.sub(r"^台灣|^臺灣", "", s)
-    # 「台中市台中市」「臺北市臺北市」這種重複
-    s = re.sub(r"^([\u4e00-\u9fff]{2,3}[市縣])\1", r"\1", s)
+    # 反覆剝：國名 / 國碼 / 郵遞區號可能交錯出現，剝一次不夠
+    for _ in range(4):
+        before = s
+        # **不可以用 `\b`**：中文字在 Python 眼裡也是 word 字元，
+        # 所以「TWN台中市」的 N 與 台 之間**沒有邊界**，整條規則會一次都不生效
+        # （實測：TWN / TW / Taiwan 三種前綴全都沒剝掉）。
+        # 長的要排在短的前面，否則 `TW` 會先吃掉 `Taiwan` 的前兩個字母。
+        s = re.sub(r"^(?:Taiwan|TWN|TW|R\.?O\.?C\.?|台灣|臺灣)[,，\s]*", "", s,
+                   flags=re.IGNORECASE)
+        s = re.sub(r"^\d{3,6}[-\s]*", "", s)        # 郵遞區號（3 / 5 / 6 碼）
+        s = s.lstrip(",， \t")
+        if s == before:
+            break
+    # 重複的城市名：「台中市台中市」「臺中市台中市」——
+    # **台 / 臺 要視為同一個字**，不然只有寫法一致時才清得掉。
+    m = re.match(r"^([台臺])([一-鿿]{1,2}[市縣])(.*)$", s)
+    if m:
+        rest = m.group(3)
+        m2 = re.match(r"^[台臺]" + re.escape(m.group(2)), rest)
+        if m2:
+            s = m.group(1) + m.group(2) + rest[m2.end():]
+    else:
+        m3 = re.match(r"^([一-鿿]{2,3}[市縣])\1(.*)$", s)
+        if m3:
+            s = m3.group(1) + m3.group(2)
     return s.strip()
 
 
-def _looks_like_address(line: str) -> bool:
-    return bool(re.search(r"[市縣].*(?:路|街|大道|巷|號)", line))
+#: 行程明細裡，時間下一行**不會是**這些（它們是金額、標籤或另一個時間）
+_NOT_A_PLACE = re.compile(
+    r"^\s*(?:\$|NT\$|總計|款項|行程費用|車牌號碼|車行|Uber|由.+提供|"
+    r"[0-9.]+\s*公里|上午|下午|\d{1,2}:\d{2}|$)")
+
+
+def _looks_like_place(line: str) -> bool:
+    """這一行看起來是「地點」嗎？
+
+    ⚠ **不可以要求它長得像地址。** Uber 的上下車地點有時候是**地標名稱**
+    （例如車站、賣場、大樓名），沒有路名也沒有門牌 —— 用地址的樣子去比對，
+    那一站就會被丟掉，表格上只出現一個地點
+    （2026-09-13 使用者截圖回報，同一批裡有好幾列是這樣）。
+
+    判準反過來寫：**排除**明顯不是地點的那幾種（金額、標籤、里程、另一個時間）。
+    """
+    s = (line or "").strip()
+    if not s or len(s) < 3:
+        return False
+    return not _NOT_A_PLACE.match(s)
 
 
 def parse_uber_trip(text: str) -> dict:
@@ -125,13 +168,22 @@ def parse_uber_trip(text: str) -> dict:
         date = f"{int(m.group(1)):04d}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
 
     lines = [ln.strip() for ln in (text or "").splitlines()]
-    stops: list[tuple[str, str]] = []           # (時間, 地址)
-    for i, ln in enumerate(lines[:-1]):
+    # **只看「行程詳細資訊」之後那一段**。第一頁還有叫車時間與付款時間
+    # （實測 16:58 與 17:28），從整份找的話第一個時間就是叫車時間 ——
+    # 差三分鐘、看起來完全合理，不會有人發現。
+    start = 0
+    for i, ln in enumerate(lines):
+        if "行程詳細資訊" in ln or "Trip details" in ln:
+            start = i + 1
+            break
+    stops: list[tuple[str, str]] = []           # (時間, 地點)
+    for i in range(start, len(lines) - 1):
+        ln = lines[i]
         tm = _AMPM.fullmatch(ln.replace(" ", "")) or _AMPM.fullmatch(ln)
         if not tm:
             continue
         nxt = lines[i + 1]
-        if _looks_like_address(nxt):
+        if _looks_like_place(nxt):
             stops.append((_to_24h(tm.group(1), int(tm.group(2)), tm.group(3)),
                           _clean_address(nxt)))
     depart = stops[0] if stops else ("", "")

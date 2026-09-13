@@ -198,3 +198,32 @@ def test_no_exemption_is_stale():
     """例外清單會過期 —— 檔案改名或已經修乾淨了就要拿掉。"""
     missing = [k for k in _EXEMPT if not (APP / k).exists()]
     assert not missing, f"_EXEMPT 列的模板已不存在：{missing}"
+
+
+def test_info_box_keeps_its_icon_on_the_same_line():
+    """`.info-box` 裡不可以放區塊元素 —— 圖示會被擠成自己一行。
+
+    `.info-box` 的圖示是 **inline** 的（`platform.css` 只給它
+    `vertical-align`），所以文字一旦包進 `<div>` / `<p>` / `<ul>`，
+    圖示就獨占一行，看起來像排版壞掉（2026-09-13 使用者截圖回報）。
+
+    要換行用 `<br>`。判準只看**直接子層**，巢在 `<br>` 之後的行內標記不管。
+    """
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    bad = []
+    box = re.compile(r'<div class="info-box"[^>]*>(.*?)</div>\s*(?=<|$)', re.S)
+    for p in sorted(root.glob("app/**/templates/**/*.html")):
+        text = p.read_text(encoding="utf-8")
+        for m in re.finditer(r'<div class="info-box"[^>]*>', text):
+            tail = text[m.end():m.end() + 600]
+            head = tail.split("</div>")[0]
+            blk = re.search(r"<(div|p|ul|ol|table|h[1-6])\b", head)
+            if blk:
+                line = text[: m.start()].count("\n") + 1
+                bad.append(f"{p.relative_to(root)}:{line} 裡面有 <{blk.group(1)}>")
+    assert not bad, (
+        "`.info-box` 裡有區塊元素，圖示會被擠到自己一行：\n" + "\n".join(bad)
+        + "\n要換行請用 <br>。")

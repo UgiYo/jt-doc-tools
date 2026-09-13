@@ -1,6 +1,23 @@
 **繁體中文** ｜ [English](README_en.md)
 
-# Jason Tools 文件工具箱 v1.15.40
+# Jason Tools 文件工具箱 v1.15.41
+
+> ### ⚠ 2026-09-13 之前用 git 安裝的，這一版升級前要先跑一行
+>
+> 本專案在 2026-09-13 改寫過 git 歷史（移除一筆誤入版控的資料），所有標籤都
+> 指向新的 commit。**舊版的 `jtdt update` 會在 `git fetch --tags` 這一步以
+> 「`would clobber existing tag`」失敗**，訊息只說 `git fetch failed`，
+> 看不出原因是標籤。跑一次下面這行就永久解決：
+>
+> ```bash
+> # Linux / macOS
+> sudo git -C /opt/jt-doc-tools fetch --tags --force origin
+> # Windows（以系統管理員身分執行 PowerShell）
+> git -C "C:\Program Files\jt-doc-tools" fetch --tags --force origin
+> ```
+>
+> 之後 `jtdt update` 恢復正常。**不受影響**：tarball 安裝、Windows 安裝程式、
+> 或 2026-09-13 之後才安裝的。v1.15.41 起已修正，不會再發生。
 
 > 整合式 PDF / Office 文件處理平台，48 個工具整合解決：**填單用印**、**浮水印**、**多頁合併 / 拆分 / 旋轉 / 整理**、**轉檔**、**掃描拼合**、**去識別化**、**字數統計**、**註解整理**、**差異比對**、**逐句翻譯**、**清單處理**、**電子發票處理**、**統編查詢**、**頁面編輯器**、**加密 / 解密**等。
 >

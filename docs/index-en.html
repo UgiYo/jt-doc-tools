@@ -1278,6 +1278,8 @@
       </div>
       <div>
         <strong>Upgrade / remove</strong>
+        <p class="upg-warn"><b>⚠ Installed with git before 2026-09-13? Run one command before this upgrade.</b>
+        The project's git history was rewritten (to remove a piece of data that should never have been committed), so older <code>jtdt update</code> fails at <code>git fetch --tags</code> with <code>would clobber existing tag</code> and reports only <code>git fetch failed</code>. Run <code>git -C &lt;install directory&gt; fetch --tags --force origin</code> once and it is fixed for good. Tarball installs and the Windows installer are unaffected; v1.15.41 onwards handles it.</p>
         <div class="cmd-block">
           <div class="cmd-os">Linux / macOS</div>
           <div><code>sudo jtdt update</code></div>

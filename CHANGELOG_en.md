@@ -11,6 +11,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.41] - 2026-09-13
+
+### `jtdt update` could be blocked by tags that had moved
+
+Tags move — a release gets re-tagged, or history upstream is rewritten. When the
+local tag points at one commit and the remote at another, `git fetch --tags`
+without `--force` reports `would clobber existing tag` for each and **exits 1**.
+`jtdt update` treated that as a failed fetch, aborted the upgrade and restored the
+previous state, saying only `git fetch failed` — so **every git-based install
+would stop updating**, with nothing to suggest tags were the cause.
+
+Measured on an untouched machine: `git fetch --tags origin` → **1**;
+`git fetch origin` → 0; `git fetch --tags --force origin` → 0.
+
+Branches and tags are now fetched separately: **the branch is required, the tags
+are a bonus** — an upgrade only needs `origin/main`. A failed tag fetch prints a
+note instead of stopping the upgrade, and tags are always fetched with `--force`.
+
+> An install that is already stuck recovers with one command, after which
+> `jtdt update` works again:
+>
+> ```bash
+> git -C <install directory> fetch --tags --force origin
+> ```
+
+---
+
 ## [1.15.40] - 2026-09-13
 
 ### Dragging the four corners: the handles used the box, but the picture is drawn inside it
