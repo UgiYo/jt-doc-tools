@@ -58,9 +58,11 @@
       <div class="muted">{{ tr('用途是縮小檔案，不是讓文字更清楚 —— 實測轉成黑白會把中文的細筆畫吃掉，文字辨識率反而從 0.775 掉到 0.108。') }}</div>
     </div>
   </div>
+  {# 「開始拉正」**不放這裡** —— 它要在使用者看過「修正前後」之後才按
+     （使用者 2026-09-13：「開始拉正按鈕應該放修正前後的下面」）。
+     這裡只留「重新預覽」，因為它產生的正是下面那一塊。 #}
   <div class="ds-actions">
     <button class="btn" id="dsPreview" type="button">{{ icon('eye') }} {{ tr('預覽這一頁的修正結果') }}</button>
-    <button class="btn btn-primary" id="dsGo" type="button">{{ icon('play') }} {{ tr('開始拉正') }}</button>
   </div>
 </div>
 
@@ -142,6 +144,10 @@
         <div class="ds-ph" id="dsPhAfter">{{ tr('按「預覽這一頁的修正結果」') }}</div>
       </div>
     </figure>
+  </div>
+  {# 看完修正前後才按這顆 —— 位置就是它在流程裡的位置。 #}
+  <div class="ds-actions">
+    <button class="btn btn-primary" id="dsGo" type="button">{{ icon('play') }} {{ tr('開始拉正（整份文件）') }}</button>
   </div>
 </div>
 
@@ -322,12 +328,28 @@
     img.src = url;
   }
 
+  //: 只把某一格切成「處理中 ＋ spinner」（還沒有圖可以放的時候用）。
+  //  `showImg` 要有 URL 才能用 —— 而重新計算的那幾秒正好是**還沒有 URL**
+  //  的時候，所以需要這一支。
+  function showBusy(imgId, phId, text) {
+    const img = $(imgId), ph = $(phId);
+    if (!img || !ph) return;
+    img.hidden = true;
+    ph.hidden = false;
+    ph.classList.add('is-busy');
+    ph.textContent = text;
+  }
+
   async function drawPreview() {
     if (!uploadId) return;
     const page = curPage();
     const token = ++pvToken;
     $('dsPvPanel').hidden = false;
     $('dsPvStat').textContent = tr('產生預覽中…');
+    // **右邊要立刻進處理中** —— 不然拖完四個角之後，畫面上還掛著**上一次**
+    // 的結果好幾秒，看起來像「拉了沒反應」，而使用者會再拖一次
+    // （2026-09-13 使用者回報）。
+    showBusy('dsPvAfter', 'dsPhAfter', tr('重新計算中…'));
     showImg('dsPvBefore', 'dsPhBefore',
             `/tools/doc-straighten/thumb/${uploadId}/${page}`,
             tr('載入原稿…'), tr('這一頁的原稿載不出來'));

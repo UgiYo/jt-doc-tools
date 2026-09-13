@@ -462,7 +462,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 
 <!-- BEGIN test-index (由 tools/build_test_plan_index.py 產生，不要手改) -->
 
-共 **261 支測試檔**。說明取自每支檔案自己的開頭說明，
+共 **262 支測試檔**。說明取自每支檔案自己的開頭說明，
 跑 `python tools/build_test_plan_index.py` 重建。
 
 > 這裡**刻意不列函式數** —— 那個數字每加一條測試就會變，
@@ -712,6 +712,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_ui_locale.py` | 介面語言切換端點 `/ui-locale` 的安全性（開放重導） |
 | `test_update_backup.py` | 升級前的備份：**該留的要留、空間不夠要在停服務之前就擋下來** |
 | `test_update_fetch_survives_moved_tags.py` | `jtdt update` 的 fetch 不可以被「移動過的標籤」擋死 |
+| `test_upgrade_notice_stays.py` | 改寫歷史之後的升級注意事項**要一直留著**（使用者 2026-09-13 指示） |
 | `test_upgrade_v1_14_6.py` | 升級到 v1.14.6：既有客戶的資料目錄要能無痛接上 |
 | `test_upload_limits.py` | 這台機器實際能收多大的檔案 —— 系統狀態頁的「可上傳的檔案大小」 |
 | `test_upload_validation_parity.py` | 上傳的檔案不是 PDF 時要回 400，不是 500 |

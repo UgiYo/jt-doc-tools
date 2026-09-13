@@ -11,6 +11,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.42] - 2026-09-14
+
+### Document straighten: button placement and the state while recalculating
+
+* **"Straighten" moved below the before/after comparison** — it is pressed after
+  looking at the result, so that is where it belongs. The options panel keeps only
+  the preview button, which is what produces the comparison.
+* **Dragging a corner now puts the right-hand pane into "Recalculating…" with a
+  spinner straight away.** It previously kept showing the *previous* result until
+  the server replied, which reads as "nothing happened" and invites a second drag.
+
+---
+
 ## [1.15.41] - 2026-09-13
 
 ### `jtdt update` could be blocked by tags that had moved

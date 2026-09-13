@@ -4866,5 +4866,7 @@
  "拉台鐵 / 高鐵 / Uber 乘車證明 PDF，自動整理日期 / 交通工具 / 起訖 / 費用成表格，可批次匯出報帳。": "Pulls Taiwan Railway, THSR and Uber ride receipts into one table — date, transport, route and fare — ready to export for expenses.",
  "Uber 請上傳「行程收據」（Trip receipt）—— 就是有上下車時間、地址與總計的那一份。": "For Uber, upload the trip receipt — the one with the pickup and drop-off times, the addresses and the total.",
  "「電子發票證明聯」開的是 Uber 處理費（實際上只有幾元），不是乘車證明；行程收據的「總計」已經含了那筆處理費。": "The Taiwanese e-invoice covers only Uber's booking fee (a few dollars), not the ride itself; the trip receipt's total already includes that fee.",
- "可一次多張 · 台鐵購票證明 / 高鐵電子車票證明 / Uber 行程收據 PDF": "Several at once · Taiwan Railway, THSR and Uber trip receipts (PDF)"
+ "可一次多張 · 台鐵購票證明 / 高鐵電子車票證明 / Uber 行程收據 PDF": "Several at once · Taiwan Railway, THSR and Uber trip receipts (PDF)",
+ "重新計算中…": "Recalculating…",
+ "開始拉正（整份文件）": "Straighten the whole document"
 }
