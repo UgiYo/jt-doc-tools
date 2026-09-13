@@ -119,10 +119,20 @@
       <div class="ds-stage" id="dsStage">
         <img id="dsPvBefore" alt="{{ tr('修正前') }}" hidden />
         <div class="ds-ph" id="dsPhBefore">{{ tr('上傳檔案後顯示') }}</div>
-        <svg class="ds-quad" id="dsQuadSvg" hidden viewBox="0 0 100 100" preserveAspectRatio="none">
-          <polygon id="dsQuadPoly" points="" />
-        </svg>
-        <div class="ds-handles" id="dsHandles" hidden></div>
+        {# **疊圖層要對齊「真正畫出來的那塊」，不是圖框。**
+           圖框是 `height: 46vh` ＋ `object-fit: contain`（為了左右兩張等高），
+           比例不同的照片會在上下留白 —— 實測 541×972 的框裡，圖只畫了
+           541×766，上下各空 103px。手柄與四邊形如果用框的比例算，**不只
+           放大鏡對不上，送去伺服器的四個角座標也是錯的**
+           （2026-09-13 使用者回報「十字準星跟實際落點不一樣」）。
+           `#dsArt` 由 `layoutArt()` 依 contain 的算法擺到那塊上面，
+           裡面的一切就都可以維持 0~1 的正規化座標。 #}
+        <div class="ds-art" id="dsArt">
+          <svg class="ds-quad" id="dsQuadSvg" hidden viewBox="0 0 100 100" preserveAspectRatio="none">
+            <polygon id="dsQuadPoly" points="" />
+          </svg>
+          <div class="ds-handles" id="dsHandles" hidden></div>
+        </div>
       </div>
     </figure>
     <figure>
@@ -172,6 +182,10 @@
   #dsOptPanel .form-row, #dsPvPanel .form-row { align-items: flex-start; margin: 10px 0; }
   #dsOptPanel .form-row > label, #dsPvPanel .form-row > label { padding-top: 7px; }
   .ds-stage { position: relative; line-height: 0; }
+  /* 疊圖層的座標系：由 `layoutArt()` 擺到「圖真正畫出來的那塊」上面。 */
+  .ds-art { position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+            pointer-events: none; }
+  .ds-art > * { pointer-events: auto; }
   /* 圖還沒好時的佔位：**不可以讓瀏覽器畫破圖 icon**。高度用 aspect-ratio 撐著，
      圖換上來時版面不會跳。 */
   .ds-ph { display: flex; align-items: center; justify-content: center;
@@ -295,6 +309,9 @@
       ph.hidden = true;
       ph.classList.remove('is-busy');
       img.hidden = false;
+      // 圖真正的尺寸現在才知道 —— 疊圖層要跟著重新對齊那塊
+      // （`layoutArt` 在圖還沒載好時只會先攤平）。
+      if (imgId === 'dsPvBefore') { layoutArt(); renderQuad(); }
     };
     img.onerror = () => {
       img.hidden = true;
@@ -384,6 +401,7 @@
     return (ov && ov.quad) || autoQuad;
   }
   function renderQuad() {
+    layoutArt();                 // 視窗大小、換頁、切模式都可能改變那塊的位置
     const on = quadEditOn();
     const q = quadNow();
     const svg = $('dsQuadSvg'), box = $('dsHandles');
@@ -409,10 +427,36 @@
     });
   }
 
+  //: 把 `#dsArt` 擺到「圖真正畫出來的那塊」上面。
+  //
+  //  圖框是 `height: 46vh` ＋ `object-fit: contain`，比例不同的照片會上下
+  //  （或左右）留白。**疊圖層必須跟著那塊走**，否則手柄看起來在紙角上、
+  //  換算出去的座標卻不是（使用者 2026-09-13 從放大鏡看出來的就是這個）。
+  function layoutArt() {
+    const img = $('dsPvBefore'), art = $('dsArt'), stage = $('dsStage');
+    if (!art) return;
+    const bw = stage.clientWidth, bh = stage.clientHeight;
+    const nw = img.naturalWidth, nh = img.naturalHeight;
+    if (!bw || !bh || !nw || !nh) {          // 圖還沒載好：先攤平，等 onload 再算
+      art.style.left = '0'; art.style.top = '0';
+      art.style.width = '100%'; art.style.height = '100%';
+      return;
+    }
+    const s = Math.min(bw / nw, bh / nh);    // 這就是 contain 的縮放
+    const dw = nw * s, dh = nh * s;
+    art.style.left = ((bw - dw) / 2) + 'px';
+    art.style.top = ((bh - dh) / 2) + 'px';
+    art.style.width = dw + 'px';
+    art.style.height = dh + 'px';
+  }
+  window.addEventListener('resize', () => { layoutArt(); });
+
   function wireDrag(h) {
     let loupe = null;
     const move = (ev) => {
-      const stage = $('dsStage').getBoundingClientRect();
+      // **用 `#dsArt` 不是 `#dsStage`** —— 框比圖高（contain 的留白），
+      // 用框換算會讓 0~1 對到錯的畫素。
+      const stage = $('dsArt').getBoundingClientRect();
       if (!stage.width || !stage.height) return;
       const x = Math.min(1, Math.max(0, (ev.clientX - stage.left) / stage.width));
       const y = Math.min(1, Math.max(0, (ev.clientY - stage.top) / stage.height));
@@ -431,9 +475,15 @@
         loupe.style.left = (x * 100) + '%';
         loupe.style.top = (y * 100) + '%';
         loupe.style.backgroundImage = `url("${img.currentSrc || img.src}")`;
+        // 背景尺寸用**畫出來那塊**的尺寸放大，比例才跟畫面一致；
+        // 用圖框的高度會把背景拉長，十字準星指到的畫素就不是手柄那一點。
         loupe.style.backgroundSize = (stage.width * 2.5) + 'px ' + (stage.height * 2.5) + 'px';
+        // 取樣點要落在**十字準星**上。放大鏡是 128px 的 border-box、邊框 2px，
+        // 而背景的原點是 padding box（預設 `background-origin`）——
+        // 準星在 padding box 的正中央 62px 處，所以這裡是 62 不是 64，
+        // 差的那 2px 在 2.5 倍下就是將近一個畫素。
         loupe.style.backgroundPosition =
-          `${64 - x * stage.width * 2.5}px ${64 - y * stage.height * 2.5}px`;
+          `${62 - x * stage.width * 2.5}px ${62 - y * stage.height * 2.5}px`;
       }
     };
     const up = () => {

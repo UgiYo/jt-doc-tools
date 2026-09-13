@@ -4858,5 +4858,13 @@
  "多數情況夠用": "Good enough most of the time",
  "抓不準時用這個": "Use this when detection is off",
  "用途是縮小檔案，不是讓文字更清楚 —— 實測轉成黑白會把中文的細筆畫吃掉，文字辨識率反而從 0.775 掉到 0.108。": "This makes the file smaller; it does not make the text clearer. Measured: converting to black and white eats the fine strokes of Chinese characters and drops recognition accuracy from 0.775 to 0.108.",
- "選「自己拉四個角」之後，在左邊「修正前」的圖上拖曳四個圓點對準紙張的角；自動抓到的位置會先填好，通常只要修不準的那一兩個。": "Choose “Place the corners yourself”, then drag the four dots on the “Before” image onto the corners of the paper. The detected positions are filled in first, so usually only one or two need adjusting."
+ "選「自己拉四個角」之後，在左邊「修正前」的圖上拖曳四個圓點對準紙張的角；自動抓到的位置會先填好，通常只要修不準的那一兩個。": "Choose “Place the corners yourself”, then drag the four dots on the “Before” image onto the corners of the paper. The detected positions are filled in first, so usually only one or two need adjusting.",
+ "里程 (km)": "Distance (km)",
+ "Uber 處理費": "Uber booking fee",
+ "拉一批台鐵「購票證明」、高鐵「電子車票證明」或 Uber 行程收據 PDF 進來，自動抽出日期 / 交通工具 / 起訖 / 費用等欄位，整理成表格後可多格式匯出報帳（CSV / XLSX / ODS / JSON / XML / TXT / MD）。預設顯示日期、交通工具、來源-目的、費用，欄位可在「設定」自訂。": "Drop in a batch of Taiwan Railway purchase certificates, THSR electronic ticket certificates or Uber trip receipts. Date, mode of transport, route and fare are extracted into a table you can export for expenses (CSV / XLSX / ODS / JSON / XML / TXT / MD). Date, transport, route and fare are shown by default; columns are configurable under Settings.",
+ "可一次多張 · 支援台鐵購票證明 / 高鐵電子車票證明 / Uber 行程收據 PDF": "Several at once · Taiwan Railway, THSR and Uber receipts (PDF)",
+ "拉台鐵 / 高鐵 / Uber 乘車證明 PDF，自動整理日期 / 交通工具 / 起訖 / 費用成表格，可批次匯出報帳。": "Pulls Taiwan Railway, THSR and Uber ride receipts into one table — date, transport, route and fare — ready to export for expenses.",
+ "Uber 請上傳「行程收據」（Trip receipt）—— 就是有上下車時間、地址與總計的那一份。": "For Uber, upload the trip receipt — the one with the pickup and drop-off times, the addresses and the total.",
+ "「電子發票證明聯」開的是 Uber 處理費（實際上只有幾元），不是乘車證明；行程收據的「總計」已經含了那筆處理費。": "The Taiwanese e-invoice covers only Uber's booking fee (a few dollars), not the ride itself; the trip receipt's total already includes that fee.",
+ "可一次多張 · 台鐵購票證明 / 高鐵電子車票證明 / Uber 行程收據 PDF": "Several at once · Taiwan Railway, THSR and Uber trip receipts (PDF)"
 }

@@ -29,9 +29,22 @@ def _request_user(request: Request):
 
 
 def _extract_text(pdf_bytes: bytes) -> str:
-    """抽 PDF 全文字。乘車證明是官方 PDF、文字層正常，直接串接各頁。"""
+    """抽 PDF 全文字 ＋ **把連結目標接在後面**。
+
+    Uber 的行程收據**沒有票號**，唯一穩定的識別是第一頁那個
+    `riders.uber.com/trips/<行程編號>` 連結 —— 它在文字層裡看不到，
+    只存在於連結註解。沒有它的話，同一天同路線同車資的兩趟會被去重
+    判成重複而**安靜丟掉一趟**（鐵路票有票號，所以以前不會遇到）。
+    """
+    out = []
     with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
-        return "\n".join(page.get_text() for page in doc)
+        for page in doc:
+            out.append(page.get_text())
+            for link in page.get_links():
+                uri = link.get("uri")
+                if uri:
+                    out.append(uri)
+    return "\n".join(out)
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -235,7 +248,7 @@ async def export(request: Request):
 # ---- 對外 API：單次上傳一批 PDF，直接回解析 JSON（不進 buffer）----
 @router.post("/api/transit-proof", include_in_schema=True)
 async def api_transit_proof(request: Request, files: List[UploadFile] = File(...)):
-    """解析一批台鐵 / 高鐵乘車證明 PDF，回結構化 JSON（不寫入使用者清單）。"""
+    """解析一批台鐵 / 高鐵 / Uber 乘車證明 PDF，回結構化 JSON（不寫入使用者清單）。"""
     if not files:
         raise HTTPException(400, "沒有檔案")
     if len(files) > _MAX_FILES:

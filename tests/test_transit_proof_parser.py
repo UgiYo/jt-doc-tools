@@ -108,3 +108,115 @@ def test_roc_date_edge():
     d = parser.parse_text(_HSR)
     from app.tools.transit_proof import settings as s
     assert s.apply_format("date", d["date"], {"date": "roc"}) == "115/06/09"
+
+
+# ---------------------------------------------------------------------------
+# Uber（2026-09-13 使用者提供兩份真實檔案後新增）
+#
+# 版面照真實收據，**資料全部是杜撰的**（地址 / 車牌 / 金額 / 統編 / 發票號碼）。
+# 真實樣本留在 temp_pdfs/（不進版控），驗收走部署。
+#
+# 兩份檔案是**同一筆行程**：
+#   * 行程收據 —— 有里程、上下車時間與地址、車牌、總計。
+#   * 電子發票證明聯 —— **只開「Uber 處理費」那 10 元**（計程車行程本身不開）。
+#     行程收據的「總計」已經含了這 10 元，所以發票**不可以自成一列**。
+# ---------------------------------------------------------------------------
+
+_UBER_TRIP = """2026 年 8 月 18 日
+下午 4:58
+測試，感謝您的搭乘
+希望您對今晚的搭乘體驗感到滿意。
+總計
+$410.00
+$33.00
+已賺取 Uber One 點數
+Uber處理費 
+$10.00
+行程費用
+$413.00
+Uber One 點數
+-$13.00
+款項
+Visa ••••0000 (測試卡)
+2026/8/18 下午 5:28
+請造訪行程頁面, 瞭解詳細資訊，包括電子發票 (計程車行程不適用於電子發票)。
+車行／車隊：
+測試車隊 甲-１
+行程詳細資訊
+Electric
+10.79 公里, 26 minutes
+車牌號碼：
+AAA000
+下午 5:01
+TWN測試市測試市甲區一路1號
+下午 5:27
+40000台灣測試市乙區二街2號
+由測試 王提供的行程
+"""
+
+_UBER_INVOICE = """　
+優步福爾摩沙股份有限公司
+電子發票證明聯
+115年07-08月
+  AA-00000000
+2026-08-18 17:28:11 格式:25
+隨機碼:0000
+總計:10
+賣方:00000000
+買方:11111111
+交易明細資料
+發票號碼:AA00000000
+Uber 處理費
+     10*1
+10TX
+總計:
+10
+銷售額(應稅):10
+稅額:0
+交易日期: 18 Aug 2026
+"""
+
+
+def test_uber_trip_is_detected_and_parsed():
+    assert parser.detect_kind(_UBER_TRIP) == "uber_trip"
+    d = parser.parse_text(_UBER_TRIP)
+    assert d["transport"] == "Uber"
+    assert d["date"] == "2026-08-18"
+    # **實付金額是「總計」那一筆** —— 行程費用 413 與處理費 10 都是明細
+    assert d["fare"] == 410
+    assert d["vehicle"] == "AAA000"
+    assert d["distance"] == "10.79"
+
+
+def test_uber_takes_the_pickup_and_dropoff_times_not_the_other_two():
+    """收據上有**四個時間**：叫車 16:58、上車 17:01、下車 17:27、付款 17:28。
+
+    直接抓第一個時間會把**叫車時間**當成上車時間（差三分鐘，看起來很合理，
+    所以不會有人發現）。判準是「時間的下一行是地址」——只有上下車是這個形狀。
+    """
+    d = parser.parse_text(_UBER_TRIP)
+    assert d["depart_time"] == "17:01", "抓到的可能是叫車時間"
+    assert d["arrive_time"] == "17:27", "抓到的可能是付款時間"
+
+
+def test_uber_addresses_drop_the_noise_but_keep_the_address():
+    d = parser.parse_text(_UBER_TRIP)
+    # 國碼 / 郵遞區號 / 重複的城市名要清掉
+    assert d["origin"] == "測試市甲區一路1號", d["origin"]
+    assert d["destination"] == "測試市乙區二街2號", d["destination"]
+
+
+def test_uber_fee_invoice_is_detected_separately():
+    assert parser.detect_kind(_UBER_INVOICE) == "uber_invoice"
+    d = parser.parse_text(_UBER_INVOICE)
+    assert d["kind"] == "uber_invoice"
+    assert d["ticket_no"] == "AA00000000"
+    assert d["buyer_tax_id"] == "11111111"
+    assert d["fee_amount"] == 10
+    assert d["date"] == "2026-08-18"
+
+
+def test_the_invoice_is_not_mistaken_for_a_rail_ticket():
+    """發票裡有「總計」「銷售額」這些字 —— 不可以被判成高鐵證明。"""
+    assert parser.detect_kind(_UBER_INVOICE) != "thsrc"
+    assert parser.detect_kind(_UBER_TRIP) not in ("thsrc", "tra")

@@ -21,7 +21,7 @@ from .core.job_manager import job_manager
 from .logging_setup import get_logger, setup_logging
 from .tool_registry import discover_tools, mount_tools
 
-VERSION = "1.15.39"
+VERSION = "1.15.40"
 
 setup_logging("DEBUG" if settings.debug else "INFO")
 logger = get_logger(__name__)
@@ -379,7 +379,7 @@ _TOOL_ALIASES = {
     "pdf-seam-stamp":     "seam seal perforation straddle chop stamp across pages tamper evident contract tender anti swap sliced rotate jitter random 騎縫章 騎縫印 騎縫 跨頁章 防抽換 防換頁 抽換 合約 標案 投標 用印 蓋章 切片 分片 側邊 對開 亂數 角度",
     "pdf-bookmark":       "bookmark bookmarks outline toc table of contents index navigation nested level chapter merge combine tender annual report 書籤 大綱 目錄 導覽 索引 章節 層級 巢狀 合併 串接 標案 投標 年報 結案報告 目錄頁 可點 跳頁 加書籤 建目錄",
     "submission-check":   "submission check submit review verify validate checklist pre-flight preflight completeness case bid tender application 送件 送審 投標 標案 申請 檢核 檢查 核對 清單 缺件 漏件 齊備 完整性 驗收 案件 送出前",
-    "transit-proof":      "transit proof commute travel receipt ticket hsr tra mrt bus taxi easycard ipass reimbursement expense 乘車 乘車證明 交通 車票 高鐵 台鐵 捷運 公車 計程車 悠遊卡 一卡通 差旅 出差 報帳 核銷 憑證 整理",
+    "transit-proof":      "transit proof commute travel receipt ticket hsr tra mrt bus taxi uber rideshare easycard ipass reimbursement expense 乘車 乘車證明 交通 車票 高鐵 台鐵 捷運 公車 計程車 Uber 優步 叫車 網約車 行程收據 悠遊卡 一卡通 差旅 出差 報帳 核銷 憑證 整理",
 }
 # Per-tool color class. Both home page and sidebar use the same palette
 # classes, so a given tool always shows the same colored tile regardless

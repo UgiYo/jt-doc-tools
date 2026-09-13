@@ -168,6 +168,39 @@ def _quad_score(s: np.ndarray, mask: np.ndarray, quad: np.ndarray):
             (full & inside).sum() / max(1, int(inside.sum())))
 
 
+def _nothing_to_correct(q: np.ndarray, shape) -> bool:
+    """這個四邊形**做透視只會裁掉東西**嗎？
+
+    掃描件與正面拍的照片沒有透視可以校正 —— 這時候挑出來的候選就是那個
+    「完美矩形」（最小外接矩形），內角極差 0°、對邊等長。如果它又佔滿大半
+    畫面，代表旁邊也沒有桌面可以裁，那麼**唯一會發生的事就是把邊緣切掉**。
+
+    這不是假設，是用 82 張真實語料量出來的（2026-09-13）：
+
+    | | 佔畫面 | 內角極差 | 對邊差 |
+    |---|---|---|---|
+    | 掃描件 / 正面照（16 張，**其中兩張切掉了抬頭文字**）| 0.42~1.00 | **0.0°** | **0.000** |
+    | 真的有透視的翻拍（4 張）| 0.20~0.85 | 8.4~32.8° | 0.12~0.56 |
+
+    切掉的那兩張都是遮罩漏了頁面最上面一條（那裡有抬頭），四邊形就跟著切在
+    那裡。**與其再去調遮罩，不如認清楚「這種圖本來就不需要透視」** ——
+    回 None 走純拉正那條路，一個畫素都不會被裁掉。
+
+    要精準貼齊紙緣仍然有「自己拉四個角」那條路。
+    """
+    h, w = shape[:2]
+    area = cv2.contourArea(q.astype(np.float32)) / float(w * h)
+    if area < 0.70:                     # 旁邊還有很多背景 —— 裁掉是有價值的
+        return False
+    if quad_angle_range(q) > 1.0:       # 真的是斜的 —— 透視校正有意義
+        return False
+    d = lambda a, b: float(np.hypot(*(q[a] - q[b])))
+    top, bot, left, right = d(0, 1), d(3, 2), d(0, 3), d(1, 2)
+    skew = max(abs(top - bot) / max(top, bot, 1e-6),
+               abs(left - right) / max(left, right, 1e-6))
+    return skew <= 0.02                 # 對邊等長 = 沒有透視
+
+
 def find_page_quad(g: np.ndarray, rgb=None):
     """手機翻拍：找紙張的四邊形。回 None 表示沒把握 → 走純拉正那條路。
 
@@ -229,6 +262,9 @@ def find_page_quad(g: np.ndarray, rgb=None):
         # 墨水不可以比最好的差 1% 以上；在這個前提下挑純度最高的
         if ink >= top_ink - 0.01 and pur > chosen[1]:
             chosen = (ink, pur, full)
+    # **沒有透視可以校正的就不要做** —— 做了只會把邊緣切掉（見 `_nothing_to_correct`）
+    if _nothing_to_correct(chosen[2], g.shape):
+        return None
     return chosen[2]
 
 

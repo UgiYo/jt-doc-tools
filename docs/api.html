@@ -1098,7 +1098,7 @@ curl <span class="hl-flag">-X</span> <span class="hl-method">DELETE</span> <span
       <section class="doc-section" data-sec="乘車證明整理" data-title="乘車證明整理" hidden>
 <div class="doc-crumb">9. 商務查詢 API</div>
 <h4 id="乘車證明整理">乘車證明整理</h4>
-<p>解析一批台鐵 / 高鐵乘車證明 PDF，回結構化 JSON。<strong>只解析、不寫入使用者的清單</strong>。</p>
+<p>解析一批台鐵 / 高鐵 / Uber 乘車證明 PDF，回結構化 JSON。<strong>只解析、不寫入使用者的清單</strong>。</p>
 <pre><code class="lang-text"><span class="hl-method">POST</span> /tools/transit-proof/api/transit-proof</code></pre>
 <div class="table-wrap"><table><thead><tr><th>參數</th><th>類型</th><th>必填</th><th>說明</th></tr></thead><tbody><tr><td><code>files</code></td><td>file[]</td><td>✓</td><td>乘車證明 PDF，一次最多 200 個</td></tr></tbody></table></div>
 <pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/transit-proof/api/transit-proof</span> \

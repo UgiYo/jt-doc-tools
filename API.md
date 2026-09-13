@@ -1605,7 +1605,7 @@ curl -X DELETE http://localhost:8765/tools/submission-check/api/self-entities/ab
 
 ### 乘車證明整理
 
-解析一批台鐵 / 高鐵乘車證明 PDF，回結構化 JSON。**只解析、不寫入使用者的清單**。
+解析一批台鐵 / 高鐵 / Uber 乘車證明 PDF，回結構化 JSON。**只解析、不寫入使用者的清單**。
 
 ```text
 POST /tools/transit-proof/api/transit-proof

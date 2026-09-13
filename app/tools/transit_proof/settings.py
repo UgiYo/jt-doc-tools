@@ -56,6 +56,10 @@ FIELD_DEFINITIONS = [
     {"id": "origin",         "label": "起站",       "default_visible": False, "default_order": 8},
     {"id": "destination",    "label": "到站",       "default_visible": False, "default_order": 9},
     {"id": "train",          "label": "車種 / 車次", "default_visible": False, "default_order": 10},
+    # Uber（計程車）才有的兩欄 —— 鐵路證明留空。里程在很多公司是計程車報帳的
+    # 必填欄位，車牌則是核銷時對得回司機的唯一線索。
+    {"id": "vehicle",        "label": "車牌",       "default_visible": False, "default_order": 10.3},
+    {"id": "distance",       "label": "里程 (km)",  "default_visible": False, "default_order": 10.6},
     {"id": "ticket_type",    "label": "票種",       "default_visible": False, "default_order": 11},
     {"id": "ticket_no",      "label": "票號 / 卡號", "default_visible": False, "default_order": 12},
     {"id": "amount_untaxed", "label": "銷售額",     "default_visible": False, "default_order": 13},

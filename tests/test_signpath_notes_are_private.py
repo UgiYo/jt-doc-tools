@@ -118,3 +118,38 @@ def test_no_signpath_note_sits_in_the_public_tree_at_all():
     assert not unexpected, (
         f"公開樹裡出現沒預期的 SignPath 筆記：{unexpected} —— "
         "內部 SOP 放開發樹（例如 docs-share/），不要放進 github/")
+
+
+#: 公開樹裡**不該解釋「為什麼要擋這些筆記」**。規則本身放著沒關係
+#: （`.gitignore` 一定看得到那幾行），但「哪一份外流過、外流多久、裡面有什麼」
+#: 屬於內部事故記錄 —— 寫進公開的更新記錄或 `.gitignore` 註解等於主動告訴
+#: 所有人「這裡有東西、曾經有洞」（使用者 2026-09-13 指出）。
+#: 理由寫在開發樹的 CLAUDE.md 就好。
+_LEAK_WORDS = ("Organization ID", "organization-id", "機密", "外洩", "被公開",
+               "公開了四天", "secret", "API token")
+
+
+def test_the_public_tree_does_not_explain_why_those_notes_are_private():
+    bad: list[str] = []
+    for p in PUB.rglob("*"):
+        if not p.is_file() or p.suffix.lower() not in {".md", ".html", ".txt", ""}:
+            continue
+        if p.name.startswith("SIGNPATH-"):      # 那些筆記本身不在公開樹（另有守門）
+            continue
+        rel = p.relative_to(PUB).as_posix()
+        if rel.startswith("tests/"):            # 守門自己要寫得出這些字
+            continue
+        try:
+            text = p.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        for i, line in enumerate(text.splitlines(), 1):
+            if "SIGNPATH-" not in line.upper() and "SignPath 筆記" not in line:
+                continue
+            window = "\n".join(text.splitlines()[max(0, i - 4):i + 3])
+            hit = [w for w in _LEAK_WORDS if w.lower() in window.lower()]
+            if hit:
+                bad.append(f"{rel}:{i} 附近提到 {hit}")
+    assert not bad, (
+        "公開樹裡解釋了內部筆記為什麼要擋（含外流細節）：\n" + "\n".join(bad)
+        + "\n規則留著就好，理由寫在開發樹的 CLAUDE.md。")

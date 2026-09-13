@@ -92,7 +92,6 @@
  "電子發票處理": "e-Invoice processing",
  "掃台灣電子發票 QR 解出發票號碼 / 日期 / 金額 / 統編，自動帶賣方名 + 行業 + 會計科目（規則 + 可選 LLM），支援報帳檢查 + 當期檢查，匯出 7 種格式": "Scan a Taiwan e-invoice QR code to read the invoice number, date, amount and tax ID, then fill in the seller, industry and accounting category (rules plus optional LLM); expense and period checks included, with export in seven formats",
  "乘車證明整理": "Travel receipts",
- "拉台鐵 / 高鐵乘車證明 PDF，自動整理日期 / 交通工具 / 來源-目的 / 費用成表格，欄位可自訂，匯出 7 種格式報帳": "Turn rail travel receipts into a table of date, service, origin-destination and fare with configurable columns, exportable in seven formats for expense claims",
  "統編查詢": "Company ID lookup",
  "8 位統編反查，或公司 / 機關 / 學校名稱、地址、行業模糊搜尋；含類別篩選 + 批次查詢 + CSV 匯出": "Look up an 8-digit tax ID, or search company, agency and school names, addresses and industries; category filters, batch lookup and CSV export included",
  "格式轉換": "Conversion",
@@ -509,5 +508,6 @@
  "文件拉正": "Document straightening",
  "把拍歪、掃歪的文件拉正，裁掉黑邊、去除不勻的底色；手機翻拍會抓出紙張四個角做透視校正，逐頁回報修正角度與殘留歪斜。收 PDF、圖片與文書檔（文書檔輸入時需引擎）": "Straightens documents photographed or scanned at an angle, trims dark borders and evens out the background; for phone photos it finds the four corners and corrects the perspective, reporting the correction angle and residual skew for every page. Takes PDF, images and office documents (office input needs the conversion engine)",
  "27 個工具走背景作業": "27 tools run as background jobs",
- "使用者清單直接顯示<b>線上人數</b>（同一個人開三個瀏覽器算一位），每個帳號可以看目前的<b>登入裝置</b> —— 瀏覽器與作業系統、來源位址、最後活動時間 —— 並<b>個別或全部強制登出</b>，動作留在稽核記錄裡。帳號可能外洩時，不必改密碼就能先把所有裝置踢掉。": "The user list shows <b>how many people are online</b> (one person with three browsers counts once), and each account shows its current <b>signed-in devices</b>: browser and operating system, source address, last activity; which can be <b>signed out individually or all at once</b>, with the action recorded in the audit log. If an account may have been compromised, every device can be kicked out before the password is even changed."
+ "使用者清單直接顯示<b>線上人數</b>（同一個人開三個瀏覽器算一位），每個帳號可以看目前的<b>登入裝置</b> —— 瀏覽器與作業系統、來源位址、最後活動時間 —— 並<b>個別或全部強制登出</b>，動作留在稽核記錄裡。帳號可能外洩時，不必改密碼就能先把所有裝置踢掉。": "The user list shows <b>how many people are online</b> (one person with three browsers counts once), and each account shows its current <b>signed-in devices</b>: browser and operating system, source address, last activity; which can be <b>signed out individually or all at once</b>, with the action recorded in the audit log. If an account may have been compromised, every device can be kicked out before the password is even changed.",
+ "拉台鐵 / 高鐵 / Uber 乘車證明 PDF，自動整理日期 / 交通工具 / 來源-目的 / 費用成表格，欄位可自訂，匯出 7 種格式報帳": "Pulls a batch of Taiwan Railway, THSR and Uber ride receipts into one table — date, transport, route and fare — with configurable columns and export in seven formats for expense claims"
 }

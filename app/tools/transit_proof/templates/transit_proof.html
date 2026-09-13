@@ -3,7 +3,16 @@
 {% block title %}乘車證明整理 · {{ app_name }}{% endblock %}
 {% block content %}
 <h1>{{ icon('car', size=22) }} {{ tr('乘車證明整理') }}</h1>
-<p class="tp-intro muted">{{ tr('拉一批台鐵「購票證明」或高鐵「電子車票證明」PDF 進來，自動抽出日期 / 交通工具 / 起訖 / 費用等欄位，整理成表格後可多格式匯出報帳（CSV / XLSX / ODS / JSON / XML / TXT / MD）。預設顯示日期、交通工具、來源-目的、費用，欄位可在「設定」自訂。') }}</p>
+<p class="tp-intro muted">{{ tr('拉一批台鐵「購票證明」、高鐵「電子車票證明」或 Uber 行程收據 PDF 進來，自動抽出日期 / 交通工具 / 起訖 / 費用等欄位，整理成表格後可多格式匯出報帳（CSV / XLSX / ODS / JSON / XML / TXT / MD）。預設顯示日期、交通工具、來源-目的、費用，欄位可在「設定」自訂。') }}</p>
+
+{# **Uber 要說清楚拉哪一份** —— Uber 一趟行程會寄兩種 PDF，而「電子發票
+   證明聯」開的只有處理費那幾塊錢，不是乘車證明。使用者拉錯的話，表格上
+   出現的金額會是 10 元而不是車資（2026-09-13 使用者指示要在畫面上寫明）。 #}
+<div class="info-box">
+  {{ icon('info', size=16) }}
+  <div>{{ tr('Uber 請上傳「行程收據」（Trip receipt）—— 就是有上下車時間、地址與總計的那一份。') }}
+    <br>{{ tr('「電子發票證明聯」開的是 Uber 處理費（實際上只有幾元），不是乘車證明；行程收據的「總計」已經含了那筆處理費。') }}</div>
+</div>
 
 <div class="panel">
   <h2 class="tp-panel-h2">{{ icon('upload', size=16) }} {{ tr('上傳乘車證明') }}</h2>
@@ -11,7 +20,7 @@
     <div class="tp-drop-inner">
       {{ icon('upload', size=28) }}
       <div class="tp-drop-main">{{ tr('拖曳 PDF 到此，或點選挑選') }}</div>
-      <div class="tp-drop-sub muted">{{ tr('可一次多張 · 支援台鐵購票證明 / 高鐵電子車票證明 PDF') }}</div>
+      <div class="tp-drop-sub muted">{{ tr('可一次多張 · 台鐵購票證明 / 高鐵電子車票證明 / Uber 行程收據 PDF') }}</div>
     </div>
     <input type="file" id="tpFile" accept="application/pdf,.pdf" multiple hidden>
   </div>
@@ -123,6 +132,9 @@
   .tp-cell-input:focus { outline: none; border-color: #2563eb; background: #fff; }
   .tp-table td.tp-transport-hsr .tp-tag { background: #fef3c7; color: #92400e; }
   .tp-table td.tp-transport-tra .tp-tag { background: #dbeafe; color: #1e40af; }
+  /* Uber：黑底白字（它自己的識別色）。**類別名一旦在 JS 裡用到就一定要有樣式** ——
+     這個專案在「發明了沒有定義的類別名」上吃過好幾次虧，畫面不會報錯，只是沒樣式。 */
+  .tp-table td.tp-transport-uber .tp-tag { background: #111827; color: #fff; }
   .tp-tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
   .tp-table tbody tr:hover td { background: #f8fafc; }
   .tp-view { color: #6b7280; cursor: pointer; background: none; border: none;
@@ -202,7 +214,7 @@
     return String(y).padStart(4, '0') + '-' + mm + '-' + dd;
   }
   const AMOUNT_FIELDS = { fare: 1, amount_untaxed: 1, tax: 1 };
-  const TRANSPORT_CLASS = { '高鐵': 'hsr', '台鐵': 'tra' };
+  const TRANSPORT_CLASS = { '高鐵': 'hsr', '台鐵': 'tra', 'Uber': 'uber' };
   function formatId(fid) {
     const chosen = SETTINGS.field_formats[fid];
     if (chosen) return chosen;

@@ -1,4 +1,4 @@
-"""解析台鐵 / 高鐵乘車（購票）證明 PDF → 結構化 dict。
+"""解析台鐵 / 高鐵 / Uber 的乘車證明 PDF → 結構化 dict。
 
 支援兩種官方憑證：
   - 台灣高鐵「電子車票證明」（THSRC）：label ：value 版面，好抓。
@@ -55,12 +55,187 @@ def _simplify_station(name: str) -> str:
 
 
 def detect_kind(text: str) -> Optional[str]:
-    """判斷憑證類型：'thsrc'（高鐵）/ 'tra'（台鐵）/ None。"""
+    """判斷憑證類型：'thsrc'（高鐵）/ 'tra'（台鐵）/
+    'uber_trip'（Uber 行程收據）/ 'uber_invoice'（Uber 處理費電子發票）/ None。
+
+    **Uber 要先判**：它的收據裡有「車行／車隊」「車牌號碼」這些字，
+    而台鐵那條是用「車次」之類的特徵字比對的，順序反過來會誤判。
+    """
+    # Uber 處理費的電子發票（計程車行程本身不開發票，只有處理費開）
+    if "電子發票證明聯" in text and ("優步" in text or "Uber" in text):
+        return "uber_invoice"
+    if ("Uber" in text or "優步" in text) and (
+            "行程詳細資訊" in text or "行程費用" in text
+            or "感謝您的搭乘" in text or "車行／車隊" in text):
+        return "uber_trip"
     if "高鐵" in text or "THSRC" in text or "thsrc" in text.lower():
         return "thsrc"
     if "購票證明" in text or "車次" in text or "臺鐵" in text or "台鐵" in text:
         return "tra"
     return None
+
+
+#: 「上午/下午 H:MM」→ 24 小時制。
+_AMPM = re.compile(r"(上午|下午)\s*(\d{1,2}):(\d{2})")
+
+
+def _to_24h(ampm: str, hh: int, mm: str) -> str:
+    if ampm == "下午" and hh != 12:
+        hh += 12
+    elif ampm == "上午" and hh == 12:
+        hh = 0
+    return f"{hh:02d}:{mm}"
+
+
+def _clean_address(s: str) -> str:
+    """Uber 的地址前面常掛著國碼 / 郵遞區號，而且城市名會重複一次。
+
+    形狀（**杜撰的示意，不是真實地址**）：
+        `TWN某某市某某市甲區一路1號`
+        `00000台灣某某市乙區二街2號`
+
+    **只清掉確定是雜訊的部分**（國碼、郵遞區號、重複的城市名）——
+    里名、樓層這些對報帳的人可能有用，不要自作主張刪掉。
+    """
+    s = (s or "").strip()
+    s = re.sub(r"^TWN\s*", "", s)
+    s = re.sub(r"^\d{3,6}\s*", "", s)          # 郵遞區號
+    s = re.sub(r"^台灣|^臺灣", "", s)
+    # 「台中市台中市」「臺北市臺北市」這種重複
+    s = re.sub(r"^([\u4e00-\u9fff]{2,3}[市縣])\1", r"\1", s)
+    return s.strip()
+
+
+def _looks_like_address(line: str) -> bool:
+    return bool(re.search(r"[市縣].*(?:路|街|大道|巷|號)", line))
+
+
+def parse_uber_trip(text: str) -> dict:
+    """Uber 行程收據（兩頁：第一頁金額與付款，第二頁行程明細）。
+
+    ⚠ **時間要取行程明細那一組**。第一頁還有「叫車時間」與「付款時間」
+    （實測是 16:58 與 17:28），直接抓第一個時間會把叫車時間當成上車時間。
+    判準是「**時間的下一行是地址**」—— 只有上下車那兩個是這個形狀。
+    """
+    date = ""
+    m = re.search(r"(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日", text)
+    if not m:
+        m = re.search(r"(\d{4})[/-](\d{1,2})[/-](\d{1,2})", text)
+    if m:
+        date = f"{int(m.group(1)):04d}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+
+    lines = [ln.strip() for ln in (text or "").splitlines()]
+    stops: list[tuple[str, str]] = []           # (時間, 地址)
+    for i, ln in enumerate(lines[:-1]):
+        tm = _AMPM.fullmatch(ln.replace(" ", "")) or _AMPM.fullmatch(ln)
+        if not tm:
+            continue
+        nxt = lines[i + 1]
+        if _looks_like_address(nxt):
+            stops.append((_to_24h(tm.group(1), int(tm.group(2)), tm.group(3)),
+                          _clean_address(nxt)))
+    depart = stops[0] if stops else ("", "")
+    arrive = stops[-1] if len(stops) > 1 else ("", "")
+
+    # 「總計」那一行底下的金額才是實付（行程費用 / 處理費 / 點數折抵是明細）
+    fare = None
+    for i, ln in enumerate(lines[:-1]):
+        if ln.strip() in ("總計", "Total"):
+            fare = _int(lines[i + 1])
+            break
+    if fare is None:
+        fare = _int(re.search(r"\$\s*([\d,]+(?:\.\d+)?)", text).group(1)
+                    if re.search(r"\$\s*([\d,]+(?:\.\d+)?)", text) else None)
+
+    plate = ""
+    pm = re.search(r"車牌號碼[：:]\s*\n?\s*([A-Z0-9-]{5,10})", text)
+    if pm:
+        plate = pm.group(1).strip()
+    dist = ""
+    dm = re.search(r"([\d.]+)\s*公里", text)
+    if dm:
+        dist = dm.group(1)
+    fleet = ""
+    fm = re.search(r"車行／車隊[：:]?\s*\n?\s*(.+)", text)
+    if fm:
+        fleet = fm.group(1).strip()
+
+    # 行程編號（去重用）—— 在連結裡，不在文字層
+    trip_id = ""
+    tm = re.search(r"riders\.uber\.com/trips/([0-9a-fA-F-]{16,40})", text)
+    if tm:
+        trip_id = tm.group(1)
+
+    return {
+        "transport": "Uber",
+        "trip_id": trip_id,
+        "date": date,
+        "depart_time": depart[0],
+        "arrive_time": arrive[0],
+        "origin": depart[1],
+        "destination": arrive[1],
+        "fare": fare,
+        "amount_untaxed": None,
+        "tax": None,
+        "train": "",
+        "ticket_type": "",
+        "ticket_no": "",          # 行程收據沒有票號；發票號碼由電子發票那份補
+        "buyer_tax_id": "",
+        "vehicle": plate,
+        "distance": dist,
+        "note": fleet,
+    }
+
+
+def parse_uber_invoice(text: str) -> dict:
+    """Uber **處理費**的電子發票證明聯。
+
+    ⚠ **這不是一趟行程** —— 行程收據的「總計」已經含了這筆處理費
+    （實測：行程費用 ＋ 處理費 − 點數折抵 ＝ 總計）。把它當成獨立一列
+    會讓報帳金額重複計算。所以它的 `fare` 記在 `fee_amount`，
+    併進同一天那趟 Uber 時只補發票號碼與統編（見 `buffer.add_entries`）。
+    """
+    inv = ""
+    m = re.search(r"發票號碼[：:]\s*([A-Z]{2}-?\d{8})", text)
+    if not m:
+        m = re.search(r"\b([A-Z]{2}-\d{8})\b", text)
+    if m:
+        inv = m.group(1).replace("-", "")
+    date = ""
+    dm = re.search(r"(\d{4})-(\d{2})-(\d{2})", text)
+    if dm:
+        date = f"{dm.group(1)}-{dm.group(2)}-{dm.group(3)}"
+    amt = None
+    am = re.search(r"總計\s*[:：]\s*(\d[\d,]*)", text)
+    if am:
+        amt = _int(am.group(1))
+    buyer = ""
+    bm = re.search(r"買方\s*[:：]\s*(\d{8})", text)
+    if bm:
+        buyer = bm.group(1)
+    seller = ""
+    sm = re.search(r"賣方\s*[:：]\s*(\d{8})", text)
+    if sm:
+        seller = sm.group(1)
+    return {
+        "kind": "uber_invoice",
+        "transport": "Uber 處理費",
+        "date": date,
+        "depart_time": "",
+        "arrive_time": "",
+        "origin": "",
+        "destination": "",
+        "fare": amt,
+        "fee_amount": amt,
+        "amount_untaxed": None,
+        "tax": None,
+        "train": "",
+        "ticket_type": "",
+        "ticket_no": inv,
+        "buyer_tax_id": buyer,
+        "seller_tax_id": seller,
+        "note": "Uber 處理費電子發票",
+    }
 
 
 def _thsrc_field(text: str, label: str) -> str:
@@ -174,8 +349,12 @@ def parse_text(text: str) -> dict:
         d = parse_thsrc(text)
     elif kind == "tra":
         d = parse_tra(text)
+    elif kind == "uber_trip":
+        d = parse_uber_trip(text)
+    elif kind == "uber_invoice":
+        d = parse_uber_invoice(text)
     else:
-        raise ParseError("無法辨識為台鐵 / 高鐵乘車證明")
+        raise ParseError("無法辨識為台鐵 / 高鐵 / Uber 乘車證明")
     # 至少要有日期或起訖或票價，否則視為解析失敗
     if not (d.get("date") or d.get("origin") or d.get("fare")):
         raise ParseError("辨識到憑證類型，但抽不到有效欄位（版面可能不同）")

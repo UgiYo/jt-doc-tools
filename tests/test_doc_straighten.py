@@ -624,3 +624,63 @@ def test_the_colour_information_is_actually_used():
     assert colour[1] >= grey[1], (
         f"帶彩色的純度 {colour[1]:.3f} 不應該比只有灰階的 {grey[1]:.3f} 差")
     assert colour[0] >= grey[0] - 1e-6
+
+
+# ---------------------------------------------------------------------------
+# 掃描件不該被透視「校正」（2026-09-13，用 82 張公開語料實測之後補的）
+#
+# 拿真實的掃描件測才看到：**四邊形把頁面最上面的抬頭文字切掉了**。根因又是
+# 遮罩 —— 頁面最上緣那一條色調不同，被判成背景，四邊形就跟著切在那裡。
+#
+# 與其再去調遮罩，判準改成認清楚「**這種圖本來就沒有透視可以校正**」：
+# 挑出來的候選是個完美矩形（內角極差 0°、對邊等長）而且佔滿大半畫面時，
+# 透視變換唯一會做的事就是把邊緣切掉。實測 16 張掃描件 / 正面照全部落在
+# 這一格，而真的有透視的 4 張是 8.4° ~ 32.8°，分得很開。
+# ---------------------------------------------------------------------------
+
+def _flat_scan():
+    """一張**正面**的掃描件：頁面佔畫面約八成、四周有掃描邊、沒有透視。
+
+    **比例要像真的那兩張**（0.77 / 0.92）。第一版我做成「整張都是紙」，
+    於是它是被更早的「太大＝不需要透視校正」那條擋掉的 —— 變異驗證
+    （把新的那道關拿掉）**照樣全綠**，等於這條測試通過的理由是錯的。
+    """
+    import cv2
+    import numpy as np
+
+    h, w = 1100, 850
+    img = np.full((h, w, 3), 60, np.uint8)           # 壓蓋沒蓋滿留下的暗邊
+    x0, y0, x1, y1 = 48, 60, w - 48, h - 60          # 頁面 ≈ 80% 畫面
+    img[y0:y1, x0:x1] = 248
+    for i, y in enumerate(range(y0 + 120, y1 - 60, 46)):
+        cv2.line(img, (x0 + 40, y), (x1 - 60 - (i % 3) * 40, y), (35, 35, 35), 4)
+    cv2.line(img, (x0 + 40, y0 + 45), (x1 - 200, y0 + 45), (25, 25, 25), 6)  # 抬頭
+    # 上緣壓暗一條 —— 真實掃描件很常見（壓不平 / 邊緣陰影），
+    # 這正是把遮罩騙掉、讓四邊形切在抬頭底下的那個特徵。
+    img[y0:y0 + 40, x0:x1] = (img[y0:y0 + 40, x0:x1] * 0.72).astype(np.uint8)
+    return img
+
+
+def test_a_flat_scan_is_not_perspective_corrected():
+    """正面掃描件不可以做透視 —— 沒有東西可以校正，只會裁掉邊緣。"""
+    import cv2
+
+    rgb = _flat_scan()
+    g = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    assert SC.find_page_quad(g, rgb) is None, (
+        "正面掃描件回了四邊形 —— 透視變換在這種圖上只會把抬頭切掉")
+
+
+def test_a_photo_with_real_perspective_is_still_corrected():
+    """反向對照：**真的有透視**的照片仍然要抓得到。
+
+    只驗上面那條的話，把 `find_page_quad` 改成永遠回 None 也會過
+    —— 那等於把整個透視校正關掉。
+    """
+    import cv2
+
+    rgb, _ = _photo_with_shadow()
+    g = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    q = SC.find_page_quad(g, rgb)
+    assert q is not None, "有透視的翻拍照片應該仍然抓得到紙"
+    assert SC.quad_angle_range(q) > 1.0, "這張的四個角本來就不是直角"

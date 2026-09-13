@@ -108,11 +108,46 @@ def _write(path: Path, data: dict) -> None:
 
 
 def _dedup_key(e: dict) -> str:
+    # Uber 的行程收據沒有票號，但收據裡的連結帶著**行程編號**（唯一）。
+    trip = (e.get("trip_id") or "").strip()
+    if trip:
+        return f"{e.get('transport','')}|trip:{trip}"
     tno = (e.get("ticket_no") or "").strip()
     if tno:
         return f"{e.get('transport','')}|{tno}"
+    # **時間要算進去**：兩者皆無時（例如收據被重新列印、連結掉了），
+    # 同一天同路線同車資的兩趟會被判成同一趟而丟掉第二趟 ——
+    # 通勤路線一天來回兩次、車資相同，這在計程車上很常見。
     return "|".join(str(e.get(k, "")) for k in
-                    ("transport", "date", "origin", "destination", "fare"))
+                    ("transport", "date", "depart_time", "origin",
+                     "destination", "fare"))
+
+
+def _merge_uber_invoice(inv: dict, candidates: list[dict]) -> bool:
+    """把 Uber **處理費發票**併進同一天的那趟行程。併成功回 True。
+
+    ⚠ **不可以讓它自成一列** —— 行程收據的「總計」已經含了這筆處理費
+    （實測：行程費用 413 ＋ 處理費 10 − 點數折抵 13 ＝ 總計 410）。
+    多一列就是報帳金額重複計算，而且看起來完全合理，沒有人會發現。
+
+    併進去的是**發票號碼與買方統編**（報帳要的就是這兩個），
+    金額不動。找不到對應行程時才留成獨立一列（見呼叫端），
+    不然使用者會以為檔案傳丟了。
+    """
+    for e in candidates:
+        if e.get("transport") != "Uber" or e.get("date") != inv.get("date"):
+            continue
+        if not (e.get("ticket_no") or "").strip():
+            e["ticket_no"] = inv.get("ticket_no") or ""
+        if not (e.get("buyer_tax_id") or "").strip():
+            e["buyer_tax_id"] = inv.get("buyer_tax_id") or ""
+        fee = inv.get("fee_amount")
+        tag = f"處理費發票 ${fee}" if fee else "處理費發票"
+        note = (e.get("note") or "").strip()
+        if tag not in note:
+            e["note"] = f"{note}；{tag}" if note else tag
+        return True
+    return False
 
 
 def list_entries(user: Optional[Any]) -> list[dict]:
@@ -144,7 +179,14 @@ def add_entries(user: Optional[Any], parsed: list[dict],
         entries = data.get("entries", [])
         existing = {_dedup_key(e) for e in entries}
         added, dups, cap = [], 0, False
+        merged_invoices = 0
         for idx, p in enumerate(parsed):
+            # Uber 處理費發票：先試著併進同一天的那趟行程（這一批新加的優先，
+            # 再找已經在清單裡的）。併得進去就不另外產生一列。
+            if p.get("kind") == "uber_invoice":
+                if _merge_uber_invoice(p, added) or _merge_uber_invoice(p, entries):
+                    merged_invoices += 1
+                    continue
             k = _dedup_key(p)
             if k in existing:
                 dups += 1
@@ -167,17 +209,21 @@ def add_entries(user: Optional[Any], parsed: list[dict],
                     entry.pop("has_file", None)
             added.append(entry)
             existing.add(k)
-        if added:
+        # **併進既有那一列時 `added` 是空的** —— 只看 `added` 就不會寫檔，
+        # 發票號碼靜靜地不見（第一版就是這樣）。
+        if added or merged_invoices:
             data["entries"] = entries + added
             _write(path, data)
-    return {"added": added, "duplicates": dups, "cap_reached": cap}
+    return {"added": added, "duplicates": dups, "cap_reached": cap,
+            "merged_invoices": merged_invoices}
 
 
 def update_entry(user: Optional[Any], entry_id: str, fields: dict) -> Optional[dict]:
     """更新一筆的可編輯欄位。回更新後的 entry 或 None（找不到）。"""
     editable = {"transport", "date", "depart_time", "arrive_time", "origin",
                 "destination", "fare", "train", "ticket_type", "ticket_no",
-                "amount_untaxed", "tax", "buyer_tax_id", "note", "subject"}
+                "amount_untaxed", "tax", "buyer_tax_id", "note", "subject",
+                "vehicle", "distance"}
     path = _buffer_path(user)
     with _get_lock(_user_key(user)):
         data = _read(path)

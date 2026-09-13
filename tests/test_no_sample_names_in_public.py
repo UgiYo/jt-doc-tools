@@ -211,3 +211,53 @@ def test_this_gate_actually_inspects_files():
     assert not missing, (
         f"清單裡有 {len(missing)} 條指向不存在的檔案（會被 skip 掉）："
         f"{missing[:5]}")
+
+
+# ---------------------------------------------------------------------------
+# 樣本裡的**其他識別資料**（2026-09-13 補）
+#
+# 上面那條只抽「公司名」，而且只看 `temp_pdfs/` 最上層。加 Uber 支援時
+# 使用者提供的收據放在 `temp_pdfs/customer/uber/`，洩漏的也不是公司名 ——
+# 我把**真實的上下車地址**寫進了 parser 的 docstring（而且還註明「已改寫」，
+# 其實沒有）。推之前的人工掃描抓到，但**那不該靠人工**。
+#
+# 所以這裡改成：`temp_pdfs/` **任何深度**的 PDF，抽出地址 / 發票號碼 / 車牌
+# 這幾類識別字串，比對公開樹。比對的是**樣本裡真的出現過的字串**，
+# 所以不會誤報 —— 公開檔案裡出現它就是真的洩漏。
+# ---------------------------------------------------------------------------
+
+_ADDRESS = re.compile(r"[一-鿿]{2,3}[市縣][一-鿿]{1,5}區[一-鿿]{1,10}"
+                      r"(?:路|街|大道)[一-鿿0-9]{0,8}號")
+_INVOICE = re.compile(r"\b[A-Z]{2}-?\d{8}\b")
+_PLATE = re.compile(r"\b[A-Z]{3}-?\d{3,4}\b|\b\d{3,4}-[A-Z]{2,3}\b")
+
+
+@pytest.fixture(scope="module")
+def corpus_identifiers() -> set[str]:
+    import fitz
+
+    if not CORPUS.exists():
+        return set()
+    out: set[str] = set()
+    for p in sorted(CORPUS.rglob("*.pdf")):        # **任何深度**
+        if p.name.startswith("syn_"):
+            continue
+        try:
+            with fitz.open(str(p)) as d:
+                text = "\n".join(pg.get_text() for pg in d)
+        except Exception:  # noqa: BLE001
+            continue
+        for pat in (_ADDRESS, _INVOICE, _PLATE):
+            out |= set(pat.findall(text))
+    return {s for s in out if len(s) >= 6}
+
+
+@pytest.mark.parametrize("rel", _public_files())
+def test_public_files_do_not_leak_sample_identifiers(rel, corpus_identifiers):
+    """公開樹不可以出現樣本裡的地址 / 發票號碼 / 車牌。"""
+    if not corpus_identifiers:
+        pytest.skip("沒有樣本語料（公開樹或乾淨的工作目錄）")
+    text = (_public_root(ROOT) / rel).read_text(encoding="utf-8", errors="ignore")
+    hit = sorted(s for s in corpus_identifiers if s in text)
+    assert not hit, (
+        f"{rel} 出現樣本裡的識別資料（{len(hit)} 筆）—— 註解與說明要用杜撰的值")

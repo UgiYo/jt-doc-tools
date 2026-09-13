@@ -11,6 +11,83 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.40] - 2026-09-13
+
+### Dragging the four corners: the handles used the box, but the picture is drawn inside it
+
+A user reported that the magnifier's crosshair pointed somewhere other than where
+the corner actually landed. The before/after images are sized `height: 46vh` with
+`object-fit: contain` so the two columns match in height, which letterboxes a
+photo whose aspect ratio differs: measured, a 541×972 box held a picture drawn at
+541×766, with 103 px of blank above and below. The handles, the quadrilateral and
+the magnifier all worked in fractions of the **box**.
+
+| | before | after |
+|---|---|---|
+| A handle at 40% height landed at | 37.3% of the image (**23.65 px out**) | 40.0% (0.0 px) |
+| Pixel under the magnifier's crosshair | a different point from the handle | exactly the expected one |
+
+This was not only a display problem: the same numbers are what get sent to the
+server, so the crop followed the wrong edges.
+
+The overlay now lives in its own layer positioned over the drawn picture using the
+`contain` maths, recomputed on load, page change, mode switch and resize;
+everything inside keeps working in normalised 0–1 coordinates. The magnifier
+samples at 62 px rather than 64 — it is a 128 px border-box with a 2 px border and
+the background origin is the padding box, so the crosshair sits at 62.
+
+> No existing gate could see this: the elements are all there, no exception, no
+> untranslated text, and a screenshot looks right. A new test drives a real
+> browser, drags a handle to (0.30, 0.40) and **measures** where it landed and
+> which source pixel the crosshair covers, to the pixel. The sample image is
+> deliberately a different aspect ratio from the box — with a matching one there
+> would be no letterboxing and the test would pass while verifying nothing.
+
+### Transit receipts: Uber support
+
+**Trip receipts only.** An Uber ride produces two PDFs in Taiwan, and the
+e-invoice covers only the booking fee — a few dollars — because taxi rides
+themselves are not e-invoiced. Uploading the wrong one would put 10 dollars in
+the table instead of the fare, so the page now says which to use.
+
+Extracted: date, pickup and drop-off times, both addresses, the total, plus two
+new columns — **plate** and **distance** (hidden by default; distance is a
+required field for taxi expenses at many companies).
+
+> **The times must come from the pickup and drop-off pair.** The receipt carries
+> four times — request, pickup, drop-off, payment (16:58 / 17:01 / 17:27 / 17:28
+> in the sample). Taking the first gives the request time: three minutes out,
+> entirely plausible, and nobody would notice. The rule is "the line after the
+> time is an address" — only the pickup and drop-off look like that.
+
+### Uber receipts carry no ticket number — a second ride the same day was dropped
+
+Deduplication keyed on the ticket number, which every rail ticket has. Uber
+receipts do not, so it fell back to transport + date + route + fare — and a
+second ride on the same route at the same price was silently treated as a
+duplicate. That is an ordinary commute.
+
+The receipt does carry a unique identifier: the `riders.uber.com/trips/<id>`
+link on page one. It is invisible to text extraction — it exists only as a link
+annotation — so the extractor now collects link targets as well. If the link is
+missing (a reprinted receipt), the departure time separates the rides instead.
+
+### Document straighten: flat scans are no longer "perspective corrected"
+
+Testing had used two phone photographs and synthetic samples. Measuring against
+82 real scans and photographs showed the quadrilateral **cutting the header off
+scanned documents**. Rather than tune the mask again, the rule now recognises
+that such images have no perspective to correct: when the chosen candidate is a
+perfect rectangle covering most of the frame, warping can only crop. Genuine
+perspective photographs are unaffected.
+
+> **A measurement needs a control too.** An early "darkest N% of the image is
+> ink" metric scored two perfectly correct crops at 0.015 and 0.036, because in
+> those photographs the desk is darker than the paper. Changing the denominator
+> was guesswork; drawing the mask is what located the real problem.
+
+---
+
 ## [1.15.39] - 2026-09-13
 
 ### A strip of desk survived the straightening — the mask, not the quadrilateral
@@ -50,15 +127,16 @@ what they actually verify; a scan found no third instance.
 
 ### Editing the public `.gitignore` does nothing — it is regenerated on every sync
 
-Widening the rule that keeps the code-signing notes private (from one directory
-to any directory) exposed this: `github/.gitignore` is written from a heredoc by
-the sync script every time, so an edit to the file itself is silently reverted on
-the next sync — green before the sync, red after. The rule now lives in the sync
-script, with a guard that checks it there rather than in the generated output.
+While adjusting the sync settings: `github/.gitignore` is written from a heredoc
+by the sync script every time, so an edit to the file itself is silently reverted
+on the next sync — green before the sync, red after. The rule now lives in the
+sync script, with a guard that checks it there rather than in the generated
+output.
 
-A second guard scans the public tree's filesystem: `git ls-files` only sees what
-is already tracked, so a note dropped in but not yet committed looks clean to it
-while `rsync -a --delete` would carry it into the clone.
+A related point: `git ls-files` only sees files that are already tracked, so
+anything dropped in but not yet committed looks clean to it while
+`rsync -a --delete` would carry it into the clone. Checking that a class of file
+stays out of the public tree has to look at the filesystem.
 
 ### Document straighten interface (reported from screenshots)
 

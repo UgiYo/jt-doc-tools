@@ -1,6 +1,6 @@
 [繁體中文](README.md) ｜ **English**
 
-# Jason Tools Document Toolbox v1.15.39
+# Jason Tools Document Toolbox v1.15.40
 
 > An integrated PDF / Office document platform: 48 tools covering **form filling and stamping**, **watermarks**, **merge / split / rotate / reorder**, **format conversion**, **scan assembly**, **de-identification**, **word counts**, **annotation reports**, **diffs**, **sentence-by-sentence translation**, **list processing**, **e-invoice handling**, **VAT number lookup**, **a page editor**, **encryption and decryption**, and more.
 >
@@ -98,7 +98,7 @@ Detailed installation notes are in **[INSTALL.md](INSTALL.md)** (required tools,
 - **Pre-submission check**: batch verification: page size, embedded fonts, complete fields, leftover personal data, hidden content
 - **List tools**; paste text or upload.txt /.csv /.xlsx /.docx /.pdf and treat each line as an item: sort, deduplicate, filter, take the first or last lines, change case and more, combining steps; copy the result or download.txt /.csv /.xlsx
 - **e-Invoice processing**: scan a Taiwan e-invoice QR code for the invoice number, date, amount and tax ID, filling in the seller, industry and accounting category (rules plus optional LLM); expense and period checks included, exporting.xlsx /.ods /.csv /.json /.xml /.txt /.md (with a configurable title)
-- **Travel receipts**: drop in a batch of rail ticket receipts and get a table of date, service, origin-destination and fare with configurable columns, exported as.xlsx /.ods /.csv /.json /.xml /.txt /.md for expense claims
+- **Transit receipts** — drop in a batch of Taiwan Railway purchase certificates, THSR electronic ticket certificates or Uber trip receipts; date, transport, route and fare are collected into a table with configurable columns, exportable as .xlsx / .ods / .csv / .json / .xml / .txt / .md for expense claims
 - **Company ID lookup**: look up an 8-digit tax ID, or search company, agency and school names, addresses and industries with highlighted matches; category filters, batch lookup and CSV export
 
 ### Conversion [needs OxOffice/LibreOffice]

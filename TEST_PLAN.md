@@ -334,7 +334,7 @@ v1.15.19 加翻譯對照字典時，完整套件一次紅了四條，**全是這
 
 ### 1.9 乘車證明整理（`tests/test_transit_proof_parser.py` + `tests/test_transit_proof_api.py`）
 
-- 解析器：高鐵電子車票證明（label：value）+ 台鐵購票證明（打散版面用特徵正則）；日期正規化 ISO、乘車日排除印製日期、乘車區間抽起訖時間 / 站名、車種不被「乘車區間」誤匹配、高鐵站名去「高鐵 / 車站」；非乘車證明 / 空欄位 → ParseError。
+- 解析器：高鐵電子車票證明（label：value）+ 台鐵購票證明（打散版面用特徵正則）+ **Uber 行程收據與處理費電子發票**（`tests/test_transit_proof_uber_merge.py`）；日期正規化 ISO、乘車日排除印製日期、乘車區間抽起訖時間 / 站名、車種不被「乘車區間」誤匹配、高鐵站名去「高鐵 / 車站」；非乘車證明 / 空欄位 → ParseError。
 - 端點：頁面渲染、上傳解析 + 票號去重、非乘車證明 PDF 進 failed、7 種格式匯出（csv/xlsx/ods/json/xml/txt/md）+ 非法格式 400 + 空清單 400、CSV 預設 4 欄（日期/交通工具/來源-目的/費用）、設定 roundtrip（勾選 / 順序 / 格式 / 匯出標題）套用到匯出、刪除單筆、對外 API 不寫 buffer。
 - **手動驗收**：拉多張台鐵 + 高鐵 PDF → 表格出現 4 欄 + 底部加總；「設定」加欄位 / 改格式 / 排序 → 表格與匯出同步；各格式下載可開。合成 PDF 測試須用 CJK 字型（`fontname="china-t"`）否則抽文字變 notdef。
 
@@ -453,7 +453,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 
 <!-- BEGIN test-index (由 tools/build_test_plan_index.py 產生，不要手改) -->
 
-共 **258 支測試檔**。說明取自每支檔案自己的開頭說明，
+共 **260 支測試檔**。說明取自每支檔案自己的開頭說明，
 跑 `python tools/build_test_plan_index.py` 重建。
 
 > 這裡**刻意不列函式數** —— 那個數字每加一條測試就會變，
@@ -535,6 +535,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_doc_deident_table_labels.py` | 標籤與值分屬兩個表格儲存格時也要偵測得到（GitHub issue #43） |
 | `test_doc_diff.py` | Tests for the renamed 文件差異比對 tool (formerly pdf-diff). |
 | `test_doc_straighten.py` | 文件拉正（v1.15.33，第一期：只有自動模式） |
+| `test_doc_straighten_overlay_geometry.py` | 文件拉正：拖曳四個角的座標對映（要真的瀏覽器才量得到） |
 | `test_doc_translate.py` | 文件翻譯：產出**同格式、同版面**的檔案 |
 | `test_doc_translate_spreadsheet_view.py` | 試算表翻譯的兩件事：預覽要看得到東西、產出要開在內容的開頭 |
 | `test_docs_english_pages.py` | 介紹站與 API 手冊的英文版（GitHub Pages） |
@@ -693,6 +694,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_transit_proof_api.py` | 乘車證明工具端點整合測試（合成 PDF，auth OFF = 單機） |
 | `test_transit_proof_files.py` | 乘車證明的**原始檔**：存得下、看得到、別人拿不到、刪掉就不見 |
 | `test_transit_proof_parser.py` | 乘車證明解析器單元測試（合成 fixture，不含真實票號 / 統編 / 站名資料） |
+| `test_transit_proof_uber_merge.py` | Uber 的處理費發票要**併進同一趟行程**，不可以自成一列 |
 | `test_translate_doc_job.py` | 逐句翻譯改成背景作業（離開頁面也會繼續跑） |
 | `test_translate_doc_pagination.py` | 逐句翻譯：admin 可設定句數上限 + 分頁大小，前端分頁 |
 | `test_translation_glossary.py` | 翻譯對照字典：單位內部的專有名詞怎麼翻（或不要翻） |
@@ -999,6 +1001,14 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 - [ ] 日期 / 交通工具 / 起訖 / 費用四欄正確
 - [ ] 七種格式匯出（CSV / XLSX / ODS / JSON / XML / TXT / MD）
 - [ ] 欄位顯示設定改完立即套用
+- [ ] **Uber 行程收據**：日期 / 上下車時間 / 起訖地址 / 總計 都對；
+      **時間要是上下車那一組**（收據上另有叫車時間與付款時間，差幾分鐘，
+      抓錯了看起來完全合理）；車牌與里程兩欄打開看得到
+- [ ] **Uber 處理費的電子發票**跟行程收據一起上傳 → **只有一列**
+      （行程收據的「總計」已經含了處理費，多一列就是報帳金額重複計算），
+      而且那一列的票號欄是發票號碼、統編欄是買方統編
+- [ ] 先傳收據、**之後**再傳發票 → 仍然併成一列（不是每次都同一批上傳）
+- [ ] 只傳發票（對不到行程）→ 留成獨立一列，不可以安靜吞掉
 
 #### 掃描拼合 (scan-merge) 🆕 v1.11.0
 - [ ] 拉入多張掃描（PDF / PNG / JPG）各含一塊內容 → 自動偵測出區塊

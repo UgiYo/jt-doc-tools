@@ -1098,7 +1098,7 @@ curl <span class="hl-flag">-X</span> <span class="hl-method">DELETE</span> <span
       <section class="doc-section" data-sec="乘車證明整理" data-title="Travel receipts" hidden>
 <div class="doc-crumb">9. Business lookup API</div>
 <h4 id="乘車證明整理">Travel receipts</h4>
-<p>Parses a batch of Taiwan Railway / THSR travel receipts and returns structured JSON. <strong>It only parses; nothing is written to the user's list.</strong></p>
+<p>Parses a batch of Taiwan Railway, THSR or Uber ride receipt PDFs and returns structured JSON. <strong>Parsing only — nothing is written to the user's list.</strong></p>
 <pre><code class="lang-text"><span class="hl-method">POST</span> /tools/transit-proof/api/transit-proof</code></pre>
 <div class="table-wrap"><table><thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead><tbody><tr><td><code>files</code></td><td>file[]</td><td>✓</td><td>Travel receipt PDFs, up to 200 at a time</td></tr></tbody></table></div>
 <pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/transit-proof/api/transit-proof</span> \
