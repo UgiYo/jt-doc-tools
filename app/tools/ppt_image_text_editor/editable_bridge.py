@@ -91,7 +91,7 @@ def _line_segments(words: list[dict]) -> list[list[dict]]:
             distance = abs(center - line_center)
             if distance <= max(word["height"], line_height) * .55 and distance < best_distance:
                 best, best_distance = line, distance
-        (best if best is not None else lines.append([word]) or lines[-1]).append(word) if best is not None else None
+        if best is None:\n            lines.append([word])\n        else:\n            best.append(word)
 
     segments = []
     for line in lines:
