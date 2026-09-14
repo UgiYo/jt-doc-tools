@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse,HTMLResponse,Response
 from ...config import settings
 from ...core import upload_owner as _uo
 from ...core import ocr_engine as _oe
+from .editable_bridge import build_editable_deck
 from .image_edit import available_fonts,edit_text,image_format_for_path,to_png
 from .pptx_core import list_slide_images,read_media,replace_media
 router=APIRouter();_ID_RE=re.compile(r"^[a-f0-9]{32}$")
@@ -56,7 +57,7 @@ async def images(uid:str,request:Request,langs:str="chi_tra+eng"):
  for idx,(media_path,item) in enumerate(grouped.items()):
   try:png,(w,h)=to_png(read_media(raw,media_path));words,engine=_oe.recognize_image(png,langs,preprocess=True,allow_local_easyocr=_oe.local_easyocr_safe());result.append({**item,"index":idx,"width":w,"height":h,"engine":engine,"preview_url":f"/tools/ppt-image-text-editor/preview/{uid}/{idx}","words":words})
   except Exception as exc:result.append({**item,"index":idx,"width":0,"height":0,"words":[],"error":str(exc)})
- cache={str(i):x[0] for i,x in enumerate(grouped.items())};data=json.loads(_manifest(uid).read_text(encoding="utf-8"));data["media_map"]=cache;_manifest(uid).write_text(json.dumps(data,ensure_ascii=False),encoding="utf-8");return {"upload_id":uid,"fonts":available_fonts(),"images":result}
+ cache={str(i):x[0] for i,x in enumerate(grouped.items())};data=json.loads(_manifest(uid).read_text(encoding="utf-8"));data["media_map"]=cache;data["analysis"]=result;_manifest(uid).write_text(json.dumps(data,ensure_ascii=False),encoding="utf-8");return {"upload_id":uid,"fonts":available_fonts(),"images":result}
 @router.get("/preview/{uid}/{index}")
 async def preview(uid:str,index:int,request:Request):
  uid=_safe_id(uid);_uo.require(uid,request);m=json.loads(_manifest(uid).read_text(encoding="utf-8"));path=(m.get("media_map") or {}).get(str(index))
@@ -75,3 +76,10 @@ async def export(uid:str,request:Request,edits_json:str=Form(...)):
   if not path:raise HTTPException(400,"找不到指定圖片；請先執行 OCR 分析")
   by_media.setdefault(path,[]).append(e)
  replacements={path:_apply_edits(read_media(raw,path),es,image_format_for_path(path)) for path,es in by_media.items()};out=replace_media(raw,replacements);out_path=_work_dir()/f"{uid}_edited.pptx";out_path.write_bytes(out);base=Path(m.get("filename") or "edited.pptx").stem;return FileResponse(str(out_path),media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",filename=f"{base}_edited.pptx")
+
+@router.post("/editable/{uid}")
+async def editable(uid:str,request:Request,edits_json:str=Form("[]")):
+ uid=_safe_id(uid);_uo.require(uid,request);edits=_parse_edits(edits_json);m=json.loads(_manifest(uid).read_text(encoding="utf-8"));analyses=m.get("analysis") or []
+ if not analyses:raise HTTPException(400,"請先執行 OCR 分析")
+ try:return build_editable_deck(_src(uid).read_bytes(),analyses,edits)
+ except Exception as exc:raise HTTPException(400,f"轉換可編輯簡報失敗：{exc}") from exc

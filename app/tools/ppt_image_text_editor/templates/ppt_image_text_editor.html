@@ -13,7 +13,7 @@
 <div id="results"></div>
 <div class="panel" id="exportPanel" hidden>
   <button class="btn" id="resetBtn">{{ tr('重設全部修改') }}</button>
-  <button class="btn btn-primary" id="exportBtn">{{ tr('套用修改並下載 PPTX') }}</button>
+  <button class="btn" id="editableBtn">{{ tr('轉成可編輯投影片') }}</button>\n  <button class="btn btn-primary" id="exportBtn">{{ tr('套用修改並下載 PPTX') }}</button>
 </div>
 <style nonce="{{ request.state.csp_nonce }}">
 .pite-card{display:grid;grid-template-columns:minmax(260px,1fr) minmax(340px,1fr);gap:16px;margin-bottom:16px}.pite-preview{overflow:auto;background:#f8fafc;border:1px solid var(--border);padding:8px}.pite-stage{position:relative;display:inline-block;max-width:100%;line-height:0}.pite-stage img{display:block;max-width:100%;height:auto}.pite-box{position:absolute;box-sizing:border-box;border:2px solid #2563eb;background:rgba(37,99,235,.08);cursor:pointer;min-width:3px;min-height:3px}.pite-box:hover,.pite-box.active{border-width:3px;background:rgba(37,99,235,.18);z-index:2}.pite-box.changed{border-color:#ea580c;background:rgba(234,88,12,.14)}.pite-meta{margin-top:8px;line-height:1.4;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pite-words{max-height:520px;overflow:auto}.pite-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center;border-bottom:1px solid var(--border);padding:6px}.pite-row small{grid-column:1/-1;color:#64748b}.pite-row.active{outline:2px solid #2563eb;outline-offset:-2px;background:rgba(37,99,235,.06)}.pite-row.changed{background:rgba(234,88,12,.06)}.pite-undo{white-space:nowrap}.pite-undo:disabled{opacity:.45}.pite-preview-state{font-size:.9em}@media(max-width:900px){.pite-card{grid-template-columns:1fr}}
@@ -49,6 +49,14 @@ function esc(s){return String(s).replaceAll('&','&amp;').replaceAll('"','&quot;'
 function clearPreviewUrls(){previewUrls.forEach(url=>URL.revokeObjectURL(url));previewUrls.clear();previewTimers.forEach(t=>clearTimeout(t));previewTimers.clear();previewSeq.clear()}
 window.addEventListener('resize',()=>document.querySelectorAll('.pite-card').forEach(card=>{const img=analyzed.find(x=>String(x.index)===card.dataset.imageIndex);if(img)positionBoxes(card,img)}));
 $('#resetBtn').addEventListener('click',()=>{document.querySelectorAll('.pite-card').forEach(card=>{const img=analyzed.find(x=>String(x.index)===card.dataset.imageIndex);if(!img)return;card.querySelectorAll('.pite-row').forEach((row,wi)=>{const input=row.querySelector('.new'),box=card.querySelector(`.pite-box[data-word="${wi}"]`);input.value=img.words[wi].text;setChanged(row,box,img.words[wi]);row.classList.remove('active');box.classList.remove('active')});schedulePreview(card,img)})});
+
+$('#editableBtn').addEventListener('click',async()=>{
+ if(!uploadId)return;const edits=[];document.querySelectorAll('.pite-card').forEach((card,i)=>edits.push(...collectImageEdits(card,analyzed[i])));
+ const fd=new FormData();fd.append('edits_json',JSON.stringify(edits));$('#status').textContent='{{ tr("建立可編輯文字層中…") }}';
+ const r=await fetch(\`/tools/ppt-image-text-editor/editable/\${uploadId}\`,{method:'POST',body:fd});
+ if(!r.ok){$('#status').textContent=await responseError(r,'conversion failed');return}
+ sessionStorage.setItem('editableSlidesImport',JSON.stringify(await r.json()));location.href='/tools/editable-slides/';
+});
 $('#exportBtn').addEventListener('click',async()=>{let edits=[];document.querySelectorAll('.pite-card').forEach(card=>{const img=analyzed.find(x=>String(x.index)===card.dataset.imageIndex);if(img)edits.push(...collectImageEdits(card,img))});if(!edits.length){alert('{{ tr("尚未修改任何文字") }}');return}let fd=new FormData();fd.append('edits_json',JSON.stringify(edits));let r=await fetch(`/tools/ppt-image-text-editor/export/${uploadId}`,{method:'POST',body:fd});if(!r.ok){alert(await responseError(r,'export failed'));return}let b=await r.blob();let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='edited.pptx';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)});
 </script>
 {% endblock %}
