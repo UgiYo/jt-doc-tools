@@ -67,9 +67,9 @@ $('#analyze').addEventListener('click',async()=>{
  }catch(error){$('#status').textContent=error.message||String(error);tracking(false)}
 });
 $('#cancelAnalysis').addEventListener('click',async()=>{
- if(!uploadId)return;const id=uploadId;++pollGeneration;tracking(false);$('#status').textContent='{{ tr("正在要求停止…") }}';
- try{await fetch(`/tools/ppt-image-text-editor/analysis/${id}/cancel`,{method:'POST'})}finally{
-  clearSavedJob();uploadId=null;analyzed=[];$('#results').innerHTML='';$('#exportPanel').hidden=true;$('#status').textContent='{{ tr("已停止追蹤；目前正在辨識的圖片完成後會停止") }}';
+ if(!uploadId)return;const id=uploadId;++pollGeneration;tracking(false);$('#status').textContent='{{ tr("正在要求停止…") }}';let message='{{ tr("已要求停止；目前圖片辨識完成後會安全停止") }}';
+ try{const r=await fetch(`/tools/ppt-image-text-editor/analysis/${id}/cancel`,{method:'POST'});if(!r.ok)message=await responseError(r,'cancel failed');else{const job=await r.json();if(job.status==='cancelled')message='{{ tr("已立即取消排隊中的辨識") }}'}}finally{
+  clearSavedJob();uploadId=null;analyzed=[];$('#results').innerHTML='';$('#exportPanel').hidden=true;$('#status').textContent=message;
  }
 });
 function selectWord(card,wi,focusInput=true){card.querySelectorAll('.pite-row,.pite-box').forEach(el=>el.classList.remove('active'));const row=card.querySelector(`.pite-row[data-word="${wi}"]`),box=card.querySelector(`.pite-box[data-word="${wi}"]`);if(row){row.classList.add('active');row.scrollIntoView({block:'nearest'});if(focusInput)row.querySelector('.new').focus()}if(box)box.classList.add('active')}

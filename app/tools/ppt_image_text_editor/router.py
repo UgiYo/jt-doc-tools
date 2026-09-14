@@ -11,18 +11,23 @@ from app.tools.editable_slides.pptx_io import export_pptx
 from .image_edit import available_fonts,edit_text,image_format_for_path,to_png
 from .pptx_core import list_slide_images,read_media,replace_media
 router=APIRouter();_ID_RE=re.compile(r"^[a-f0-9]{32}$")
-_OCR_LIMIT=asyncio.Semaphore(1);_CONVERT_LIMIT=_OCR_LIMIT;_jobs={};_convert_jobs={};_tasks=set()
+_OCR_LIMIT=asyncio.Semaphore(1);_CONVERT_LIMIT=_OCR_LIMIT;_jobs={};_convert_jobs={};_tasks=set();_analysis_tasks={}
 def _job_view(uid):
  job=_jobs.get(uid)
  if not job:return None
  view={k:v for k,v in job.items() if k not in {"result"}}
  if job["status"]=="queued":
-  waiting=sorted((j for j in _jobs.values() if j["status"]=="queued"),key=lambda j:j["created_at"])
+  waiting=sorted((j for j in _jobs.values() if j["status"]=="queued" and not j.get("cancel_requested")),key=lambda j:j["created_at"])
   view["queue_position"]=next((i+1 for i,j in enumerate(waiting) if j["uid"]==uid),1)
  if job["status"]=="done":view["images"]=job.get("result",[])
  return view
-def _remember_task(task):
+def _remember_task(task,uid=None):
  _tasks.add(task);task.add_done_callback(_tasks.discard)
+ if uid:
+  _analysis_tasks[uid]=task
+  def forget(done):
+   if _analysis_tasks.get(uid) is done:_analysis_tasks.pop(uid,None)
+  task.add_done_callback(forget)
 def _prune_jobs():
  cutoff=time.time()-86400
  for key,job in list(_jobs.items()):
@@ -93,13 +98,17 @@ async def start_analysis(uid:str,request:Request,langs:str=Form("chi_tra+eng")):
  uid=_safe_id(uid);_uo.require(uid,request);_prune_jobs();existing=_jobs.get(uid)
  if existing and existing["status"] in {"queued","running","done"}:return _job_view(uid)
  job={"uid":uid,"status":"queued","created_at":time.time(),"completed":0,"total":0,"error":None,"cancel_requested":False};_jobs[uid]=job
- task=asyncio.create_task(_run_analysis(uid,langs));_remember_task(task);return _job_view(uid)
+ task=asyncio.create_task(_run_analysis(uid,langs));_remember_task(task,uid);return _job_view(uid)
 
 @router.post("/analysis/{uid}/cancel")
 async def cancel_analysis(uid:str,request:Request):
  uid=_safe_id(uid);_uo.require(uid,request);job=_jobs.get(uid)
  if not job:raise HTTPException(404,"analysis job not found")
- if job["status"] in {"queued","running"}:job["cancel_requested"]=True
+ if job["status"]=="queued":
+  job.update(cancel_requested=True,status="cancelled",completed_at=time.time())
+  task=_analysis_tasks.get(uid)
+  if task:task.cancel()
+ elif job["status"]=="running":job["cancel_requested"]=True
  return _job_view(uid)
 
 @router.get("/analysis/{uid}")

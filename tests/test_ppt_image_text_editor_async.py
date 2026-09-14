@@ -30,3 +30,11 @@ def test_ocr_job_can_resume_and_cancel_safely():
     assert "resumeSavedAnalysis();" in TEMPLATE
     assert "fileFingerprint(file)" in TEMPLATE
     assert "/cancel" in TEMPLATE
+
+def test_queued_cancel_removes_job_immediately_from_queue():
+    assert 'job["status"]=="queued"' in ROUTER
+    assert 'status="cancelled"' in ROUTER
+    assert "task.cancel()" in ROUTER
+    assert "_analysis_tasks" in ROUTER
+    assert 'not j.get("cancel_requested")' in ROUTER
+    assert "已立即取消排隊中的辨識" in TEMPLATE
