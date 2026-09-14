@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json,re,uuid
+import asyncio,json,re,time,uuid
 from pathlib import Path
 from fastapi import APIRouter,File,Form,HTTPException,Request,UploadFile
 from fastapi.responses import FileResponse,HTMLResponse,Response
@@ -10,6 +10,22 @@ from .editable_bridge import build_editable_deck
 from .image_edit import available_fonts,edit_text,image_format_for_path,to_png
 from .pptx_core import list_slide_images,read_media,replace_media
 router=APIRouter();_ID_RE=re.compile(r"^[a-f0-9]{32}$")
+_OCR_LIMIT=asyncio.Semaphore(1);_jobs={};_tasks=set()
+def _job_view(uid):
+ job=_jobs.get(uid)
+ if not job:return None
+ view={k:v for k,v in job.items() if k not in {"result"}}
+ if job["status"]=="queued":
+  waiting=sorted((j for j in _jobs.values() if j["status"]=="queued"),key=lambda j:j["created_at"])
+  view["queue_position"]=next((i+1 for i,j in enumerate(waiting) if j["uid"]==uid),1)
+ if job["status"]=="done":view["images"]=job.get("result",[])
+ return view
+def _remember_task(task):
+ _tasks.add(task);task.add_done_callback(_tasks.discard)
+def _prune_jobs():
+ cutoff=time.time()-86400
+ for key,job in list(_jobs.items()):
+  if job["status"] in {"done","failed"} and job.get("completed_at",0)<cutoff:_jobs.pop(key,None)
 def _work_dir():p=settings.temp_dir/"ppt_image_text_editor";p.mkdir(parents=True,exist_ok=True);return p
 def _src(uid):return _work_dir()/f"{uid}.pptx"
 def _manifest(uid):return _work_dir()/f"{uid}.json"
@@ -48,16 +64,52 @@ async def upload(request:Request,file:UploadFile=File(...)):
  except Exception as exc:raise HTTPException(400,f"PPTX 解析失敗：{exc}") from exc
  uid=uuid.uuid4().hex;_src(uid).write_bytes(raw);_manifest(uid).write_text(json.dumps({"filename":name},ensure_ascii=False),encoding="utf-8");_uo.record(uid,request);unique=sorted({r.media_path for r in refs})
  return {"upload_id":uid,"filename":name,"slides_with_images":len({r.slide for r in refs}),"image_refs":len(refs),"unique_images":len(unique)}
+async def _run_analysis(uid,langs):
+ job=_jobs[uid]
+ try:
+  raw=await asyncio.to_thread(_src(uid).read_bytes);refs=await asyncio.to_thread(list_slide_images,raw);grouped={}
+  for ref in refs:
+   item=grouped.setdefault(ref.media_path,{"media_path":ref.media_path,"slides":[],"rel_ids":[]});item["slides"].append(ref.slide);item["rel_ids"].append(ref.rel_id)
+  job["total"]=len(grouped)
+  async with _OCR_LIMIT:
+   job["status"]="running";job["started_at"]=time.time();result=[]
+   for idx,(media_path,item) in enumerate(grouped.items()):
+    try:
+     png,(w,h)=await asyncio.to_thread(to_png,read_media(raw,media_path))
+     words,engine=await asyncio.to_thread(_oe.recognize_image,png,langs,preprocess=True,allow_local_easyocr=_oe.local_easyocr_safe())
+     result.append({**item,"index":idx,"width":w,"height":h,"engine":engine,"preview_url":f"/tools/ppt-image-text-editor/preview/{uid}/{idx}","words":words})
+    except Exception as exc:result.append({**item,"index":idx,"width":0,"height":0,"words":[],"error":str(exc)})
+    job["completed"]=idx+1
+   cache={str(i):x[0] for i,x in enumerate(grouped.items())};data=json.loads(_manifest(uid).read_text(encoding="utf-8"));data["media_map"]=cache;data["analysis"]=result
+   await asyncio.to_thread(_manifest(uid).write_text,json.dumps(data,ensure_ascii=False),encoding="utf-8")
+   job.update(status="done",result=result,completed_at=time.time())
+ except Exception as exc:job.update(status="failed",error=str(exc),completed_at=time.time())
+
+@router.post("/analysis/{uid}")
+async def start_analysis(uid:str,request:Request,langs:str=Form("chi_tra+eng")):
+ uid=_safe_id(uid);_uo.require(uid,request);_prune_jobs();existing=_jobs.get(uid)
+ if existing and existing["status"] in {"queued","running","done"}:return _job_view(uid)
+ job={"uid":uid,"status":"queued","created_at":time.time(),"completed":0,"total":0,"error":None};_jobs[uid]=job
+ task=asyncio.create_task(_run_analysis(uid,langs));_remember_task(task);return _job_view(uid)
+
+@router.get("/analysis/{uid}")
+async def analysis_status(uid:str,request:Request):
+ uid=_safe_id(uid);_uo.require(uid,request);view=_job_view(uid)
+ if view:return view
+ try:data=json.loads(_manifest(uid).read_text(encoding="utf-8"))
+ except FileNotFoundError:raise HTTPException(404,"upload not found")
+ if data.get("analysis") is not None:return {"uid":uid,"status":"done","completed":len(data["analysis"]),"total":len(data["analysis"]),"images":data["analysis"]}
+ raise HTTPException(404,"analysis job not started")
+
 @router.get("/images/{uid}")
 async def images(uid:str,request:Request,langs:str="chi_tra+eng"):
- uid=_safe_id(uid);_uo.require(uid,request);raw=_src(uid).read_bytes();refs=list_slide_images(raw);grouped={}
- for ref in refs:
-  item=grouped.setdefault(ref.media_path,{"media_path":ref.media_path,"slides":[],"rel_ids":[]});item["slides"].append(ref.slide);item["rel_ids"].append(ref.rel_id)
- result=[]
- for idx,(media_path,item) in enumerate(grouped.items()):
-  try:png,(w,h)=to_png(read_media(raw,media_path));words,engine=_oe.recognize_image(png,langs,preprocess=True,allow_local_easyocr=_oe.local_easyocr_safe());result.append({**item,"index":idx,"width":w,"height":h,"engine":engine,"preview_url":f"/tools/ppt-image-text-editor/preview/{uid}/{idx}","words":words})
-  except Exception as exc:result.append({**item,"index":idx,"width":0,"height":0,"words":[],"error":str(exc)})
- cache={str(i):x[0] for i,x in enumerate(grouped.items())};data=json.loads(_manifest(uid).read_text(encoding="utf-8"));data["media_map"]=cache;data["analysis"]=result;_manifest(uid).write_text(json.dumps(data,ensure_ascii=False),encoding="utf-8");return {"upload_id":uid,"fonts":available_fonts(),"images":result}
+ """Backward-compatible endpoint; OCR runs off the event loop."""
+ state=await start_analysis(uid,request,langs)
+ while state["status"] in {"queued","running"}:
+  await asyncio.sleep(.5);state=_job_view(uid)
+ if state["status"]=="failed":raise HTTPException(500,state.get("error") or "OCR failed")
+ return {"upload_id":uid,"fonts":available_fonts(),"images":state.get("images",[])}
+
 @router.get("/preview/{uid}/{index}")
 async def preview(uid:str,index:int,request:Request):
  uid=_safe_id(uid);_uo.require(uid,request);m=json.loads(_manifest(uid).read_text(encoding="utf-8"));path=(m.get("media_map") or {}).get(str(index))

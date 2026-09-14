@@ -23,15 +23,25 @@
 let uploadId=null, analyzed=[], previewTimers=new Map(), previewUrls=new Map(), previewSeq=new Map();
 const $=s=>document.querySelector(s);
 async function responseError(r,fallback){const text=await r.text();try{return JSON.parse(text).detail||fallback}catch{return text||fallback}}
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 $('#analyze').addEventListener('click', async()=>{
- const f=$('#pptFile').files[0]; if(!f){alert('{{ tr("請選擇 PPTX") }}');return}
- clearPreviewUrls(); $('#status').textContent='{{ tr("上傳中…") }}';
- let fd=new FormData(); fd.append('file',f);
- let r=await fetch('/tools/ppt-image-text-editor/upload',{method:'POST',body:fd});
- if(!r.ok){$('#status').textContent=await responseError(r,'upload failed');return} let u=await r.json(); uploadId=u.upload_id;
- $('#status').textContent='{{ tr("OCR 分析中…") }}';
- r=await fetch(`/tools/ppt-image-text-editor/images/${uploadId}?langs=${encodeURIComponent($('#langs').value)}`);
- if(!r.ok){$('#status').textContent=await responseError(r,'OCR failed');return} let d=await r.json(); analyzed=d.images||[]; render(); $('#exportPanel').hidden=false; $('#status').textContent=`${analyzed.length} {{ tr("張圖片") }}`;
+ const button=$('#analyze'),f=$('#pptFile').files[0];if(!f){alert('{{ tr("請選擇 PPTX") }}');return}
+ if(button.disabled)return;button.disabled=true;clearPreviewUrls();$('#status').textContent='{{ tr("上傳中…") }}';
+ try{
+  const fd=new FormData();fd.append('file',f);let r=await fetch('/tools/ppt-image-text-editor/upload',{method:'POST',body:fd});
+  if(!r.ok)throw new Error(await responseError(r,'upload failed'));const u=await r.json();uploadId=u.upload_id;
+  const start=new FormData();start.append('langs',$('#langs').value);r=await fetch(`/tools/ppt-image-text-editor/analysis/${uploadId}`,{method:'POST',body:start});
+  if(!r.ok)throw new Error(await responseError(r,'OCR start failed'));
+  while(true){
+   const job=await r.json();
+   if(job.status==='queued')$('#status').textContent=`{{ tr("OCR 排隊中") }}（{{ tr("前方") }} ${Math.max(0,(job.queue_position||1)-1)} {{ tr("份") }}）`;
+   else if(job.status==='running')$('#status').textContent=`{{ tr("OCR 辨識中") }} ${job.completed||0}/${job.total||'?'}`;
+   else if(job.status==='failed')throw new Error(job.error||'OCR failed');
+   else if(job.status==='done'){analyzed=job.images||[];render();$('#exportPanel').hidden=false;$('#status').textContent=`${analyzed.length} {{ tr("張圖片") }}`;break}
+   await sleep(1000);r=await fetch(`/tools/ppt-image-text-editor/analysis/${uploadId}`);if(!r.ok)throw new Error(await responseError(r,'OCR status failed'));
+  }
+ }catch(error){$('#status').textContent=error.message||String(error)}
+ finally{button.disabled=false}
 });
 function selectWord(card,wi,focusInput=true){card.querySelectorAll('.pite-row,.pite-box').forEach(el=>el.classList.remove('active'));const row=card.querySelector(`.pite-row[data-word="${wi}"]`),box=card.querySelector(`.pite-box[data-word="${wi}"]`);if(row){row.classList.add('active');row.scrollIntoView({block:'nearest'});if(focusInput)row.querySelector('.new').focus()}if(box)box.classList.add('active')}
 function positionBoxes(card,imgData){const image=card.querySelector('.pite-stage img');if(!image.naturalWidth||!imgData.width||!imgData.height)return;const sx=image.clientWidth/imgData.width,sy=image.clientHeight/imgData.height;card.querySelectorAll('.pite-box').forEach(box=>{const w=imgData.words[Number(box.dataset.word)];box.style.left=`${w.left*sx}px`;box.style.top=`${w.top*sy}px`;box.style.width=`${Math.max(3,w.width*sx)}px`;box.style.height=`${Math.max(3,w.height*sy)}px`})}
