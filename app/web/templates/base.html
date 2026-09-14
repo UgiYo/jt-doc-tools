@@ -104,6 +104,10 @@
      字典只在非預設語言時才載，繁體中文底下連一個位元組都不會多送。 #}
   <script src="/static/js/i18n.js"></script>
   {% if ui_locale(request) != 'zh-Hant' %}<script src="/i18n/{{ ui_locale(request) }}.js"></script>{% endif %}
+  <style nonce="{{ request.state.csp_nonce }}">
+    .ocr-job-notice{position:fixed;right:22px;bottom:22px;z-index:10020;width:min(360px,calc(100vw - 32px));padding:14px 44px 14px 16px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;color:#1e3a8a;box-shadow:0 12px 36px rgba(15,23,42,.22)}
+    .ocr-job-notice.is-error{border-color:#fecaca;background:#fef2f2;color:#991b1b}.ocr-job-notice strong{display:block;margin-bottom:4px}.ocr-job-notice a{display:inline-block;margin-top:8px;font-weight:700;color:#2563eb}.ocr-job-notice button{position:absolute;right:9px;top:8px;border:0;background:transparent;color:inherit;font-size:20px;cursor:pointer}
+  </style>
 </head>
 <body>
   <button class="sidebar-toggle" type="button" id="sidebarToggle" aria-label="{{ tr('展開側邊選單') }}" title="{{ tr('展開側邊選單') }}">☰</button>
@@ -1068,6 +1072,41 @@
       }
     })();
   </script>
+  <script nonce="{{ request.state.csp_nonce }}">
+    (() => {
+      const KEY='pptImageTextEditor.activeJob.v1', notice=document.getElementById('ocrJobNotice');
+      if(!notice)return;const title=document.getElementById('ocrJobNoticeTitle'),message=document.getElementById('ocrJobNoticeMessage');
+      let checking=false;
+      function saved(){try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch{return null}}
+      function store(value){try{localStorage.setItem(KEY,JSON.stringify(value))}catch{}}
+      function show(job,state){
+        const failed=job.status==='failed';notice.classList.toggle('is-error',failed);
+        title.textContent=failed?'{{ tr("PPT 圖片文字辨識失敗") }}':'{{ tr("PPT 圖片文字辨識完成") }}';
+        message.textContent=failed?(job.error||'{{ tr("請回到工具頁重新嘗試") }}'):`${state.filename||''} · ${job.completed||0} {{ tr("張圖片") }}`;
+        notice.hidden=false;
+      }
+      async function check(){
+        if(checking||location.pathname.startsWith('/tools/ppt-image-text-editor'))return;
+        const state=saved();if(!state?.upload_id||['cancelled'].includes(state.status))return;checking=true;
+        try{
+          const r=await fetch(`/tools/ppt-image-text-editor/analysis/${state.upload_id}`,{headers:{Accept:'application/json'}});
+          if(!r.ok)return;const job=await r.json();
+          if(['done','failed'].includes(job.status)&&state.notified_status!==job.status){
+            store({...state,status:job.status,notified_status:job.status});show(job,state);
+          }else if(['queued','running'].includes(job.status)&&state.status!==job.status)store({...state,status:job.status});
+        }catch{}finally{checking=false}
+      }
+      document.getElementById('ocrJobNoticeClose').addEventListener('click',()=>{notice.hidden=true});
+      window.addEventListener('storage',e=>{if(e.key===KEY)check()});
+      setTimeout(check,1200);setInterval(check,10000);
+    })();
+  </script>
   {% block scripts %}{% endblock %}
+  <div class="ocr-job-notice" id="ocrJobNotice" role="status" aria-live="polite" hidden>
+    <button type="button" id="ocrJobNoticeClose" aria-label="{{ tr('關閉') }}">×</button>
+    <strong id="ocrJobNoticeTitle"></strong>
+    <span id="ocrJobNoticeMessage"></span>
+    <a href="/tools/ppt-image-text-editor/" id="ocrJobNoticeLink">{{ tr('查看辨識結果') }} →</a>
+  </div>
 </body>
 </html>
