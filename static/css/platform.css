@@ -377,6 +377,16 @@ h2 { font-size: 18px; margin: 20px 0 10px; }
   font-size: 13px; margin: 10px 0 18px;
 }
 .info-box svg { vertical-align: -2px; margin-right: 4px; }
+/* 同一個形狀的警告版（琥珀色）。`.info-box` 是「順帶說明」，
+   `.warn-box` 是「這件事你不知道會吃虧」——例如編輯有數位簽章的 PDF
+   會讓簽章失效。**兩個都放這裡**，不要在工具自己的 <style> 裡再發明
+   第三個名字（`.notice` / `.af-info` 都這樣長出來過）。 */
+.warn-box {
+  background: #fffbeb; border: 1px solid #fcd34d; color: #78350f;
+  padding: 10px 12px; border-radius: var(--radius);
+  font-size: 13px; margin: 10px 0 18px;
+}
+.warn-box svg { vertical-align: -2px; margin-right: 4px; }
 
 .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
 .panel + .panel { margin-top: 16px; }
@@ -1220,3 +1230,31 @@ select.jt-select-native {
 .sb-item.is-locked:hover, .tool-card.is-locked:hover {
   transform: none; box-shadow: none; background: inherit;
 }
+
+/* 共用的圖片放大檢視（`static/js/lightbox.js`）。
+   全站原本有 13 份各自實作，2026-09-14 起新的一律用這一份。
+   樣式只能放這裡 —— CSP 的 style-src 沒有 unsafe-inline，JS 注入的
+   `<style>` 會被整段擋掉，而且不會有任何 JS 例外。 */
+[data-lightbox] img { cursor: zoom-in; }
+.jt-lightbox { position: fixed; inset: 0; z-index: 1200;
+  background: rgba(15, 23, 42, .88); display: flex; align-items: center;
+  justify-content: center; padding: 28px; cursor: zoom-out; }
+.jt-lightbox[hidden] { display: none; }
+.jt-lb-img { max-width: 92vw; max-height: 86vh; background: #fff;
+  border-radius: 6px; box-shadow: 0 10px 40px rgba(0, 0, 0, .5); cursor: default; }
+.jt-lb-img.is-loading { opacity: .55; filter: blur(1px); }
+.jt-lb-cap { position: absolute; left: 0; right: 0; bottom: 18px;
+  text-align: center; color: #fff; font-size: 14px; pointer-events: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
+.jt-lb-close { position: absolute; top: 14px; right: 18px; width: 38px;
+  height: 38px; border: 0; border-radius: 50%; cursor: pointer;
+  background: rgba(255, 255, 255, .16); color: #fff; font-size: 24px;
+  line-height: 1; }
+.jt-lb-close:hover { background: rgba(255, 255, 255, .3); }
+.jt-lb-nav { position: absolute; top: 50%; transform: translateY(-50%);
+  width: 46px; height: 78px; border: 0; cursor: pointer;
+  background: rgba(255, 255, 255, .14); color: #fff; font-size: 30px; }
+.jt-lb-nav:hover { background: rgba(255, 255, 255, .26); }
+.jt-lb-nav[disabled] { opacity: .28; cursor: not-allowed; }
+.jt-lb-nav.prev { left: 12px; border-radius: 0 6px 6px 0; }
+.jt-lb-nav.next { right: 12px; border-radius: 6px 0 0 6px; }

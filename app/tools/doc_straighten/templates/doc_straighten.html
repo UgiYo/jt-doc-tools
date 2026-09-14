@@ -15,9 +15,9 @@
   {# 上傳區要用共用元件（`FileUpload` 靠裡面的 `.drop-zone` /
      `input[type=file]` 接線）—— 只放一個空的 `<div>` 的話**畫面上是一片空白、
      而且沒有任何錯誤訊息**（我第一版就是這樣，截圖才看出來）。 #}
-  {% with upload_id='dsUpload',
+  {% with upload_id='dsUpload', multiple=True,
           accept='application/pdf,.pdf,.png,.jpg,.jpeg,.tif,.tiff,.bmp,.webp,.heic,.heif,.doc,.docx,.odt,.xls,.xlsx,.ods,.ppt,.pptx,.odp',
-          hint=tr('單檔。手機拍的照片（含 HEIC）與文書檔都可以，文書檔會先自動轉成 PDF。') %}
+          hint=tr('可一次多張。手機拍的照片（含 HEIC）與文書檔都可以；多個檔案會依上傳順序併成一份 PDF。') %}
     {% include "components/file_upload.html" %}
   {% endwith %}
   <div id="dsInfo" class="muted" hidden></div>
@@ -49,6 +49,13 @@
     <div class="field">
       <label class="ds-check"><input type="checkbox" id="dsQuad" checked> {{ tr('手機翻拍時把紙張的四個角抓出來做透視校正') }}</label>
       <div class="muted">{{ tr('純掃描件通常不需要；抓不到時會自動只做拉正。') }}</div>
+    </div>
+  </div>
+  <div class="form-row">
+    <label>{{ tr('清晰化') }}</label>
+    <div class="field">
+      <label class="ds-check"><input type="checkbox" id="dsEnh" checked> {{ tr('壓平不勻的底色與陰影') }}</label>
+      <div class="muted">{{ tr('手機翻拍最常見的問題是半邊有陰影 —— 實測辨識率 0.472 → 0.982。已經很平的掃描件開著也不會有任何變化。') }}</div>
     </div>
   </div>
   <div class="form-row">
@@ -272,9 +279,13 @@
   let uploadId = null, pageCount = 0, srcName = '';
   let pvToken = 0;   // 每次重畫預覽換一個 token，過期的回應直接丟掉
 
-  const fu = new FileUpload($('dsUpload'), async (f) => {
+  //: **每一個檔案都要處理**（使用者 2026-09-14 回報：拖兩個進來只取第一份）。
+  //  共用元件在 `multiple` 時第一個參數就是陣列，第二個一律是完整清單 ——
+  //  取 `all` 比較不會因為元件的回呼形狀改變而默默只送一份。
+  const fu = new FileUpload($('dsUpload'), async (f, all) => {
+    const list = (all && all.length) ? all : [f];
     const fd = new FormData();
-    fd.append('file', f);
+    list.forEach((one) => fd.append('files', one));
     const r = await fu.upload('/tools/doc-straighten/load', fd,
                               { processingLabel: tr('讀取中…（文書檔會先轉成 PDF）') });
     if (!r.ok) {
@@ -283,7 +294,10 @@
     }
     const d = await r.json();
     uploadId = d.upload_id; pageCount = d.pages; srcName = d.name || 'document';
-    $('dsInfo').textContent = tr('共 {0} 頁').replace('{0}', pageCount);
+    $('dsInfo').textContent = (d.files > 1)
+      ? tr('{0} 個檔案 · 共 {1} 頁（已依上傳順序併成一份）')
+          .replace('{0}', d.files).replace('{1}', pageCount)
+      : tr('共 {0} 頁').replace('{0}', pageCount);
     $('dsInfo').hidden = false;
     $('dsOptPanel').hidden = false;
     $('dsPvPage').max = pageCount;
@@ -362,8 +376,11 @@
     // 的結果好幾秒，看起來像「拉了沒反應」，而使用者會再拖一次
     // （2026-09-13 使用者回報）。
     showBusy('dsPvAfter', 'dsPhAfter', tr('重新計算中…'));
+    // **左邊也要跟著轉** —— 手柄的座標是在「轉向後」的座標系（伺服器先轉
+    // 再抓四個角），左邊不轉的話不只是看起來怪，是真的拉不準。
+    const ovNow0 = overrides[page] || {};
     showImg('dsPvBefore', 'dsPhBefore',
-            `/tools/doc-straighten/thumb/${uploadId}/${page}`,
+            `/tools/doc-straighten/thumb/${uploadId}/${page}?rotate=${ovNow0.rotate || 0}`,
             tr('載入原稿…'), tr('這一頁的原稿載不出來'));
     const ov = overrides[page] || {};
     const fd = new FormData();
@@ -372,6 +389,7 @@
     fd.append('dpi', dpiNow());
     fd.append('binarize', $('dsBin').checked ? '1' : '');
     fd.append('detect_quad', $('dsQuad').checked ? '1' : '');
+    fd.append('enhance', $('dsEnh').checked ? '1' : '');
     fd.append('rotate', ov.rotate || 0);
     if (ov.quad) fd.append('quad', ov.quad.map((pt) => pt.join(',')).join(','));
     try {
@@ -450,8 +468,18 @@
     const q = quadNow();
     const svg = $('dsQuadSvg'), box = $('dsHandles');
     $('dsQuadActions').hidden = !on;
-    if (!on || !q) { svg.hidden = true; box.hidden = true; box.innerHTML = ''; return; }
-    svg.hidden = false; box.hidden = false;
+    // **SVG 不可以用 `.hidden`**（2026-09-14 使用者回報「四個角還是沒有連線」）：
+    //  `SVGElement` 沒有 `hidden` 這個 IDL 屬性（實測 `'hidden' in svg` 是
+    //  false），所以 `svg.hidden = false` 只是在物件上掛一個沒人看的屬性，
+    //  標記本身還留著；而 `platform.css` 的 `[hidden]{display:none!important}`
+    //  是作者樣式、沒有命名空間限定，**SVG 照樣吃得到** ——
+    //  於是那個四邊形從第一版起就永遠是 display:none。
+    //  手柄是 `<div>` 所以看得到，看起來就像「有點沒有線」。
+    //  `toggleAttribute` 兩種元素都成立。
+    if (!on || !q) {
+      svg.toggleAttribute('hidden', true); box.hidden = true; box.innerHTML = ''; return;
+    }
+    svg.toggleAttribute('hidden', false); box.hidden = false;
     setQuadPoints(q);
     if (box.children.length !== 4) {
       box.innerHTML = '';
@@ -556,7 +584,7 @@
 
   $('dsPreview').addEventListener('click', drawPreview);
   $('dsPvPage').addEventListener('change', () => { autoQuad = null; drawPreview(); });
-  ['dsBin', 'dsQuad'].forEach((id) =>
+  ['dsBin', 'dsQuad', 'dsEnh'].forEach((id) =>
     $(id).addEventListener('change', () => { autoQuad = null; drawPreview(); }));
   document.querySelectorAll('input[name="dsDpi"]').forEach((el) =>
     el.addEventListener('change', () => { autoQuad = null; drawPreview(); }));
@@ -575,6 +603,7 @@
     fd.append('dpi', dpiNow());
     fd.append('binarize', $('dsBin').checked ? '1' : '');
     fd.append('detect_quad', $('dsQuad').checked ? '1' : '');
+    fd.append('enhance', $('dsEnh').checked ? '1' : '');
     fd.append('out_name', srcName);
     // 使用者自己調過的那幾頁一起送出去（沒調過就不送，維持自動）
     if (Object.keys(overrides).length) {

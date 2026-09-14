@@ -362,3 +362,161 @@ def test_counts_as_an_office_tool():
 def test_backfill_migration_exists():
     from app.core import auth_db
     assert any("seam" in f.__name__ for f in auth_db.MIGRATIONS)
+
+
+# ---------------------------------------------------------------------------
+# 章外圍的透明留白（2026-09-14 外部建議 → 實測重現）
+# ---------------------------------------------------------------------------
+
+def _round_stamp(pad_frac: float = 0.0) -> bytes:
+    """畫一個圓章，外圍留 `pad_frac` 的透明邊 —— 拍照去背之後很常見。"""
+    import io as _io
+
+    from PIL import Image, ImageDraw
+
+    inner = 400
+    pad = int(inner * pad_frac)
+    size = inner + pad * 2
+    im = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.ellipse([pad, pad, pad + inner, pad + inner], outline=(200, 20, 20, 255), width=14)
+    d.ellipse([pad + 60, pad + 60, pad + inner - 60, pad + inner - 60],
+              fill=(200, 20, 20, 255))
+    buf = _io.BytesIO()
+    im.save(buf, "PNG")
+    return buf.getvalue()
+
+
+def _ink_span_mm(doc, page_no: int, dpi: int = 150):
+    """回傳 (紅墨的左右範圍 mm, 離左緣 mm, 離右緣 mm, 墨點數)。"""
+    import numpy as np
+
+    pix = doc[page_no].get_pixmap(dpi=dpi)
+    a = np.frombuffer(pix.samples, np.uint8).reshape(pix.height, pix.width, pix.n)
+    ink = (a[:, :, 0].astype(int) - a[:, :, 2].astype(int)) > 40
+    cols = np.where(ink.any(axis=0))[0]
+    if not len(cols):
+        return 0.0, None, None, 0
+    mm = dpi / 25.4
+    return ((cols.max() - cols.min() + 1) / mm, cols.min() / mm,
+            (pix.width - 1 - cols.max()) / mm, int(ink.sum()))
+
+
+def _spread_width_mm(png: bytes, size_mm: float = 40.0) -> float:
+    """兩頁攤開時，紅墨橫跨的總寬度（＝使用者看到的章有多大）。"""
+    import fitz
+
+    from app.tools.pdf_seam_stamp import seam_core as SC
+
+    doc = fitz.open()
+    for _ in range(2):
+        doc.new_page(width=595, height=842)
+    SC.apply_seam(doc, png, SC.SeamSpec(mode="spread", size_mm=size_mm,
+                                        group=2, offset_mm=0, pos_mm=0))
+    _, _, right_gap, _ = _ink_span_mm(doc, 0)
+    _, left_gap, _, _ = _ink_span_mm(doc, 1)
+    w0 = _ink_span_mm(doc, 0)[0]
+    w1 = _ink_span_mm(doc, 1)[0]
+    doc.close()
+    assert right_gap is not None and left_gap is not None
+    return w0 + w1
+
+
+def test_transparent_padding_does_not_shrink_the_stamp():
+    """設 40 mm 就要印出 40 mm，**不管使用者那張圖外圍留了多少透明邊**。
+
+    修正前實測：留白 25% 的章實際只印出 **26.8 mm**（縮 33%），而且同一個
+    設定在不同來源的章上會得到不同大小 —— 使用者只看得到「章怎麼變小了」，
+    看不出原因在他自己的圖上。
+    """
+    want = _spread_width_mm(_round_stamp(0.0))
+    assert abs(want - 40) < 1.5, f"沒有留白時就已經不對了：{want:.1f} mm"
+    for pad in (0.10, 0.25):
+        got = _spread_width_mm(_round_stamp(pad))
+        assert abs(got - want) < 1.0, (
+            f"留白 {pad:.0%} 的章印出來是 {got:.1f} mm，沒有留白的是 {want:.1f} mm"
+            " —— 外圍的透明邊被算進章的寬度裡了")
+
+
+def test_the_preview_also_trims_the_padding():
+    """拼章預覽要跟實際蓋上去是**同一個東西**。
+
+    判準是「**墨佔畫布多少**」不是長寬比 —— 方形的章加上等寬留白之後**長寬比
+    不變**，只比長寬比的話，預覽完全沒裁也會全綠（我第一版就是這樣，變異
+    驗證當場抓到）。
+    """
+    import numpy as np
+    from PIL import Image
+
+    from app.tools.pdf_seam_stamp import seam_core as SC
+
+    spec = SC.SeamSpec(mode="spread", size_mm=40, group=2, offset_mm=0, pos_mm=0)
+    fills = []
+    for pad in (0.0, 0.25):
+        png = SC.reconstruct(_round_stamp(pad), spec, 2)
+        a = np.array(Image.open(io.BytesIO(png)).convert("RGBA"))
+        rows = np.where((a[:, :, 3] >= 16).any(axis=1))[0]
+        cols = np.where((a[:, :, 3] >= 16).any(axis=0))[0]
+        fills.append(((rows.max() - rows.min() + 1) / a.shape[0],
+                      (cols.max() - cols.min() + 1) / a.shape[1]))
+    assert fills[0][0] > 0.95 and fills[0][1] > 0.95, (
+        f"沒有留白時預覽就沒填滿：{fills[0]}")
+    assert abs(fills[0][0] - fills[1][0]) < 0.05, (
+        f"預覽裡的留白沒被裁掉：{fills} —— reconstruct 沒有走 load_stamp")
+
+
+def test_trimming_keeps_stray_specks_from_defeating_it():
+    """拍照去背後角落常留幾個半透明的雜點。
+
+    只取 alpha 的 bounding box 會被那幾點綁住 → 等於沒裁，而且**測試會全綠**。
+    """
+    from PIL import Image
+
+    from app.tools.pdf_seam_stamp import seam_core as SC
+
+    im = Image.open(io.BytesIO(_round_stamp(0.25))).convert("RGBA")
+    im.putpixel((2, 2), (200, 20, 20, 40))          # 角落一個半透明雜點
+    im.putpixel((im.size[0] - 3, im.size[1] - 3), (200, 20, 20, 60))
+    out = SC.trim_transparent(im)
+    assert out.size[0] < im.size[0] * 0.75, (
+        f"雜點讓裁切失效：{im.size} → {out.size}")
+
+
+def test_trimming_refuses_to_do_anything_silly():
+    """算出來的框不合理就原樣回傳 —— 裁過頭會把章的邊緣切掉，比留白更糟。"""
+    from PIL import Image
+
+    from app.tools.pdf_seam_stamp import seam_core as SC
+
+    blank = Image.new("RGBA", (300, 300), (0, 0, 0, 0))
+    assert SC.trim_transparent(blank).size == (300, 300), "全透明的圖不可以被裁成 0"
+    speck = Image.new("RGBA", (300, 300), (0, 0, 0, 0))
+    speck.putpixel((10, 10), (255, 0, 0, 255))
+    assert SC.trim_transparent(speck).size == (300, 300), "只剩一個點時要放棄裁切"
+    opaque = Image.new("RGBA", (300, 300), (255, 255, 255, 255))
+    assert SC.trim_transparent(opaque).size == (300, 300), "整張不透明的不該被裁"
+
+
+def test_the_stamp_reaches_the_visible_page_edge_even_with_a_cropbox():
+    """貼齊「頁邊」指的是**可見範圍**（CropBox），不是 MediaBox。
+
+    PyMuPDF 的 `page.rect` 已經是 CropBox，所以這條目前是**正向釘住現況**：
+    有人哪天改成用 MediaBox 算，這裡會紅。
+    """
+    import fitz
+
+    from app.tools.pdf_seam_stamp import seam_core as SC
+
+    doc = fitz.open()
+    for _ in range(2):
+        pg = doc.new_page(width=595, height=842)
+        pg.set_cropbox(fitz.Rect(50, 50, 545, 792))
+    assert doc[0].rect.width < 595, "CropBox 沒吃進去，這條測試沒有意義"
+    SC.apply_seam(doc, _round_stamp(), SC.SeamSpec(mode="side", edge="right",
+                                                   size_mm=40, group=2,
+                                                   offset_mm=0, pos_mm=0))
+    _, _, right_gap, ink = _ink_span_mm(doc, 0)
+    doc.close()
+    assert ink > 1000, "根本沒蓋上去"
+    assert right_gap is not None and right_gap < 1.0, (
+        f"紅墨離可見右緣 {right_gap:.1f} mm —— 貼齊的是 MediaBox 不是 CropBox")

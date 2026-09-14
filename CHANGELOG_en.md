@@ -11,6 +11,113 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.44] - 2026-09-14
+
+### Document straightening: the four corners were **never** joined up
+
+v1.15.43 made the outline thicker and the user reported it still was not there.
+The cause had nothing to do with thickness:
+
+* **`SVGElement` has no `hidden` IDL attribute** — the spec defines it on
+  `HTMLElement`. `svg.hidden = false` just sets a property nobody reads;
+  **the `hidden` attribute itself is untouched.**
+* And `platform.css` has `[hidden] { display: none !important; }` — an *author*
+  stylesheet with no namespace. The browser's own `html.css` is namespaced to
+  HTML, ours is not, so **it hides SVG as well.**
+
+So that quadrilateral has been `display:none` since the first version, with
+**no JavaScript error anywhere**: the four drag handles are `<div>`s and worked
+fine, so the screen showed dots but never lines — it read as "not built yet"
+rather than "broken". Now toggled with `toggleAttribute`, which works for both.
+
+> Two guards: a static one that scans the whole tree for `.hidden` used on an
+> `<svg>`, and an end-to-end one that uploads a synthetic photo in a real browser,
+> switches to manual mode and **measures whether the outline occupies any space
+> on screen**. Checking that the `points` attribute is set would have stayed green.
+
+### Document straightening: new "clean up" option, on by default
+
+A shadow across half the sheet is the most common problem with phone photos.
+**The test is text recognition, not whether it looks cleaner:**
+
+| Case | Untouched | Cleaned |
+|---|---:|---:|
+| Hard one-sided shadow | **0.472** | **0.982** |
+| Corner vignetting | 0.884 | 0.986 |
+| Diagonal shadow | 0.967 | 0.986 |
+
+> **Binarising is not cleaning up.** On the same material, local thresholding drove
+> recognition down to **0.108** — and the version that *looks* cleanest is the worst
+> one. It stays a separate, off-by-default option for shrinking files. CLAHE was
+> also consistently worse.
+
+> **`divide(image, local max)` cannot be used**: recognition is just as good, but it
+> washes large dark areas to pure white — a dark grey photo block went from mean
+> 66.3 to **254.9**, i.e. it vanished. Instead a slowly varying, bounded gain field
+> is estimated, with unreliable (large dark) regions masked out and filled by
+> `inpaint` **from their boundary**. Filling with a wide blur instead smears away the
+> shadow's step edge and recognition falls back to 0.472.
+
+> **Perfectly even scans are left bit-for-bit identical** (maximum change: 0 levels),
+> which is what makes it safe to default on. The white-point step must be clamped to
+> brighten-only; without that clamp a pure white scan is pushed down to 245 and 97%
+> of pixels change.
+
+### Document straightening: multiple files at once; rotation applies to the "before" view
+
+* Several uploads are merged into one PDF **in upload order**, each page processed.
+* After pressing rotate, the "before" thumbnail on the left stayed unrotated and no
+  longer matched the corrected view on the right.
+
+### PDF editor: warns when the file carries a digital signature
+
+Editing and saving a new file **always invalidates the signature** — it covers the
+whole file, so any change (even just re-saving) makes readers report "signature
+invalid / document has been altered". The editor now says so up front and explains
+that keeping the signature means using the original file or having it re-signed.
+
+### Seam stamp: transparent padding around the stamp shrank it
+
+With "stamp width 40 mm" we scaled the *whole image* to 40 mm — and stamps cut out
+from a photo usually keep a transparent margin, so the actual ink was only
+**26.8 mm** (with 25% padding), and **the same setting produced different sizes for
+different source images**. All the user sees is "the stamp got smaller".
+
+Compositing and the reassembled preview now share one `load_stamp()` that trims the
+transparent border first, with a stray-speck threshold — a plain alpha bounding box
+is anchored by the few semi-transparent dots left behind by background removal and
+trims nothing.
+
+> Other points from the same external review already held: the complete stamp is
+> rotated before slicing, slice widths use running rounding (no gaps or overlaps),
+> there is a "reassembled stamp" preview, there is no artificial jagged/torn edge,
+> and alignment uses the `CropBox` rather than the `MediaBox` (now pinned by a test).
+
+### PDF editor: that signature warning had no styling at all
+
+It used `class="warn-box"` and my own comment claimed the class already existed site-wide. It did not — I invented it and then vouched for it. The full suite's `test_template_css_is_effective` caught it. There is now a shared `.warn-box` (the amber warning twin of `.info-box`), both living in `platform.css` so the next tool does not invent a third name.
+
+### Seam stamp: click a preview to see it full size
+
+Both the per-page previews and the reassembled stamp open full size, with arrow-key
+paging and Esc to close.
+
+> **Opening is not the same as enlarging.** The first version measured 300×424 on
+> screen — the same size as the thumbnail, because the per-page preview is a 78 dpi
+> render and showing it at natural size enlarges nothing. The endpoint already had
+> `large=1` (150 dpi), so the full-size view now fetches that **on click** (rendering
+> one for every page up front brings back the old "90 seconds per preview request"
+> problem on a 52-page file). Measured: 645px → **1240px**.
+
+> **No fourteenth copy was written.** A sweep found **13 separate lightbox
+> implementations**, each with slightly different keyboard and close behaviour.
+> There is now one shared `static/js/lightbox.js` (declarative `data-lightbox`,
+> event-delegated so thumbnails added later are covered too) and a guard that stops
+> new private copies appearing; the existing 13 are an explicit exemption list which
+> is itself checked for staleness.
+
+---
+
 ## [1.15.43] - 2026-09-14
 
 ### New: an install & upgrade troubleshooting page, linked from every failure

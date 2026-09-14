@@ -23,6 +23,7 @@ from __future__ import annotations
 import asyncio as _asyncio
 import uuid
 from pathlib import Path
+from typing import List
 
 import fitz
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
@@ -61,7 +62,11 @@ async def index(request: Request):
                                        "dpi_notes": _DPI_NOTES})
 
 
-async def _stash(request: Request, data: bytes, filename: str) -> dict:
+async def _to_pdf(data: bytes, filename: str, dst: Path, tag: str) -> None:
+    """把一個上傳檔（PDF / 圖片 / 文書檔）轉成 PDF 放到 `dst`。
+
+    `tag` 只是暫存檔名用的識別字，讓多檔同時處理時不會互相蓋掉。
+    """
     if not data:
         raise HTTPException(400, "空檔案")
     name = Path(filename or "document").name
@@ -72,14 +77,11 @@ async def _stash(request: Request, data: bytes, filename: str) -> dict:
     if not (is_pdf or is_image or office_convert.is_office_file(name)):
         raise HTTPException(400, "只支援 PDF、圖片（手機拍的也可以）與文書檔")
 
-    upload_id = uuid.uuid4().hex
-    _uo.record(upload_id, request)
-    dst = _src_path(upload_id)
     if is_pdf:
         dst.write_bytes(data)
     elif is_image:
         # 圖片先包成單頁 PDF，後面的流程就只有一條路
-        raw = settings.temp_dir / f"{_PREFIX}raw_{upload_id}{Path(name).suffix}"
+        raw = settings.temp_dir / f"{_PREFIX}raw_{tag}{Path(name).suffix}"
         raw.write_bytes(data)
         try:
             # HEIC（iPhone 拍的）要先轉成 PNG —— Pillow 本身不認那個格式，
@@ -101,7 +103,7 @@ async def _stash(request: Request, data: bytes, filename: str) -> dict:
         finally:
             raw.unlink(missing_ok=True)
     else:
-        raw = settings.temp_dir / f"{_PREFIX}raw_{upload_id}{Path(name).suffix}"
+        raw = settings.temp_dir / f"{_PREFIX}raw_{tag}{Path(name).suffix}"
         raw.write_bytes(data)
         try:
             office_convert.convert_to_pdf(raw, dst)
@@ -112,6 +114,45 @@ async def _stash(request: Request, data: bytes, filename: str) -> dict:
         if not dst.exists():
             raise HTTPException(400, "文書檔轉換失敗（沒有產出 PDF）")
 
+
+
+async def _stash(request: Request, uploads: list[tuple[bytes, str]]) -> dict:
+    """收下一批檔案，**每一個都要處理**，依上傳順序併成一份 PDF。
+
+    使用者 2026-09-14 回報：拖兩個檔案進來只取了第一份。拉正的典型情境
+    就是「一疊拍好的紙」——每張一個檔案，最後要的是**一份**整齊的 PDF。
+
+    併起來之後，後面的流程（逐頁預覽、逐頁轉向、自己拉四個角、輸出）
+    **一行都不用改** —— 它們本來就是以「頁」為單位。
+    """
+    if not uploads:
+        raise HTTPException(400, "沒有檔案")
+    upload_id = uuid.uuid4().hex
+    _uo.record(upload_id, request)
+    dst = _src_path(upload_id)
+
+    parts: list[Path] = []
+    try:
+        for i, (data, filename) in enumerate(uploads):
+            part = (dst if len(uploads) == 1
+                    else settings.temp_dir / f"{_PREFIX}p{i}_{upload_id}.pdf")
+            await _to_pdf(data, filename, part, f"{upload_id}_{i}")
+            parts.append(part)
+        if len(parts) > 1:
+            merged = fitz.open()
+            try:
+                for part in parts:
+                    with fitz.open(str(part)) as one:
+                        merged.insert_pdf(one)
+                merged.save(str(dst))
+            finally:
+                merged.close()
+    finally:
+        # 併完就把中間檔收掉（單檔時 parts[0] 就是 dst，不可以刪）
+        if len(parts) > 1:
+            for part in parts:
+                part.unlink(missing_ok=True)
+
     try:
         with fitz.open(str(dst)) as doc:
             n = doc.page_count
@@ -121,24 +162,62 @@ async def _stash(request: Request, data: bytes, filename: str) -> dict:
     if n == 0:
         dst.unlink(missing_ok=True)
         raise HTTPException(400, "檔案沒有任何頁面")
-    return {"upload_id": upload_id, "pages": n, "name": Path(name).stem}
+    first = Path(uploads[0][1] or "document").stem
+    return {"upload_id": upload_id, "pages": n, "name": first,
+            "files": len(uploads)}
 
 
 @router.post("/load")
-async def load(request: Request, file: UploadFile = File(...)):
-    return await _stash(request, await file.read(), file.filename or "")
+async def load(request: Request,
+               files: List[UploadFile] = File(default=[]),
+               file: UploadFile | None = File(default=None)):
+    """收多檔 —— **每一個都要處理**（依上傳順序併成一份 PDF）。
+
+    共用的上傳元件送的是 `files`。**`file` 也要收** —— 改成多檔之前這支端點
+    收的是單數的 `file`，直接換掉等於把既有的呼叫方式無聲弄壞
+    （改完當下就有四支既有測試紅了，那些正是模擬舊呼叫的）。
+    """
+    got = list(files or [])
+    if file is not None:
+        got.append(file)
+    if not got:
+        raise HTTPException(422, "請選擇檔案")
+    ups = [(await f.read(), f.filename or "") for f in got]
+    return await _stash(request, ups)
 
 
 @router.get("/thumb/{upload_id}/{page}")
-async def thumb(upload_id: str, page: int, request: Request):
+async def thumb(upload_id: str, page: int, request: Request, rotate: int = 0):
+    """「修正前」的縮圖。
+
+    `rotate` **一定要吃** —— 使用者在這一頁按了轉向之後，左邊沒跟著轉的話
+    兩張圖對不起來；更要緊的是**四個角的手柄是在「轉向後」的座標系**
+    （`straighten_page` 先轉再抓角），左邊不轉就會拉不準
+    （使用者 2026-09-14 回報）。
+    """
     require_uuid_hex(upload_id, "upload_id")
     _uo.require(upload_id, request)
+    rot = _clamp_rotate(rotate)
     src = _src_path(upload_id)
     if not src.exists():
         raise HTTPException(404, "檔案不存在（可能已過期）")
-    out = settings.temp_dir / f"{_PREFIX}th_{upload_id}_{page}.png"
+    # 快取鍵要帶角度，否則轉過一次之後永遠拿到第一次那張
+    out = settings.temp_dir / f"{_PREFIX}th_{upload_id}_{page}_{rot}.png"
     if not out.exists():
-        await pdf_preview.render_page_png_async(src, out, page - 1, dpi=70)
+        base = settings.temp_dir / f"{_PREFIX}th_{upload_id}_{page}_0.png"
+        if not base.exists():
+            await pdf_preview.render_page_png_async(src, base, page - 1, dpi=70)
+        if rot == 0:
+            out = base
+        else:
+            def _rot():
+                import cv2
+                img = cv2.imread(str(base), cv2.IMREAD_UNCHANGED)
+                code = {90: cv2.ROTATE_90_CLOCKWISE,
+                        180: cv2.ROTATE_180,
+                        270: cv2.ROTATE_90_COUNTERCLOCKWISE}[rot]
+                cv2.imwrite(str(out), cv2.rotate(img, code))
+            await _asyncio.to_thread(_rot)
     return FileResponse(str(out), media_type="image/png",
                         headers={"Cache-Control": "no-store"})
 
@@ -148,6 +227,7 @@ async def preview(request: Request, upload_id: str = Form(...),
                   page: int = Form(1), dpi: int = Form(200),
                   binarize: bool = Form(False),
                   detect_quad: bool = Form(True),
+                  enhance: bool = Form(True),
                   rotate: int = Form(0),
                   quad: str = Form("")):
     """單頁的「修正後」預覽。
@@ -186,7 +266,8 @@ async def preview(request: Request, upload_id: str = Form(...),
                 gray, arr if pix.n >= 3 else None) if detect_quad else None
         fixed, res = SC.straighten_page(gray, quad=q, do_binarize=binarize,
                                         dpi=_clamp_dpi(dpi), page_no=page,
-                                        rotate_deg=_clamp_rotate(rotate))
+                                        rotate_deg=_clamp_rotate(rotate),
+                                        enhance=enhance)
         png = cv2.imencode(".png", cv2.resize(
             fixed, None, fx=0.45, fy=0.45, interpolation=cv2.INTER_AREA))[1]
         out = settings.temp_dir / f"{_PREFIX}pv_{upload_id}_{page}.png"
@@ -258,7 +339,8 @@ def _clamp_dpi(dpi: int) -> int:
 
 
 def _run_job(src: Path, out: Path, *, dpi: int, binarize: bool,
-             detect_quad: bool, stem: str, overrides: dict | None = None):
+             detect_quad: bool, stem: str, enhance: bool = True,
+             overrides: dict | None = None):
     def run(job):
         job.message = "拉正中…"
 
@@ -267,7 +349,7 @@ def _run_job(src: Path, out: Path, *, dpi: int, binarize: bool,
             job.message = f"拉正中… {done}/{total} 頁"
 
         results = SC.straighten_pdf(src, out, dpi=dpi, do_binarize=binarize,
-                                    detect_quad=detect_quad,
+                                    detect_quad=detect_quad, enhance=enhance,
                                     overrides=overrides,
                                     progress=progress,
                                     cancelled=lambda: job.cancelled)
@@ -341,7 +423,8 @@ def _parse_overrides(raw: str, page_count: int) -> dict:
 @router.post("/submit")
 async def submit(request: Request, upload_id: str = Form(...),
                  dpi: int = Form(200), binarize: bool = Form(False),
-                 detect_quad: bool = Form(True), out_name: str = Form(""),
+                 detect_quad: bool = Form(True), enhance: bool = Form(True),
+                 out_name: str = Form(""),
                  overrides: str = Form("")):
     require_uuid_hex(upload_id, "upload_id")
     _uo.require(upload_id, request)
@@ -356,7 +439,8 @@ async def submit(request: Request, upload_id: str = Form(...),
     job = job_manager.submit(
         "doc-straighten",
         _run_job(src, out, dpi=_clamp_dpi(dpi), binarize=binarize,
-                 detect_quad=detect_quad, stem=stem, overrides=ov),
+                 detect_quad=detect_quad, stem=stem, enhance=enhance,
+                 overrides=ov),
         request=request,
         meta={"filename": f"{stem}.pdf", "count": page_count})
     return {"job_id": job.id}
@@ -365,9 +449,10 @@ async def submit(request: Request, upload_id: str = Form(...),
 @router.post("/api/doc-straighten", include_in_schema=True)
 async def api_doc_straighten(request: Request, file: UploadFile = File(...),
                              dpi: int = Form(200), binarize: bool = Form(False),
-                             detect_quad: bool = Form(True)):
+                             detect_quad: bool = Form(True),
+                             enhance: bool = Form(True)):
     """一次呼叫：上傳 → 拉正 → 直接回 PDF（同步，適合小檔）。"""
-    info = await _stash(request, await file.read(), file.filename or "")
+    info = await _stash(request, [(await file.read(), file.filename or "")])
     upload_id = info["upload_id"]
     src = _src_path(upload_id)
     out = settings.temp_dir / f"{_PREFIX}out_{upload_id}.pdf"
@@ -375,7 +460,7 @@ async def api_doc_straighten(request: Request, file: UploadFile = File(...),
     def _work():
         results = SC.straighten_pdf(src, out, dpi=_clamp_dpi(dpi),
                                     do_binarize=binarize,
-                                    detect_quad=detect_quad)
+                                    detect_quad=detect_quad, enhance=enhance)
         worst = max((abs(r.residual) for r in results), default=0.0)
         return results, worst
 

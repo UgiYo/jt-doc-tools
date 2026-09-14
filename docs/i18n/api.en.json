@@ -533,5 +533,6 @@
  "<strong>每一份都偵測不到內容區塊時回 <code>422</code></strong>（例如整張全白、或掃描時蓋子沒關的純黑）。 那不是請求格式的問題，而是「送進來的圖裡沒有東西可以拼」—— 訊息會說清楚是哪一種。": "<strong>Returns <code>422</code> when none of the files has a detectable content block</strong> (an all-white page, say, or an all-black one from scanning with the lid open). That is not a problem with the request format: there is nothing in the images to assemble, and the message says which case it is.",
  "解析一批台鐵 / 高鐵 / Uber 乘車證明 PDF，回結構化 JSON。<strong>只解析、不寫入使用者的清單</strong>。": "Parses a batch of Taiwan Railway, THSR or Uber ride receipt PDFs and returns structured JSON. <strong>Parsing only — nothing is written to the user's list.</strong>",
  "疑難排解": "Troubleshooting",
- "安裝與升級疑難排解": "Install & upgrade troubleshooting"
+ "安裝與升級疑難排解": "Install & upgrade troubleshooting",
+ "清晰化：壓平不勻的底色與陰影（<strong>預設開</strong>）。實測手機翻拍的單邊硬陰影，文字辨識率 0.472 → 0.982；已經很平的掃描件開著也是零變動": "Clean up: flatten uneven background and shadows (<strong>on by default</strong>). Measured on a phone photo with a hard one-sided shadow, text recognition went from 0.472 to 0.982; scans that are already even are left bit-for-bit identical"
 }

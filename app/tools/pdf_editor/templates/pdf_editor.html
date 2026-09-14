@@ -459,6 +459,19 @@ body.pe-pan-active { cursor: grabbing !important; }
   {% endwith %}
 </div>
 
+{# 數位簽章的警示。**開檔時就要講** —— 等到存完才說，使用者已經花了時間編輯，
+   而且收件方會看到「簽章無效」的紅字（實測：完全不編輯只按存檔，簽章的
+   完整性就從 True 變 False）。用共用的 `.warn-box`（`platform.css`，`.info-box` 的警告版）。
+   **第一版我寫「全站既有樣式」但那個類別根本不存在** ——
+   自己發明的類別名不會有任何錯誤訊息，只是那段字變成純文字，
+   `test_template_css_is_effective` 當場抓到。 #}
+<div class="warn-box" id="peSigWarn" hidden>
+  {{ icon('shield', size=16) }}
+  <b>{{ tr('這份 PDF 有數位簽章。') }}</b>
+  {{ tr('在這裡編輯並存成新檔之後，簽章會失去效力 —— 簽章涵蓋整份檔案，只要有任何改動就不再成立（即使只是重新存檔）。新檔案在閱讀器裡會顯示「簽章無效／文件已被變更」。') }}
+  {{ tr('需要保留簽章的話，請改用原檔，或在編輯完成後重新請人簽章。') }}
+</div>
+
 <div class="panel" id="editor-panel" hidden>
   <div class="pe-top">
     <button class="btn btn-primary" type="button" id="btnSave">{{ icon('save') }} {{ tr('儲存並預覽') }}</button>
@@ -983,6 +996,9 @@ async function handleUpload(file) {
     uploadId = data.upload_id;
     originalFilename = data.filename || 'edited.pdf';
     pages = data.pages;
+    // 有簽章就把警示打開（`signed` 只算**真的簽好**的欄位 —— 版面上預留
+    // 但還沒簽的空欄位不算，否則一堆待簽核的表單都會跳沒必要的警告）。
+    $('peSigWarn').hidden = !(data.signed > 0);
     $('editor-panel').hidden = false;
     buildCanvases();
     clearHistory();

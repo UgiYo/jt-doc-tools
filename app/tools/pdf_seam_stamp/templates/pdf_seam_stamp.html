@@ -184,12 +184,18 @@
       <b>{{ tr('不必等預覽跑完') }}</b> {{ tr('—— 上面那張「拼回去長這樣」確認過就夠了，
       可以直接拉到最下面按「蓋上騎縫章」取回檔案。下面的逐頁預覽只是給你
       核對用的，送出走的是同一段程式，結果完全一樣。') }}</p>
-    <div class="sm-assembled"><img id="smAsmImg" alt="{{ tr('拼回去的印章') }}" hidden></div>
+    <div class="sm-assembled" data-lightbox><img id="smAsmImg" alt="{{ tr('拼回去的印章') }}" hidden></div>
     <div class="sm-pagepv">
       {# 一組的每一頁都要列出來 —— 只看一頁只有一條細片，看不出接縫連不連得起來 #}
       <label class="af-field sm-grouppick"><span class="af-label">{{ tr('預覽第幾組') }}</span>
         <span class="af-ctl"><input class="field af-mini" type="number" id="smPvGroup"
           value="1" min="1"><span class="af-unit">{{ tr('組（') }}<span id="smPvRange">—</span>）</span></span></label>
+      {# 逐頁預覽點下去看大圖。**這一區不用宣告式的 `data-lightbox`** ——
+         預覽圖是 78 dpi 的縮圖，直接開起來跟縮圖一樣大，等於沒放大
+         （第一版就是這樣，實測開出來 300×424）。要去跟伺服器要
+         `large=1`（150 dpi）那一份，而且**只在真的點開時才要** ——
+         事先幫每一頁都算一份的話，52 頁的文件會回到「每個預覽請求 90 秒」
+         那個老問題（v1.14.x 正式機實測）。 #}
       <div class="sm-pages" id="smPagePv"></div>
     </div>
   </fieldset>
@@ -267,6 +273,7 @@
 <script src="/static/js/file_upload.js"></script>
 <script src="/static/js/job_progress.js"></script>
 <script src="/static/js/workspace_picker.js"></script>
+<script src="/static/js/lightbox.js"></script>
 <script nonce="{{ request.state.csp_nonce }}">
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -420,13 +427,24 @@
       const wrap = document.createElement('span');
       wrap.className = 'jt-thumb is-loading';
       const im = document.createElement('img');
-      im.alt = `第 ${x.page} 頁`;
+      im.alt = tr('第 {0} 頁').replace('{0}', x.page);
       wrap.appendChild(im);
       const cap = document.createElement('figcaption');
       cap.textContent = tr('第 {0} 頁').replace('{0}', x.page);
       fig.appendChild(wrap); fig.appendChild(cap);
       cur._row.appendChild(fig);
       jobs.push([x.page, wrap, im]);
+      // 點縮圖 → 開放大檢視。翻頁範圍是**這次列出來的所有頁**。
+      wrap.addEventListener('click', () => {
+        const shots = jobs.filter(([, w]) => w.querySelector('img[src]'));
+        const items = shots.map(([pno, , m]) => ({
+          src: m.src,
+          caption: tr('第 {0} 頁').replace('{0}', pno),
+          load: () => largePreview(pno),
+        }));
+        const at = shots.findIndex(([pno]) => pno === x.page);
+        if (items.length) window.jtLightbox.open(items, Math.max(0, at));
+      });
     });
 
     let next = 0;
@@ -453,6 +471,16 @@
       }
     }
     await Promise.all(Array.from({length: PV_CONC}, worker));
+  }
+
+  //: 放大檢視要的那一份（150 dpi）。**只在使用者真的點開時才去要。**
+  async function largePreview(pno) {
+    const fd = form();
+    fd.append('page_no', String(pno));
+    fd.append('large', '1');
+    const r = await fetch('/tools/pdf-seam-stamp/preview', {method: 'POST', body: fd});
+    if (!r.ok) return null;
+    return URL.createObjectURL(await r.blob());
   }
 
   let timer = null;

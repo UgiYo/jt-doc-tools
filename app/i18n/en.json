@@ -4868,5 +4868,16 @@
  "「電子發票證明聯」開的是 Uber 處理費（實際上只有幾元），不是乘車證明；行程收據的「總計」已經含了那筆處理費。": "The Taiwanese e-invoice covers only Uber's booking fee (a few dollars), not the ride itself; the trip receipt's total already includes that fee.",
  "可一次多張 · 台鐵購票證明 / 高鐵電子車票證明 / Uber 行程收據 PDF": "Several at once · Taiwan Railway, THSR and Uber trip receipts (PDF)",
  "重新計算中…": "Recalculating…",
- "開始拉正（整份文件）": "Straighten the whole document"
+ "開始拉正（整份文件）": "Straighten the whole document",
+ "{0} 個檔案 · 共 {1} 頁（已依上傳順序併成一份）": "{0} files · {1} pages (combined in upload order)",
+ "上一張": "Previous",
+ "下一張": "Next",
+ "可一次多張。手機拍的照片（含 HEIC）與文書檔都可以；多個檔案會依上傳順序併成一份 PDF。": "Several at once. Phone photos (including HEIC) and office documents are fine; multiple files are combined into one PDF in upload order.",
+ "在這裡編輯並存成新檔之後，簽章會失去效力 —— 簽章涵蓋整份檔案，只要有任何改動就不再成立（即使只是重新存檔）。新檔案在閱讀器裡會顯示「簽章無效／文件已被變更」。": "Editing here and saving a new file invalidates that signature — it covers the whole file, so any change breaks it (even just saving again). Readers will show the new file as \"signature invalid / document has been altered\".",
+ "放大檢視": "Zoomed view",
+ "這份 PDF 有數位簽章。": "This PDF carries a digital signature.",
+ "需要保留簽章的話，請改用原檔，或在編輯完成後重新請人簽章。": "If the signature must be preserved, use the original file, or have the document signed again after editing.",
+ "清晰化": "Clean up",
+ "壓平不勻的底色與陰影": "Flatten uneven background and shadows",
+ "手機翻拍最常見的問題是半邊有陰影 —— 實測辨識率 0.472 → 0.982。已經很平的掃描件開著也不會有任何變化。": "A shadow across half the sheet is the most common problem with phone photos; measured text recognition went from 0.472 to 0.982. Scans that are already even are left completely untouched."
 }

@@ -374,9 +374,95 @@ def _rotate_quad(q: "np.ndarray", deg: int, shape) -> "np.ndarray":
     return q
 
 
+def flatten_shading(gray: "np.ndarray", *, dpi: int = 200,
+                    gain_max: float = 3.0) -> "np.ndarray":
+    """清晰化：把不勻的底色與陰影壓平，紙面拉回接近白。
+
+    **跟 `normalize_illum()` 不一樣** —— 那一支是**給判斷用的**（裁邊、估歪斜
+    時把照明差異抹掉），它會連桌面一起提亮，從來不會寫進產出。這一支才是
+    使用者看得到的輸出處理。
+
+    ## 判準是文字辨識率，不是「看起來乾不乾淨」
+
+    合成四種常見的壞照明，用 tesseract 量辨識率（乾淨原稿 0.986 是上限）：
+
+    | 情境 | 不處理 | 清晰化 |
+    |---|---:|---:|
+    | 單邊硬陰影（書緣擋光） | **0.472** | **0.982** |
+    | 四角暗角 | 0.884 | 0.986 |
+    | 斜向重陰影 | 0.967 | 0.986 |
+    | 泛黃紙 | 0.986 | 0.987 |
+
+    **二值化不是清晰化。** 同一組素材上，局部二值化把辨識率從 0.775 打到
+    **0.108** —— 中文細筆畫被吃掉，而且**看起來最乾淨的那張正是最糟的那張**。
+    所以二值化維持獨立選項、預設關閉，它的用途是縮檔案大小。
+    CLAHE 提對比也一律更差（0.967 → 0.963），不用。
+
+    ## 做法：平場校正，不是 divide
+
+    直覺的做法是 `divide(圖, 局部最大值)`，辨識率確實一樣好 ——
+    但它會把**整片深色內容洗成純白**：實測一塊深灰照片區
+    **平均亮度 66.3 → 254.9**，等於整塊不見了。黑底反白標題列也從 77.9
+    變成 166.1（字會糊掉）。**毀掉內容比留著陰影嚴重得多**，
+    跟這支工具「切到內容不可原諒、多框一條桌面只是難看」是同一條原則。
+
+    所以改成：估一個**緩慢變化、有上下限的增益場**再相乘。
+
+    1. 局部最大值（close）當紙面亮度 —— 硬陰影的階梯跟得上。
+    2. **大片深色區域的估計值不可信**（那是內容不是陰影）→ 標成遮罩，用
+       `inpaint` 從**邊界**補。用大範圍模糊補會把陰影的階梯一起抹掉
+       （實測辨識率從 0.982 掉回 0.472）。
+    3. 增益 = 最亮紙面 / 背景，夾在 `[1.0, gain_max]` —— **只提亮不壓暗**。
+
+    遮罩的參考核實測過 31 / 61 / 91 / 121：**91（縮圖後）＝ 原圖約 3 吋**
+    才蓋得住一塊 220pt 寬的深色區（深灰塊 66.3 → 67.2，幾乎不動），
+    而硬陰影的辨識率仍是 0.982。比它更大沒有再變好，只是更慢。
+
+    ## 對已經很平的掃描件是 **0 變動**
+
+    白點那一步一定要夾 `>= 1.0`：不夾的話純白的掃描件會被壓成 245
+    （實測 97% 的像素被改、墨點多 1.19%）。夾住之後**最大變動 0**，
+    所以這個選項可以預設開著。
+    """
+    import cv2
+
+    g = gray
+    k = int(max(15, round(dpi * 0.20))) | 1
+    bg = cv2.morphologyEx(g, cv2.MORPH_CLOSE,
+                          cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
+    small = cv2.resize(bg, (0, 0), fx=0.15, fy=0.15, interpolation=cv2.INTER_AREA)
+    ref = cv2.morphologyEx(small, cv2.MORPH_CLOSE,
+                           cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (91, 91)))
+    bad = (small.astype(np.float32) < ref.astype(np.float32) * 0.72).astype(np.uint8)
+    if bad.any():
+        small = cv2.inpaint(small, bad, 5, cv2.INPAINT_TELEA)
+    field = cv2.resize(small, (g.shape[1], g.shape[0]), interpolation=cv2.INTER_LINEAR)
+    field = cv2.GaussianBlur(field.astype(np.float32), (0, 0), max(3.0, dpi * 0.02))
+    target = float(np.percentile(field, 90))
+    if target < 1:
+        return g
+    field = np.maximum(field, target / gain_max)
+    out = np.clip(g.astype(np.float32) * np.clip(target / field, 1.0, gain_max),
+                  0, 255).astype(np.uint8)
+    return _white_point(out)
+
+
+def _white_point(g: "np.ndarray", *, pct: int = 88, target: int = 245,
+                 gain_max: float = 2.2) -> "np.ndarray":
+    """把紙面拉到接近白。**只提亮不壓暗** —— 見 `flatten_shading` 的說明。"""
+    hi = float(np.percentile(g, pct))
+    if hi < 1:
+        return g
+    gain = float(np.clip(target / hi, 1.0, gain_max))
+    if gain <= 1.0:
+        return g
+    return np.clip(g.astype(np.float32) * gain, 0, 255).astype(np.uint8)
+
+
 def straighten_page(gray: "np.ndarray", *, quad=None, do_binarize: bool = False,
                     dpi: int = 200, page_no: int = 1,
-                    rotate_deg: int = 0) -> tuple["np.ndarray", PageResult]:
+                    rotate_deg: int = 0,
+                    enhance: bool = True) -> tuple["np.ndarray", PageResult]:
     """處理一頁。`quad` 給了就走透視校正（自動抓到的四角，或使用者拉的）。
 
     `rotate_deg`（0 / 90 / 180 / 270）是**使用者自己指定的整頁轉向**，
@@ -411,6 +497,12 @@ def straighten_page(gray: "np.ndarray", *, quad=None, do_binarize: bool = False,
         base = crop_page(gray)
     ang = deskew_angle(base)
     out = rotate(base, ang)
+    # 順序：壓平底色在二值化之前。**這一步不是為了二值化** ——
+    # `binarize()` 自己就會先跑 `normalize_illum()`，對陰影本來就有抵抗力
+    # （實測把兩者對調，黑像素比例不變）。壓平是為了**二值化關掉時
+    # 使用者拿到的那張圖**，那才是預設的情況。
+    if enhance:
+        out = flatten_shading(out, dpi=dpi)
     if do_binarize:
         out = binarize(out, dpi)
     resid = deskew_angle(out, limit=2.0, step=0.05)
@@ -479,6 +571,7 @@ def _should_skip(page, gray) -> bool:
 
 def straighten_pdf(src: Path, dst: Path, *, dpi: int = 200,
                    do_binarize: bool = False, detect_quad: bool = True,
+                   enhance: bool = True,
                    overrides: dict | None = None,
                    progress=None, cancelled=None) -> list[PageResult]:
     """整份 PDF：一頁進、一頁出，**不把整份留在記憶體裡**。
@@ -529,7 +622,8 @@ def straighten_pdf(src: Path, dst: Path, *, dpi: int = 200,
                 quad = find_page_quad(
                     gray, arr if pix.n >= 3 else None) if detect_quad else None
             fixed, res = straighten_page(gray, quad=quad, do_binarize=do_binarize,
-                                         dpi=dpi, page_no=i + 1, rotate_deg=rot)
+                                         dpi=dpi, page_no=i + 1, rotate_deg=rot,
+                                         enhance=enhance)
             # **編碼要看內容**：灰階掃描件用 JPEG（實測 2.7 MB → 1.0 MB，
             # 50 頁差 85 MB）；二值化過的用 PNG（只有黑白，實測 42 KB，
             # 換成 JPEG 反而會多出壓縮雜點）。

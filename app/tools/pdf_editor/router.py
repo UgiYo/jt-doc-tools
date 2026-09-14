@@ -1296,11 +1296,18 @@ async def load(request: Request, file: UploadFile = File(...)):
         return out
     pages_info = await _asyncio.to_thread(_do_render)
 
+    # 數位簽章：**開檔時就要講**。存檔一定會讓簽章失效（它涵蓋整份位元組），
+    # 而存出來的檔案結構上仍然「有簽章」，收件方會看到「簽章無效／文件已被
+    # 變更」的紅色警示 —— 比乾脆沒有簽章更難解釋（使用者 2026-09-14 指示）。
+    from ...core.pdf_signatures import describe as _sig_describe
+    sig = _sig_describe(src)
+
     return {
         "upload_id": upload_id,
         "filename": file.filename,
         "preview_dpi": preview_dpi,
         "pages": pages_info,
+        "signed": sig.get("signed", 0),
     }
 
 

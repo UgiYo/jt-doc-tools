@@ -104,6 +104,50 @@ def make_groups(page_count: int, group: int) -> list[list[int]]:
             for i in range(0, page_count, g)]
 
 
+def trim_transparent(img: Image.Image) -> Image.Image:
+    """裁掉章外圍的透明留白。
+
+    **為什麼非做不可**（2026-09-14 外部建議指出，實測重現）：使用者設
+    「章寬 40 mm」，我們是把**整張圖**縮成 40 mm —— 那張圖是拍照去背來的，
+    外圍常常留著一圈透明邊，於是紅墨實際只有 **26.8 mm**（留白 25% 時），
+    而且**同一個設定在不同來源的章上會得到不同大小**。offset 設 0
+    （貼齊頁邊）時也一樣達不到頁緣。
+
+    使用者能看到的只有「章怎麼變小了」，看不出原因在他自己那張圖上。
+
+    **要擋住雜點**：拍照去背後角落常留幾個半透明的點，只取 alpha 的
+    bounding box 會被那幾點綁住、等於沒裁。所以逐列 / 逐行算「有多少個
+    夠不透明的像素」，低於千分之二的當成雜訊。
+
+    **保守**：算出來的框不合理（空的、或幾乎沒裁到）就原樣回傳 ——
+    裁過頭會把章的邊緣切掉，那比留白更糟。
+    """
+    import numpy as np
+
+    a = np.array(img)
+    if a.ndim != 3 or a.shape[2] != 4:
+        return img
+    solid = a[:, :, 3] >= 16
+    h, w = solid.shape
+    rows = np.where(solid.sum(axis=1) > max(1, w * 0.002))[0]
+    cols = np.where(solid.sum(axis=0) > max(1, h * 0.002))[0]
+    if not len(rows) or not len(cols):
+        return img
+    box = (int(cols.min()), int(rows.min()), int(cols.max()) + 1, int(rows.max()) + 1)
+    if (box[2] - box[0]) < w * 0.05 or (box[3] - box[1]) < h * 0.05:
+        return img                      # 只剩幾個雜點：判定有問題，不要動
+    if box == (0, 0, w, h):
+        return img
+    return img.crop(box)
+
+
+def load_stamp(stamp_png: bytes) -> Image.Image:
+    """讀章 ＋ 裁掉透明邊。**合成與預覽一定要走同一支** ——
+    只裁其中一邊的話，使用者看到的拼章預覽跟實際蓋出來的大小不一樣。
+    """
+    return trim_transparent(Image.open(io.BytesIO(stamp_png)).convert("RGBA"))
+
+
 def _rotated_stamp(img: Image.Image, angle: float) -> Image.Image:
     """把**完整的章**旋轉好（切片之前）。
 
@@ -217,7 +261,7 @@ def apply_seam(doc: fitz.Document, stamp_png: bytes, spec: SeamSpec,
     spec = spec.normalized(doc.page_count)
     p = plan(doc, spec)
 
-    base = Image.open(io.BytesIO(stamp_png)).convert("RGBA")
+    base = load_stamp(stamp_png)
     # 每一組的角度可能不同 → 旋轉結果要快取，不要每頁重算
     cache: dict[float, tuple[list[Image.Image], float]] = {}
 
@@ -249,7 +293,7 @@ def reconstruct(stamp_png: bytes, spec: SeamSpec, n: int) -> bytes:
 
     只看單頁的預覽是沒有意義的：使用者看到的是一條細片，判斷不出對不對。
     """
-    base = Image.open(io.BytesIO(stamp_png)).convert("RGBA")
+    base = load_stamp(stamp_png)
     rot = _rotated_stamp(base, spec.angle_deg)
     parts = slice_stamp(rot, max(1, n))
     gap = 3                                     # 片與片之間留一點縫，看得出切在哪

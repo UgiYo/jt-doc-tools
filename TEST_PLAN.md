@@ -462,7 +462,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 
 <!-- BEGIN test-index (由 tools/build_test_plan_index.py 產生，不要手改) -->
 
-共 **264 支測試檔**。說明取自每支檔案自己的開頭說明，
+共 **269 支測試檔**。說明取自每支檔案自己的開頭說明，
 跑 `python tools/build_test_plan_index.py` 重建。
 
 > 這裡**刻意不列函式數** —— 那個數字每加一條測試就會變，
@@ -544,7 +544,9 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_doc_deident_table_labels.py` | 標籤與值分屬兩個表格儲存格時也要偵測得到（GitHub issue #43） |
 | `test_doc_diff.py` | Tests for the renamed 文件差異比對 tool (formerly pdf-diff). |
 | `test_doc_straighten.py` | 文件拉正（v1.15.33，第一期：只有自動模式） |
+| `test_doc_straighten_enhance.py` | 文件拉正的「清晰化」—— 判準是**文字辨識率**與**內容有沒有被毀掉** |
 | `test_doc_straighten_overlay_geometry.py` | 文件拉正：拖曳四個角的座標對映（要真的瀏覽器才量得到） |
+| `test_doc_straighten_quad_overlay_e2e.py` | 文件拉正的四邊形疊圖：**在真的瀏覽器裡真的畫得出來** |
 | `test_doc_translate.py` | 文件翻譯：產出**同格式、同版面**的檔案 |
 | `test_doc_translate_spreadsheet_view.py` | 試算表翻譯的兩件事：預覽要看得到東西、產出要開在內容的開頭 |
 | `test_docs_english_pages.py` | 介紹站與 API 手冊的英文版（GitHub Pages） |
@@ -599,6 +601,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_no_dynamic_style_injection.py` | 前端 JS 不可以動態注入 `<style>` —— CSP 會把它整段擋掉 |
 | `test_no_native_dialogs.py` | 樣板裡不可以用瀏覽器原生的 alert / confirm / prompt（使用者要求） |
 | `test_no_sample_names_in_public.py` | 測試樣本的檔名 / 客戶公司名不可以出現在會公開的檔案裡 |
+| `test_no_svg_dot_hidden.py` | SVG 元素不可以用 `.hidden` 開關顯示 |
 | `test_no_tr_shadowing.py` | `tr` 是表格列最自然的變數名，也是前端翻譯函式的名字 —— 撞名會讓整段 JS 當場死掉 |
 | `test_notify.py` | 作業完成通知：管道發送、設定分層、觸發條件 |
 | `test_notify_privacy.py` | 通知送出去的內容不可以外洩多餘的東西 |
@@ -608,6 +611,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_office_convert.py` | 辦公文件格式互轉（office-convert） |
 | `test_office_convert_output_first.py` | soffice 的離開碼不可靠 —— 判準是「有沒有拿到可用的檔案」 |
 | `test_office_source_validation.py` | 辦公文件的**來源檔**壞掉時，要在送進 soffice 之前就擋下來 |
+| `test_one_shared_lightbox.py` | 放大檢視（lightbox）只留一份共用實作 |
 | `test_online_sessions.py` | 在線人數、某人的登入裝置清單、強制登出 |
 | `test_open_redirect.py` | Open-redirect regression — closes CodeQL alerts #14 / #15 |
 | `test_ops_iis_prereq_order.py` | IIS 反向代理的安裝順序：**URL Rewrite 要先裝，ARR 後裝。** |
@@ -671,6 +675,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_scan_merge_detector.py` | 掃描拼合 — 內容偵測 + 背景淨白 單元測試 |
 | `test_scheduled_export.py` | Scheduled settings export (v1.12.54). |
 | `test_seal_zone_marker.py` | 用印區的排除條件：**標籤才算，說明句不算** |
+| `test_seam_preview_lightbox_e2e.py` | 騎縫章的預覽點下去要看到**真的比較大**的圖（使用者 2026-09-14 要求） |
 | `test_seam_preview_speed.py` | 騎縫章預覽：只蓋要看的那一頁 |
 | `test_seed_bootstrap_gap.py` | 新工具要真的到得了**既有客戶**，不是只有全新安裝看得到 |
 | `test_sessions.py` | Tests for app.core.sessions (issue / lookup / revoke). |
@@ -984,6 +989,17 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 - [ ] 旋轉在切片**之前**（先切再各自轉會對不起來）；切片寬度累進取整無殘條
 - [ ] 同一組內位置與角度完全一致；亂數種子有回報可重現
 - [ ] 一般使用者權限與「用印與簽名」一致（`test_roles_rbac.py` 守著）
+- [ ] **章外圍的透明留白要先裁掉**：拿一張「章周圍留一圈透明」的 PNG，
+      設 40 mm → 印出來**還是 40 mm**（沒裁的話留白 25% 時只剩 26.8 mm，
+      而且換一張來源就換一個大小）
+- [ ] 拼章預覽與實際蓋上去**是同一個東西**（判準看「墨佔畫布多少」，
+      不是長寬比 —— 方形的章加等寬留白之後長寬比不變）
+- [ ] 頁面有 **CropBox**（可見範圍小於紙張）時，貼齊的是可見頁緣
+- [ ] **逐頁預覽與「拼回去長這樣」都可以點下去看大圖**，
+      左右鍵翻頁、Esc 關閉
+- [ ] 放大檢視裡的圖要**真的比較大**（實測縮圖 645px → 1240px）——
+      逐頁預覽是 78 dpi，直接原尺寸開起來等於沒放大；
+      而且**只在點開時才去要高解析度那一份**（事先每頁都算會塞住伺服器）
 
 #### 頁面加框 (pdf-border) 🆕 v1.14.16
 - [ ] 單線 / 雙線 / 圓角 / 陰影各出一份，框不壓到內容
@@ -1005,6 +1021,18 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 - [ ] 圖片輸入（含手機的 HEIC）與文書檔輸入都走得通
 - [ ] 作業清單上標著「需 Office 引擎」（收文書檔會起 soffice）
 - [ ] 從「我的作業」按開啟回到頁面（`?job=`）看得到結果與下載鈕
+- [ ] **一次拉多個檔案** → 依上傳順序併成一份 PDF，每一頁都各自處理
+      （頁數 = 各檔頁數相加）
+- [ ] 按了轉 90° / 180° 之後，**左邊「修正前」的縮圖也跟著轉**
+      （不轉的話兩邊對不起來，使用者會以為拉錯了）
+- [ ] **四個角要連成看得見的線**（不是只有四個點）—— 判準是
+      「那條線在畫面上真的佔到空間」，只驗 `points` 屬性有值是假的
+      （`<svg>` 被 `[hidden]` 蓋掉時屬性照樣是對的）
+- [ ] **「清晰化」預設開啟**：半邊有陰影的手機翻拍 → 陰影壓平、
+      文字辨識率明顯提高（實測 0.472 → 0.982）
+- [ ] **清晰化不可以毀掉內容**：黑底反白標題列、深色照片區塊
+      在處理後**仍然是深的**（洗成白色就是把內容毀掉了）
+- [ ] **已經很平的掃描件開著清晰化是 0 變動** —— 逐像素比對要完全相同
 
 #### 乘車證明整理 (transit-proof) 🆕 v1.14.17
 - [ ] 上傳台鐵 / 高鐵乘車證明 PDF → 日期、交通工具、起訖、費用成表
@@ -1297,7 +1325,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 - [ ] `/tools/pdf-encrypt/api/pdf-encrypt` — POST file + password → PDF
 - [ ] `/tools/pdf-decrypt/api/pdf-decrypt` — POST file + password → PDF
 - [ ] `/tools/pdf-border/api/pdf-border` — POST file + 框線設定 → PDF
-- [ ] `/tools/doc-straighten/api/doc-straighten` — POST file + dpi / binarize / detect_quad → 拉正後的 PDF；回應標頭帶 `X-Straighten-Pages` 與 **`X-Straighten-Worst-Residual`**（殘留歪斜，驗收指標）
+- [ ] `/tools/doc-straighten/api/doc-straighten` — POST file + dpi / binarize / detect_quad / **enhance**（清晰化，預設開）→ 拉正後的 PDF；回應標頭帶 `X-Straighten-Pages` 與 **`X-Straighten-Worst-Residual`**（殘留歪斜，驗收指標）
 - [ ] `/tools/pdf-bookmark/api/pdf-bookmark` — POST files[] + 書籤設定 → PDF（書籤 / 目錄頁）
 - [ ] `/tools/pdf-seam-stamp/api/pdf-seam-stamp` — POST file + 章來源 → PDF（切片蓋在連續頁）
 - [ ] `/tools/pdf-page-size/api/pdf-page-size` — POST file + paper → PDF（統一尺寸）

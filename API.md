@@ -628,6 +628,7 @@ POST /tools/doc-straighten/api/doc-straighten
 | `dpi` | int | | 處理解析度，150 / 200（預設）/ 300 |
 | `binarize` | bool | | 轉成黑白。**預設關閉** —— 實測會讓中文的細筆畫消失、文字辨識率明顯下降；它的用途是縮小檔案 |
 | `detect_quad` | bool | | 偵測紙張邊界做透視校正（預設開）。抓不到時自動退回只做拉正 |
+| `enhance` | bool | | 清晰化：壓平不勻的底色與陰影（**預設開**）。實測手機翻拍的單邊硬陰影，文字辨識率 0.472 → 0.982；已經很平的掃描件開著也是零變動 |
 
 ```bash
 curl -X POST http://localhost:8765/tools/doc-straighten/api/doc-straighten \
