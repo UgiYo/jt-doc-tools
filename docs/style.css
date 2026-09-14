@@ -1548,3 +1548,37 @@ code {
             padding: 8px 10px; border-radius: 6px; margin: 6px 0 10px;
             font-size: 13px; line-height: 1.7; }
 .upg-warn code { background: rgba(0,0,0,.06); padding: 1px 4px; border-radius: 3px; }
+
+/* ── 安裝與升級疑難排解頁 ───────────────────────────────── */
+.ts-main { padding: 32px 0 56px; max-width: 900px; }
+.ts-h1 { font-size: 30px; margin: 0 0 6px; }
+.ts-lead { color: #475569; margin: 0 0 22px; line-height: 1.8; }
+.ts-toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 28px;
+          padding: 14px; background: #f8fafc; border: 1px solid #e2e8f0;
+          border-radius: 10px; }
+.ts-toc a { font-size: 13px; padding: 4px 10px; background: #fff;
+            border: 1px solid #e2e8f0; border-radius: 999px; color: #334155;
+            text-decoration: none; }
+.ts-toc a:hover { border-color: #6366f1; color: #4338ca; }
+.ts-item { padding: 20px 0 4px; border-top: 1px solid #e2e8f0; }
+.ts-item h2 { font-size: 19px; margin: 0 0 12px; scroll-margin-top: 80px; }
+.ts-item p { line-height: 1.85; margin: 0 0 10px; color: #1e293b; }
+.ts-item ul { line-height: 1.9; color: #1e293b; }
+.ts-sym { background: #fff7ed; border-left: 3px solid #fb923c;
+          padding: 8px 12px; border-radius: 0 6px 6px 0; }
+.ts-note { color: #64748b; font-size: 13px; }
+.ts-item code { background: rgba(0,0,0,.06); padding: 1px 5px; border-radius: 3px;
+                font-size: .92em; }
+
+.ts-search { display: flex; align-items: center; gap: 8px; margin: 0 0 14px;
+             padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 999px;
+             background: #fff; color: #64748b; }
+.ts-search:focus-within { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.12); }
+.ts-search input { flex: 1; border: 0; outline: 0; font-size: 15px; color: #0f172a;
+                   background: transparent; min-width: 0; }
+.ts-clear { border: 0; background: transparent; color: #94a3b8; font-size: 20px;
+            line-height: 1; cursor: pointer; padding: 0 2px; }
+.ts-clear:hover { color: #475569; }
+.ts-empty { color: #64748b; background: #f8fafc; border: 1px dashed #cbd5e1;
+            border-radius: 8px; padding: 14px; margin: 0 0 18px; }
+[hidden] { display: none !important; }

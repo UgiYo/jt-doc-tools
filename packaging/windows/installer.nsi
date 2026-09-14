@@ -147,8 +147,8 @@ LangString SEC_FW       ${LANG_ENGLISH}     "LAN access"
 ; 一整段看不懂的中文，而那正是在問「要不要順便刪掉你的資料」。
 ; NSIS 會依**系統語系**預設 $LANGUAGE（在 zh-TW 機器上實測過：把 English
 ; 宣告在第一個，解析出來的仍是中文那組），所以不經對話框也會選對。
-LangString ERR_INSTALL  ${LANG_TRADCHINESE} "安裝失敗 (install_core.ps1 exit code $1)。$\r$\n請查看 $\"%ProgramData%\${SHORTNAME}\Logs\installer.log$\" 以取得詳情。"
-LangString ERR_INSTALL  ${LANG_ENGLISH}     "Installation failed (install_core.ps1 exit code $1).$\r$\nSee $\"%ProgramData%\${SHORTNAME}\Logs\installer.log$\" for details."
+LangString ERR_INSTALL  ${LANG_TRADCHINESE} "安裝失敗 (install_core.ps1 exit code $1)。$\r$\n請查看 $\"%ProgramData%\${SHORTNAME}\Logs\installer.log$\" 以取得詳情。$\r$\n$\r$\n安裝與升級疑難排解：https://jasoncheng7115.github.io/jt-doc-tools/troubleshooting.html"
+LangString ERR_INSTALL  ${LANG_ENGLISH}     "Installation failed (install_core.ps1 exit code $1).$\r$\nSee $\"%ProgramData%\${SHORTNAME}\Logs\installer.log$\" for details.$\r$\n$\r$\nTroubleshooting: https://jasoncheng7115.github.io/jt-doc-tools/troubleshooting-en.html"
 LangString UN_ASK_PURGE ${LANG_TRADCHINESE} "是否一併刪除使用者資料（銀行帳號、簽名、歷史記錄）？$\r$\n$\r$\n選「否」會保留資料，下次重新安裝可沿用。"
 LangString UN_ASK_PURGE ${LANG_ENGLISH}     "Also delete user data (bank accounts, signatures, history)?$\r$\n$\r$\nChoose No to keep it; a future reinstall will pick it up again."
 LangString UN_NO_DIR    ${LANG_TRADCHINESE} "找不到安裝目錄，已中止解除安裝。"

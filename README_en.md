@@ -1,6 +1,6 @@
 [繁體中文](README.md) ｜ **English**
 
-# Jason Tools Document Toolbox v1.15.42
+# Jason Tools Document Toolbox v1.15.43
 
 > ### ⚠ Installed with git before 2026-09-13? Run one command before this upgrade
 >
@@ -17,7 +17,7 @@
 > ```
 >
 > `jtdt update` then works as usual. **Unaffected**: tarball installs, the Windows installer,
-> and anything installed after 2026-09-13. Fixed from v1.15.42 onwards.
+> and anything installed after 2026-09-13. Fixed from v1.15.43 onwards.
 
 > An integrated PDF / Office document platform: 48 tools covering **form filling and stamping**, **watermarks**, **merge / split / rotate / reorder**, **format conversion**, **scan assembly**, **de-identification**, **word counts**, **annotation reports**, **diffs**, **sentence-by-sentence translation**, **list processing**, **e-invoice handling**, **VAT number lookup**, **a page editor**, **encryption and decryption**, and more.
 >

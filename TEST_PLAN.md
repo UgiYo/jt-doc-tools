@@ -462,7 +462,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 
 <!-- BEGIN test-index (由 tools/build_test_plan_index.py 產生，不要手改) -->
 
-共 **262 支測試檔**。說明取自每支檔案自己的開頭說明，
+共 **264 支測試檔**。說明取自每支檔案自己的開頭說明，
 跑 `python tools/build_test_plan_index.py` 重建。
 
 > 這裡**刻意不列函式數** —— 那個數字每加一條測試就會變，
@@ -708,6 +708,8 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_translate_doc_pagination.py` | 逐句翻譯：admin 可設定句數上限 + 分頁大小，前端分頁 |
 | `test_translation_glossary.py` | 翻譯對照字典：單位內部的專有名詞怎麼翻（或不要翻） |
 | `test_translation_glossary_e2e.py` | 字典在兩支翻譯工具上真的有作用（**驗產出，不驗中間狀態**） |
+| `test_troubleshooting_page_is_reachable.py` | 安裝 / 升級失敗時，要給得出「接下來怎麼辦」 |
+| `test_troubleshooting_search.py` | 疑難排解頁的搜尋要真的會過濾（要真的瀏覽器才驗得到） |
 | `test_ttc_subfont.py` | `.ttc` 要挑對子字型，否則寫進 PDF 的中文是**日文字形** |
 | `test_ui_locale.py` | 介面語言切換端點 `/ui-locale` 的安全性（開放重導） |
 | `test_update_backup.py` | 升級前的備份：**該留的要留、空間不夠要在停服務之前就擋下來** |

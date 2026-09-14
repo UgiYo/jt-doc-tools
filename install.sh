@@ -64,7 +64,17 @@ C_RST='\033[0m'; C_RED='\033[31m'; C_GRN='\033[32m'; C_YEL='\033[33m'; C_CYN='\0
 log()   { printf "${C_CYN}==>${C_RST} %s\n" "$*"; }
 ok()    { printf "${C_GRN}✓${C_RST}  %s\n" "$*"; }
 warn()  { printf "${C_YEL}⚠${C_RST}  %s\n" "$*" >&2; }
-die()   { printf "${C_RED}✗${C_RST}  %s\n" "$*" >&2; exit 1; }
+# 失敗時**一定要附上求助網址** —— 使用者看到一行錯誤訊息通常不知道下一步，
+# 而多數失敗（缺 git、企業 TLS、磁碟不足、標籤衝突）那一頁都寫了怎麼辦。
+# **網址跟著作業系統語言走**：中文系統給中文頁，其餘一律英文頁
+#（使用者 2026-09-14：「os 如果是中文版就連中文，非中文的預設連英文」）。
+case "${LC_ALL:-${LC_MESSAGES:-${LANG:-}}}" in
+  zh*|*zh_TW*|*zh_CN*|*Hant*|*Hans*)
+    TROUBLESHOOT_URL="https://jasoncheng7115.github.io/jt-doc-tools/troubleshooting.html" ;;
+  *)
+    TROUBLESHOOT_URL="https://jasoncheng7115.github.io/jt-doc-tools/troubleshooting-en.html" ;;
+esac
+die()   { printf "${C_RED}✗${C_RST}  %s\n" "$*" >&2; printf "${C_YEL}→${C_RST}  安裝與升級疑難排解：%s\n" "$TROUBLESHOOT_URL" >&2; exit 1; }
 
 # --------------------------------------------------------------------- 平台
 

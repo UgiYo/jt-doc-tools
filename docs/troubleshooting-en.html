@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Jason Tools Document Toolbox: what to do when installing or upgrading fails. Every entry below actually happened — symptom, cause, what to do.">
+<title>Install &amp; upgrade troubleshooting — Jason Tools Document Toolbox</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="container topbar-inner">
+    <a class="brand" href="index-en.html#top">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-name">Jason Tools Document Toolbox</div>
+        <div class="brand-sub">jt-doc-tools</div>
+      </div>
+    </a>
+    <nav class="topnav" id="topnav">
+      <a href="index-en.html#features" class="nav-link">Features</a>
+      <a href="index-en.html#install" class="nav-link">Install</a>
+      <a href="api-en.html" class="nav-link">API</a>
+      <a href="troubleshooting-en.html" class="nav-link">Troubleshooting</a>
+      <a href="troubleshooting.html" class="nav-link nav-lang" id="langSwitch" hreflang="zh-Hant" lang="zh-Hant">繁體中文</a>
+      <a class="btn btn-outline nav-github" href="https://github.com/jasoncheng7115/jt-doc-tools" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.2 1.9 1.2 1.1 1.9 2.9 1.4 3.6 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg>
+        GitHub
+      </a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" type="button" aria-label="Open menu" aria-controls="topnav" aria-expanded="false">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+  </div>
+</header>
+<main class="container ts-main">
+  <h1 class="ts-h1">Install & upgrade troubleshooting</h1>
+  <p class="ts-lead">Every entry below <b>actually happened</b> — symptom, cause, what to do.</p>
+
+  <div class="ts-search">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    <input type="search" id="tsQ" autocomplete="off"
+           placeholder="Search the symptom or the error text (e.g. fetch failed, certificate, disk)">
+    <button type="button" id="tsClear" class="ts-clear" hidden aria-label="Clear">&times;</button>
+  </div>
+  <p class="ts-empty" id="tsEmpty" hidden>Nothing matched. Try a word from the error message itself (for example <code>fetch failed</code>).</p>
+
+  <div class="ts-toc">
+    <a href="#tags"> The install scripts and <code>jtdt update</code> print this page's address when they fail. <code>git fetch failed</code></a>
+    <a href="#health">Health check timed out</a>
+    <a href="#tls">CERTIFICATE_VERIFY_FAILED</a>
+    <a href="#nogit">An install without git cannot update</a>
+    <a href="#winget">Windows cannot find git / has no winget</a>
+    <a href="#venv">uv venv failed</a>
+    <a href="#disk">Not enough disk space</a>
+    <a href="#readonly">readonly database</a>
+    <a href="#office">Missing Office engine / Chinese renders as boxes</a>
+    <a href="#csrf">Remote users fail CSRF on upload</a>
+  </div>
+
+  <section class="ts-item" id="tags">
+    <h2>Upgrade stops at</h2>
+    <p class="ts-sym">Upgrade stops at <code>git fetch failed</code> (<code>would clobber existing tag</code>)</p>
+    <p><b>Cause</b>　This project's git history was rewritten on 2026-09-13 (to remove a piece of data that should never have been committed), so every tag now points at a new commit. While the local tags still point at the old ones, <code>git fetch --tags</code> (without <code>--force</code>) reports <code>would clobber existing tag</code> for each and exits with <b>code 1</b>.</p>
+    <p><b>What to do</b>　Run this once and it is fixed for good (it only touches refs inside <code>.git</code> — <b>your data is never touched</b>):</p>
+    <div class="cmd-block">
+      <div class="cmd-os">Linux / macOS</div>
+      <div><code>sudo git -C /opt/jt-doc-tools fetch --tags --force origin</code></div>
+      <div class="cmd-os">Windows <span class="cmd-note">(run PowerShell as Administrator)</span></div>
+      <div><code>git -C "C:\Program Files\jt-doc-tools" fetch --tags --force origin</code></div>
+    </div>
+    <p class="ts-note">Unaffected: tarball installs (no <code>.git</code>), the Windows installer, and anything installed after 2026-09-13. Fixed from v1.15.41.</p>
+  </section>
+
+  <section class="ts-item" id="health">
+    <h2>Health check timed out (but the service is actually fine)</h2>
+    <p class="ts-sym"><b>Symptom</b>　The last step of the upgrade times out, yet the site opens in a browser.</p>
+    <p><b>Cause</b>　After changing the listen address or port (<code>jtdt bind</code>), older versions read the address from the environment of the shell running the upgrade — where it was never set — so they always probed <code>127.0.0.1:8765</code>. A corporate <code>http_proxy</code> can also send "connect to myself" through the proxy.</p>
+    <p><b>What to do</b>　Fixed in v1.15.15 (it reads the service manager's own configuration, connects directly, and prints which addresses it probed plus the last 20 log lines). Upgrade to at least that version; if it still times out, read the end of <code>jtdt logs</code>.</p>
+  </section>
+
+  <section class="ts-item" id="tls">
+    <h2>CERTIFICATE_VERIFY_FAILED (corporate TLS inspection)</h2>
+    <p class="ts-sym"><b>Symptom</b>　Certificate verification fails during an upgrade, while downloading OCR language files, or when connecting to an LLM / SSO.</p>
+    <p><b>Cause</b>　A corporate TLS-inspection proxy replaces external certificates with its own CA, which Python and uv do not trust by default.</p>
+    <p><b>What to do</b>　The program hooks into the operating system's trust store automatically (<code>truststore</code>), so most environments need no configuration. If it still fails, import the corporate CA into the OS trust store; <code>JTDT_TLS_INSECURE=1</code> bypasses verification temporarily (<b>only on a network you trust</b>).</p>
+  </section>
+
+  <section class="ts-item" id="nogit">
+    <h2>An install without git cannot update</h2>
+    <p class="ts-sym"><b>Symptom</b>　<code>jtdt update</code> says git is missing, or that this is not a git repository.</p>
+    <p><b>Cause</b>　Without git on the machine, the one-line installer falls back to downloading an archive, so the installation has no <code>.git</code>.</p>
+    <p><b>What to do</b>　Install git and run the one-line installer again — it <b>adopts the existing directory</b> into a git repository (your <code>.venv</code> and data are kept), after which updates work normally.</p>
+  </section>
+
+  <section class="ts-item" id="winget">
+    <h2>Windows cannot find git, or asks you to install it with winget</h2>
+    <p class="ts-sym"><b>Symptom</b>　git was just installed but still cannot be found; or Windows Server has no winget.</p>
+    <p><b>Cause</b>　A freshly installed program only updates PATH in the registry — <b>terminals that are already open (including new tabs) still see the old one</b>; and Windows Server 2019 / 2022 ship without winget.</p>
+    <p><b>What to do</b>　Simply run it again — <b>no reboot needed</b>: the program looks in PATH, then the registry, then the standard install locations. On Server editions, download the installer from the git website.</p>
+  </section>
+
+  <section class="ts-item" id="venv">
+    <h2><code>[X] uv venv failed</code> (when upgrading on Windows)</h2>
+    <p class="ts-sym"><b>Symptom</b>　Installing over an existing installation fails; a silent install appears to hang.</p>
+    <p><b>Cause</b>　The service is still running and <code>python.exe</code> holds the virtual environment's files open, so they cannot be deleted. Older failure dialogs had no silent-mode default, so they waited for a button nobody could press.</p>
+    <p><b>What to do</b>　Fixed in v1.15.37 (the service is stopped and its handles released before anything is deleted, and every dialog has a silent default). If it hangs, stop the service manually first; the installer's own log is at <code>C:\ProgramData\jt-doc-tools\Logs\installer.log</code>.</p>
+  </section>
+
+  <section class="ts-item" id="disk">
+    <h2>Not enough disk space during an upgrade</h2>
+    <p class="ts-sym"><b>Symptom</b>　The backup step fails — and the service has already been stopped.</p>
+    <p><b>Cause</b>　Upgrades take a full backup of the data directory and keep three of them.</p>
+    <p><b>What to do</b>　From v1.15.17 the space is checked <b>before the service stops</b>, and the message says how much is missing; the backup also skips anything that rebuilds itself (the company-ID database, temporary files, job results) — measured 1.93 → 0.56 GB per backup. Free up space and run it again.</p>
+  </section>
+
+  <section class="ts-item" id="readonly">
+    <h2><code>attempt to write a readonly database</code></h2>
+    <p class="ts-sym"><b>Symptom</b>　After running a CLI command with <code>sudo</code>, the service can no longer write to the database.</p>
+    <p><b>Cause</b>　Files created while running as root belong to root, while the service runs under its own account. The easiest one to hit is <code>jtdt reset-password</code> — the rescue command locks you out.</p>
+    <p><b>What to do</b>　From v1.15.16 every CLI command restores ownership of the data directory when it finishes. On older versions, fix the ownership by hand (Linux: <code>sudo chown -R jtdt:jtdt &lt;data directory&gt;</code>).</p>
+  </section>
+
+  <section class="ts-item" id="office">
+    <h2>Conversions return 503, or Chinese text comes out as empty boxes</h2>
+    <p class="ts-sym"><b>Symptom</b>　Office-related tools return "service temporarily unavailable"; or Chinese characters in the produced PDF are hollow boxes.</p>
+    <p><b>Cause</b>　This machine is missing LibreOffice / OxOffice, or CJK fonts.</p>
+    <p><b>What to do</b>　The error message names what to install. On Linux install <code>libreoffice</code> (or OxOffice) and <code>fonts-noto-cjk</code>; the admin area's "system dependencies" page lists exactly what is missing.</p>
+  </section>
+
+  <section class="ts-item" id="csrf">
+    <h2>Remote users get "CSRF token missing or incorrect" as soon as they upload</h2>
+    <p class="ts-sym"><b>Symptom</b>　Everything works when tested on the server itself; only connections from another machine fail. Sign-in may also bounce back to the login page.</p>
+    <p><b>Cause</b>　The reverse proxy sets <code>X-Forwarded-Proto</code> to a fixed <code>https</code> while the site is actually http — so the backend marks cookies <code>Secure</code> and the browser drops them over plain http. <code>http://localhost</code> is a secure-origin exception, which is why it cannot be reproduced on the server itself.</p>
+    <p><b>What to do</b>　Make the reverse proxy pass the real protocol (on IIS, use a <code>rewriteMap</code> to translate <code>{HTTPS}</code> into <code>https</code>/<code>http</code>), or serve the site over HTTPS. Examples are in</p>
+  </section>
+
+  <section class="ts-item" id="more">
+    <h2>Still stuck?</h2>
+    <p>Attaching these makes it much faster:</p>
+    <ul>
+      <li>the operating system and version, plus the output of <code>jtdt status</code></li>
+      <li><code>jtdt logs</code> of <b>last 20 lines</b></li>
+      <li>the <b>complete output</b> of the failing command (not just the last line — the real cause is often a few lines above)</li>
+    </ul>
+    <p><a class="btn btn-primary" href="https://github.com/jasoncheng7115/jt-doc-tools/issues" target="_blank" rel="noopener">Report an issue</a></p>
+  </section>
+</main>
+
+<script>
+/* 疑難排解頁的搜尋：**純前端過濾**，不需要任何相依。
+   比對的是「標題 ＋ 內文」的純文字 —— 使用者記得的通常是**錯誤訊息**
+   （`fetch failed`、`CERTIFICATE_VERIFY_FAILED`），不是我們下的標題。
+   目錄膠囊也一起過濾，否則點下去會跳到被隱藏的段落。 */
+(function () {
+  var q = document.getElementById('tsQ');
+  var clear = document.getElementById('tsClear');
+  var empty = document.getElementById('tsEmpty');
+  if (!q) return;
+  var items = [].slice.call(document.querySelectorAll('.ts-item'));
+  var chips = [].slice.call(document.querySelectorAll('.ts-toc a'));
+  items.forEach(function (el) { el.dataset.text = (el.textContent || '').toLowerCase(); });
+
+  function apply() {
+    var s = (q.value || '').trim().toLowerCase();
+    clear.hidden = !s;
+    var shown = 0, ids = {};
+    items.forEach(function (el) {
+      var hit = !s || el.dataset.text.indexOf(s) >= 0;
+      el.hidden = !hit;
+      if (hit) { shown++; if (el.id) ids['#' + el.id] = 1; }
+    });
+    chips.forEach(function (a) { a.hidden = !!s && !ids[a.getAttribute('href')]; });
+    empty.hidden = shown > 0;
+  }
+  q.addEventListener('input', apply);
+  q.addEventListener('keydown', function (e) { if (e.key === 'Escape') { q.value = ''; apply(); } });
+  clear.addEventListener('click', function () { q.value = ''; q.focus(); apply(); });
+  // 從別處帶著 ?q= 進來也能直接篩（錯誤訊息裡附網址時很好用）
+  var pre = new URLSearchParams(location.search).get('q');
+  if (pre) { q.value = pre; apply(); }
+})();
+</script>
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-col">
+      <div class="footer-brand">Jason Tools Document Toolbox</div>
+      <p class="footer-tag">An integrated PDF / Office document platform: no cloud, your data stays with you.</p>
+    </div>
+    <div class="footer-col">
+      <div class="footer-h">Links</div>
+      <a href="index-en.html">Home</a>
+      <a href="https://github.com/jasoncheng7115/jt-doc-tools" target="_blank" rel="noopener">Source</a>
+      <a href="https://github.com/jasoncheng7115/jt-doc-tools/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a>
+      <a href="troubleshooting-en.html">Install & upgrade troubleshooting</a>
+      <a href="https://github.com/jasoncheng7115/jt-doc-tools/issues" target="_blank" rel="noopener">Report an issue</a>
+    </div>
+    <div class="footer-col">
+      <div class="footer-h">Author</div>
+      <p>
+        <strong>Jason Cheng</strong><br>
+        <a href="https://[網址]" target="_blank" rel="noopener">Jason Tools</a>
+      </p>
+    </div>
+    <div class="footer-col">
+      <div class="footer-h">Licence</div>
+      <p>GNU Affero General Public License v3.0</p>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="container">
+      © 2026 Jason Tools · Built with HTML & CSS, hosted on GitHub Pages
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

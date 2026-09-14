@@ -693,6 +693,37 @@ def _rollback_code(root, git_exe, git_env, pre_sha: str,
     return f"已完整回復到升級前的版本（{pre_sha[:12]}，含相依環境）。"
 
 
+#: 升級 / 安裝失敗時要給的下一步。**只印一行錯誤等於把人丟在原地** ——
+#: 多數失敗（缺 git、企業 TLS、磁碟不足、標籤衝突、服務佔住檔案）那一頁
+#: 都寫了怎麼辦（使用者 2026-09-14 要求）。
+#:
+#: **網址跟著作業系統語言走**：中文系統給中文頁，其餘一律英文頁
+#: （使用者 2026-09-14：「os 如果是中文版就連中文，非中文的預設連英文」）。
+#: 訊息本身維持英文 —— CLI 一律英文 ASCII（純文字 TTY / Server Core 渲染不出中文）。
+TROUBLESHOOT_URL_ZH = "https://jasoncheng7115.github.io/jt-doc-tools/troubleshooting.html"
+TROUBLESHOOT_URL_EN = "https://jasoncheng7115.github.io/jt-doc-tools/troubleshooting-en.html"
+
+
+def _troubleshoot_url() -> str:
+    lang = (os.environ.get("LC_ALL") or os.environ.get("LC_MESSAGES")
+            or os.environ.get("LANG") or "")
+    if not lang:
+        # Windows 不設那幾個環境變數 —— 改問系統的顯示語言
+        try:
+            import locale
+            lang = (locale.getdefaultlocale()[0] or "")   # noqa: DeprecationWarning
+        except Exception:  # noqa: BLE001 — 取不到就當英文
+            lang = ""
+    low = lang.lower()
+    return (TROUBLESHOOT_URL_ZH
+            if low.startswith("zh") or "hant" in low or "hans" in low
+            else TROUBLESHOOT_URL_EN)
+
+
+def _print_help_url() -> None:
+    print(f"-> Troubleshooting: {_troubleshoot_url()}", file=sys.stderr)
+
+
 def svc_update() -> int:
     """Pull latest release and re-sync deps. Backups data dir first."""
     if not _is_admin():
@@ -813,6 +844,7 @@ def svc_update() -> int:
         [git_exe, "-C", str(root), "fetch", "origin"], env=git_env)
     if rc != 0:
         print("git fetch failed, restoring: starting previous service", file=sys.stderr)
+        _print_help_url()
         _restore_ownership(root, owner)
         svc_start()
         return rc
@@ -836,6 +868,7 @@ def svc_update() -> int:
         [git_exe, "-C", str(root), "reset", "--hard", "origin/main"], env=git_env)
     if rc != 0:
         print("git reset --hard origin/main failed, restoring", file=sys.stderr)
+        _print_help_url()
         _restore_ownership(root, owner)
         svc_start()
         return rc
@@ -898,6 +931,7 @@ def svc_update() -> int:
     rc = subprocess.call([uv, "sync"], cwd=str(root), env=uv_env)
     if rc != 0:
         print("uv sync failed.", file=sys.stderr)
+        _print_help_url()
         print("  " + _rollback_code(root, git_exe, git_env, pre_sha, uv, uv_env),
               file=sys.stderr)
         _restore_ownership(root, owner)
@@ -1063,6 +1097,7 @@ def _report_health_failure(urls: list[str]) -> None:
     print("Last log lines:", file=sys.stderr)
     _print_log_tail(20)
     print("Full log: jtdt logs", file=sys.stderr)
+    _print_help_url()
 
 
 def _print_log_tail(n: int) -> None:

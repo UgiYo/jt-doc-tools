@@ -130,8 +130,11 @@
            `#dsArt` 由 `layoutArt()` 依 contain 的算法擺到那塊上面，
            裡面的一切就都可以維持 0~1 的正規化座標。 #}
         <div class="ds-art" id="dsArt">
+          {# 三層：淡藍底 ＋ 白色外框 ＋ 藍線。白色那層是為了在深色桌面上也看得見。 #}
           <svg class="ds-quad" id="dsQuadSvg" hidden viewBox="0 0 100 100" preserveAspectRatio="none">
             <polygon id="dsQuadPoly" points="" />
+            <polygon id="dsQuadHalo" class="ds-quad-halo" points="" vector-effect="non-scaling-stroke" />
+            <polygon id="dsQuadLine" class="ds-quad-line" points="" vector-effect="non-scaling-stroke" />
           </svg>
           <div class="ds-handles" id="dsHandles" hidden></div>
         </div>
@@ -206,8 +209,17 @@
   @keyframes ds-spin { to { transform: rotate(360deg); } }
   .ds-quad { position: absolute; inset: 0; width: 100%; height: 100%;
              pointer-events: none; }
-  .ds-quad polygon { fill: rgba(37,99,235,.12); stroke: #2563eb;
-                     stroke-width: .6; vector-effect: non-scaling-stroke; }
+  /* 四個角要**連成看得見的線**（使用者 2026-09-14 回報）。
+     原本是 `stroke-width: .6` ＋ `vector-effect: non-scaling-stroke`
+     —— 那個組合的意思是「**0.6 個畫素**」，疊在照片上幾乎看不到，
+     畫面上只剩四個圓點。
+     配色要能同時吃深色與淺色背景（桌面可能是深木色、也可能是白牆），
+     所以畫兩層：底下一條白的、上面一條藍的。 */
+  .ds-quad polygon { fill: rgba(37,99,235,.10); vector-effect: non-scaling-stroke; }
+  .ds-quad .ds-quad-halo { stroke: rgba(255,255,255,.9); stroke-width: 4;
+                           fill: none; }
+  .ds-quad .ds-quad-line { stroke: #2563eb; stroke-width: 2; fill: none;
+                           stroke-linejoin: round; }
   .ds-handles { position: absolute; inset: 0; }
   .ds-h { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px;
           border-radius: 50%; background: #fff; border: 3px solid #2563eb;
@@ -422,6 +434,16 @@
     const ov = overrides[curPage()];
     return (ov && ov.quad) || autoQuad;
   }
+  //: 四個角的連線。**三個 polygon 要一起更新** —— 只改其中一個的話，
+  //  畫面上會出現「底色跟著動、線沒跟著動」這種看起來更像壞掉的狀態。
+  function setQuadPoints(q) {
+    const pts = q.map(([x, y]) => `${x * 100},${y * 100}`).join(' ');
+    ['dsQuadPoly', 'dsQuadHalo', 'dsQuadLine'].forEach((id) => {
+      const el = $(id);
+      if (el) el.setAttribute('points', pts);
+    });
+  }
+
   function renderQuad() {
     layoutArt();                 // 視窗大小、換頁、切模式都可能改變那塊的位置
     const on = quadEditOn();
@@ -430,8 +452,7 @@
     $('dsQuadActions').hidden = !on;
     if (!on || !q) { svg.hidden = true; box.hidden = true; box.innerHTML = ''; return; }
     svg.hidden = false; box.hidden = false;
-    $('dsQuadPoly').setAttribute(
-      'points', q.map(([x, y]) => `${x * 100},${y * 100}`).join(' '));
+    setQuadPoints(q);
     if (box.children.length !== 4) {
       box.innerHTML = '';
       q.forEach((_, i) => {
@@ -489,8 +510,7 @@
       ov.quad[parseInt(h.dataset.i, 10)] = [x, y];
       h.style.left = (x * 100) + '%';
       h.style.top = (y * 100) + '%';
-      $('dsQuadPoly').setAttribute(
-        'points', ov.quad.map(([a, b]) => `${a * 100},${b * 100}`).join(' '));
+      setQuadPoints(ov.quad);
       if (loupe) {
         // 放大鏡：手指 / 游標一定會蓋住要對齊的那個角，沒有它等於在瞎拉。
         const img = $('dsPvBefore');

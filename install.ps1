@@ -17,6 +17,9 @@ function Warn ($m) { Write-Host "[!]  $m" -ForegroundColor Yellow }
 function Die  ($m) {
     Write-Host "[X]  $m" -ForegroundColor Red
     Write-Host ""
+    # 網址跟著 Windows 的顯示語言走（中文系統給中文頁，其餘英文頁）
+    $tsUrl = if ((Get-UICulture).Name -like 'zh*') { "https://jasoncheng7115.github.io/jt-doc-tools/troubleshooting.html" } else { "https://jasoncheng7115.github.io/jt-doc-tools/troubleshooting-en.html" }
+    Write-Host "Troubleshooting: $tsUrl" -ForegroundColor Yellow
     Write-Host "Install failed. Press Enter to close ..." -ForegroundColor Red
     try { Read-Host | Out-Null } catch { Start-Sleep -Seconds 30 }
     throw $m

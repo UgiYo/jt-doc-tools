@@ -531,5 +531,7 @@
  "JSON body。管理頁的「測試連線」按鈕會把<strong>還沒存檔</strong>的那組設定帶進來； 命令列只想確認「現在這組通不通」時整個 body 都可以省略。": "A JSON body. The admin page’s \"Test connection\" button sends the settings that are <strong>not saved yet</strong>; from the command line, when you only want to know whether the current settings work, the whole body can be omitted.",
  "連不上時<strong>回 200</strong>、<code>ok: false</code> 加 <code>error</code> —— 「我們測不到對方」不是 這個請求本身失敗。": "When the connection fails it still <strong>returns 200</strong>, with <code>ok: false</code> and an <code>error</code> message; being unable to reach the server is not a failure of this request itself.",
  "<strong>每一份都偵測不到內容區塊時回 <code>422</code></strong>（例如整張全白、或掃描時蓋子沒關的純黑）。 那不是請求格式的問題，而是「送進來的圖裡沒有東西可以拼」—— 訊息會說清楚是哪一種。": "<strong>Returns <code>422</code> when none of the files has a detectable content block</strong> (an all-white page, say, or an all-black one from scanning with the lid open). That is not a problem with the request format: there is nothing in the images to assemble, and the message says which case it is.",
- "解析一批台鐵 / 高鐵 / Uber 乘車證明 PDF，回結構化 JSON。<strong>只解析、不寫入使用者的清單</strong>。": "Parses a batch of Taiwan Railway, THSR or Uber ride receipt PDFs and returns structured JSON. <strong>Parsing only — nothing is written to the user's list.</strong>"
+ "解析一批台鐵 / 高鐵 / Uber 乘車證明 PDF，回結構化 JSON。<strong>只解析、不寫入使用者的清單</strong>。": "Parses a batch of Taiwan Railway, THSR or Uber ride receipt PDFs and returns structured JSON. <strong>Parsing only — nothing is written to the user's list.</strong>",
+ "疑難排解": "Troubleshooting",
+ "安裝與升級疑難排解": "Install & upgrade troubleshooting"
 }

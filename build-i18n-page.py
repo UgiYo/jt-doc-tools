@@ -193,6 +193,7 @@ def build(src: Path, cat_path: Path, dst: Path, lang: str = "en") -> int:
         f'<a href="{src.name}" class="nav-link nav-lang" id="langSwitch"'
         ' hreflang="zh-Hant" lang="zh-Hant">繁體中文</a>',
         out, count=1)
+    out = _rewrite_internal_links(out)
     out = _space_around_inline_tags(out)
     out = _english_install_command(out)
     out = _english_screenshots(out, dst.parent)
@@ -201,13 +202,38 @@ def build(src: Path, cat_path: Path, dst: Path, lang: str = "en") -> int:
     return len(missing)
 
 
+
+#: 站內頁面的中英對應。**英文頁要連英文頁** —— 原本英文版的導覽連的是
+#: `api.html`（中文頁），讀者一點就掉回中文（使用者 2026-09-14 指出）。
+_SITE_PAGES = ("index", "api", "troubleshooting")
+
+
+def _rewrite_internal_links(html: str) -> str:
+    """把英文頁裡的站內連結改成指向英文版。
+
+    **語言切換那一條要跳過** —— 它的用途正是連回中文版，改掉就沒有出口了
+    （它有 `id="langSwitch"`，在這一步之前已經被重寫成指回中文頁）。
+    """
+    def fix(m):
+        seg = m.group(0)
+        if 'id="langSwitch"' in seg:
+            return seg
+        for name in _SITE_PAGES:
+            seg = seg.replace(f'href="{name}.html"', f'href="{name}-en.html"')
+            seg = seg.replace(f'href="{name}.html#', f'href="{name}-en.html#')
+        return seg
+    return re.sub(r"<a\b[^>]*>", fix, html)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--extract", action="store_true")
     ap.add_argument("--check", action="store_true")
     a = ap.parse_args()
     pages = [("index.html", "index.en.json", "index-en.html"),
-             ("api.html", "api.en.json", "api-en.html")]
+             ("api.html", "api.en.json", "api-en.html"),
+             ("troubleshooting.html", "troubleshooting.en.json",
+              "troubleshooting-en.html")]
     rc = 0
     for src, cat, dst in pages:
         s = DOCS / src

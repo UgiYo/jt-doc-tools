@@ -11,6 +11,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.43] - 2026-09-14
+
+### New: an install & upgrade troubleshooting page, linked from every failure
+
+**A single line of error text leaves people stuck.** Most failures here have a
+known answer — missing git, corporate TLS, not enough disk, moved tags, a service
+holding files open, a reverse proxy hard-coding the protocol — but nothing pointed
+at it.
+
+* New page `docs/troubleshooting.html` (in both languages, **every entry is
+  something that actually happened**: symptom, cause, what to do) with a clickable
+  index at the top.
+* `install.sh`, `install.ps1`, the Windows installer's failure dialog and every
+  failure path in `jtdt update` now print that page's address.
+* **The address follows the operating system's language** — Chinese systems get
+  the Chinese page, everything else the English one. CLI text itself stays English.
+
+> The English pages previously linked to the **Chinese** API page — one click and
+> the reader was back in Chinese. Internal links are now rewritten for the English
+> build, except the language switch itself.
+
+### Document straighten: the four corners are joined by a visible line
+
+`stroke-width: .6` with `vector-effect: non-scaling-stroke` means **0.6 pixels** —
+invisible over a photograph, leaving just four dots. It is now drawn twice, white
+beneath and blue on top, so it shows on both dark desks and white walls.
+
+---
+
 ## [1.15.42] - 2026-09-14
 
 ### Document straighten: button placement and the state while recalculating

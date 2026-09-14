@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Jason Tools 文件工具箱：安裝與升級失敗的處理方式。每一則都是真實發生過的狀況 —— 症狀、原因、怎麼辦。">
+<title>安裝與升級疑難排解 — Jason Tools 文件工具箱</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="container topbar-inner">
+    <a class="brand" href="index.html#top">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-name">Jason Tools 文件工具箱</div>
+        <div class="brand-sub">jt-doc-tools</div>
+      </div>
+    </a>
+    <nav class="topnav" id="topnav">
+      <a href="index.html#features" class="nav-link">功能</a>
+      <a href="index.html#install" class="nav-link">安裝</a>
+      <a href="api.html" class="nav-link">API</a>
+      <a href="troubleshooting.html" class="nav-link">疑難排解</a>
+      <a href="troubleshooting-en.html" class="nav-link nav-lang" id="langSwitch" hreflang="en" lang="en">English</a>
+      <a class="btn btn-outline nav-github" href="https://github.com/jasoncheng7115/jt-doc-tools" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.2 1.9 1.2 1.1 1.9 2.9 1.4 3.6 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg>
+        GitHub
+      </a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" type="button" aria-label="展開選單" aria-controls="topnav" aria-expanded="false">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+  </div>
+</header>
+<main class="container ts-main">
+  <h1 class="ts-h1">安裝與升級疑難排解</h1>
+  <p class="ts-lead">下面每一則都是<b>真實發生過</b>的狀況 —— 症狀、原因、怎麼辦。
+     安裝腳本與 <code>jtdt update</code> 失敗時也會把這一頁的網址印出來。</p>
+
+  <div class="ts-search">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    <input type="search" id="tsQ" autocomplete="off"
+           placeholder="搜尋症狀或錯誤訊息（例：fetch failed、憑證、磁碟）">
+    <button type="button" id="tsClear" class="ts-clear" hidden aria-label="清除">&times;</button>
+  </div>
+  <p class="ts-empty" id="tsEmpty" hidden>找不到相符的項目。可以改用錯誤訊息裡的關鍵字（例如 <code>fetch failed</code>）再試一次。</p>
+
+  <div class="ts-toc">
+    <a href="#tags">升級停在 <code>git fetch failed</code></a>
+    <a href="#health">Health check timed out</a>
+    <a href="#tls">CERTIFICATE_VERIFY_FAILED</a>
+    <a href="#nogit">沒有 git 的安裝無法更新</a>
+    <a href="#winget">Windows 找不到 git / 沒有 winget</a>
+    <a href="#venv">uv venv failed</a>
+    <a href="#disk">磁碟空間不足</a>
+    <a href="#readonly">readonly database</a>
+    <a href="#office">缺 Office 引擎 / 中文變方框</a>
+    <a href="#csrf">遠端使用者一上傳就 CSRF 失敗</a>
+  </div>
+
+  <section class="ts-item" id="tags">
+    <h2>升級停在 <code>git fetch failed</code>（<code>would clobber existing tag</code>）</h2>
+    <p class="ts-sym"><b>症狀</b>　<code>jtdt update</code> 印出 <code>git fetch failed</code>
+      就中止，服務被還原成原本的版本，看不出原因。</p>
+    <p><b>原因</b>　本專案在 2026-09-13 改寫過 git 歷史（移除一筆誤入版控的資料），
+      所有標籤都指向新的 commit。本地標籤還指著舊的時候，
+      <code>git fetch --tags</code>（沒有 <code>--force</code>）會逐個回報
+      <code>would clobber existing tag</code> 並以<b>離開碼 1</b> 結束。</p>
+    <p><b>怎麼辦</b>　跑一次下面這行就永久解決（只動 <code>.git</code> 裡的 ref，
+      <b>不碰使用者資料</b>）：</p>
+    <div class="cmd-block">
+      <div class="cmd-os">Linux / macOS</div>
+      <div><code>sudo git -C /opt/jt-doc-tools fetch --tags --force origin</code></div>
+      <div class="cmd-os">Windows<span class="cmd-note">（以系統管理員身分執行 PowerShell）</span></div>
+      <div><code>git -C "C:\Program Files\jt-doc-tools" fetch --tags --force origin</code></div>
+    </div>
+    <p class="ts-note">不受影響：tarball 安裝（沒有 <code>.git</code>）、Windows 安裝程式、
+      或 2026-09-13 之後才安裝的。v1.15.41 起已修正。</p>
+  </section>
+
+  <section class="ts-item" id="health">
+    <h2>Health check timed out（但服務其實是好的）</h2>
+    <p class="ts-sym"><b>症狀</b>　更新流程最後一步逾時，可是用瀏覽器打得開。</p>
+    <p><b>原因</b>　改過監聽位址或連接埠（<code>jtdt bind</code>）之後，
+      舊版的健康檢查從執行更新那個 shell 的環境變數讀位址 —— 那裡根本沒有設定，
+      於是永遠去探 <code>127.0.0.1:8765</code>。企業環境的
+      <code>http_proxy</code> 也會讓「連自己」被送去代理伺服器。</p>
+    <p><b>怎麼辦</b>　v1.15.15 起已修（改讀服務管理員自己的設定、直連不走代理，
+      並會印出探過哪些位址與日誌最後 20 行）。先升到該版以上；
+      還是逾時的話看 <code>jtdt logs</code> 的最後幾行。</p>
+  </section>
+
+  <section class="ts-item" id="tls">
+    <h2>CERTIFICATE_VERIFY_FAILED（企業 TLS 檢查環境）</h2>
+    <p class="ts-sym"><b>症狀</b>　更新、下載 OCR 語言檔、或連 LLM / SSO 時憑證驗證失敗。</p>
+    <p><b>原因</b>　公司的 TLS 檢查代理把外部憑證換成自家 CA，而 Python / uv
+      預設不認那張 CA。</p>
+    <p><b>怎麼辦</b>　程式會自動接上作業系統的信任庫（<code>truststore</code>），
+      多數環境不必設定。仍然失敗時把企業 CA 匯入作業系統信任庫；
+      臨時繞過用 <code>JTDT_TLS_INSECURE=1</code>（<b>只在確認過的內網用</b>）。</p>
+  </section>
+
+  <section class="ts-item" id="nogit">
+    <h2>沒有 git 的安裝無法更新</h2>
+    <p class="ts-sym"><b>症狀</b>　<code>jtdt update</code> 說找不到 git，或說這裡不是 git 儲存庫。</p>
+    <p><b>原因</b>　機器上沒有 git 時，一行安裝會改走下載壓縮檔那條路，
+      裝出來的目錄沒有 <code>.git</code>。</p>
+    <p><b>怎麼辦</b>　裝上 git 之後重跑一次一行安裝指令 —— 它會<b>原地收編</b>成
+      git 儲存庫（既有的 <code>.venv</code> 與資料都保留），之後就能正常更新。</p>
+  </section>
+
+  <section class="ts-item" id="winget">
+    <h2>Windows 找不到 git，或說要用 winget 安裝</h2>
+    <p class="ts-sym"><b>症狀</b>　剛裝完 git 還是找不到；或 Windows Server 上沒有 winget。</p>
+    <p><b>原因</b>　剛安裝的程式只更新登錄檔裡的 PATH，<b>已經開著的終端機（含新開分頁）
+      看到的仍是舊的</b>；而 Windows Server 2019 / 2022 內建沒有 winget。</p>
+    <p><b>怎麼辦</b>　直接再跑一次即可，<b>不必重開機</b> —— 程式會依
+      「PATH → 登錄檔 → 標準安裝位置」三層去找。Server 版請到 git 官網下載安裝檔。</p>
+  </section>
+
+  <section class="ts-item" id="venv">
+    <h2><code>[X] uv venv failed</code>（Windows 升級時）</h2>
+    <p class="ts-sym"><b>症狀</b>　用安裝程式裝到既有安裝上時失敗；無介面安裝還會像卡住不動。</p>
+    <p><b>原因</b>　服務還跑著，<code>python.exe</code> 佔住了虛擬環境的檔案，
+      刪不掉。舊版的失敗對話框沒有無介面預設值，所以會等一個沒有人能按的按鈕。</p>
+    <p><b>怎麼辦</b>　v1.15.37 起已修（安裝前先停服務並等行程真的放掉檔案，
+      所有對話框都有無介面預設）。卡住時先手動停服務再裝；
+      安裝程式自己的記錄在 <code>C:\ProgramData\jt-doc-tools\Logs\installer.log</code>。</p>
+  </section>
+
+  <section class="ts-item" id="disk">
+    <h2>升級時磁碟空間不足</h2>
+    <p class="ts-sym"><b>症狀</b>　備份階段失敗，而且服務已經停掉了。</p>
+    <p><b>原因</b>　升級前會完整備份資料目錄並保留三份。</p>
+    <p><b>怎麼辦</b>　v1.15.17 起<b>在停服務之前</b>就先檢查空間，並會說差多少；
+      備份也跳過會自己長回來的東西（統編資料庫、暫存、作業結果），
+      實測每份 1.93 → 0.56 GB。清出空間後重跑即可。</p>
+  </section>
+
+  <section class="ts-item" id="readonly">
+    <h2><code>attempt to write a readonly database</code></h2>
+    <p class="ts-sym"><b>症狀</b>　用 <code>sudo</code> 跑過某個 CLI 指令之後，服務就寫不進資料庫了。</p>
+    <p><b>原因</b>　以 root 執行時新建出來的檔案屬於 root，而服務是用自己的帳號跑的。
+      最容易中的是 <code>jtdt reset-password</code> —— 救援做完反而登不進去。</p>
+    <p><b>怎麼辦</b>　v1.15.16 起所有 CLI 指令結束時都會把資料目錄的擁有者改回服務帳號。
+      舊版遇到時手動修正擁有者即可（Linux：
+      <code>sudo chown -R jtdt:jtdt &lt;資料目錄&gt;</code>）。</p>
+  </section>
+
+  <section class="ts-item" id="office">
+    <h2>轉檔回 503，或產出的中文變成方框</h2>
+    <p class="ts-sym"><b>症狀</b>　辦公文件相關的工具回「服務暫時無法使用」；
+      或產出的 PDF 中文是空心方框。</p>
+    <p><b>原因</b>　這台機器缺 LibreOffice / OxOffice，或缺中日韓字型。</p>
+    <p><b>怎麼辦</b>　錯誤訊息會說要裝什麼。Linux 裝
+      <code>libreoffice</code>（或 OxOffice）與 <code>fonts-noto-cjk</code>；
+      管理區的「系統相依」頁會逐項列出缺什麼。</p>
+  </section>
+
+  <section class="ts-item" id="csrf">
+    <h2>遠端使用者一上傳就「CSRF token 遺失或不正確」</h2>
+    <p class="ts-sym"><b>症狀</b>　在伺服器本機怎麼測都正常，只有從別台電腦連進來會失敗；
+      登入也可能一直被踢回登入頁。</p>
+    <p><b>原因</b>　反向代理把 <code>X-Forwarded-Proto</code> 寫死成
+      <code>https</code>，但站台其實是 http —— 後端因此在 cookie 加上
+      <code>Secure</code>，而瀏覽器在明文連線下會直接丟掉那個 cookie。
+      <code>http://localhost</code> 是瀏覽器的安全來源例外，所以本機測不出來。</p>
+    <p><b>怎麼辦</b>　讓反向代理照實傳協定（IIS 用 <code>rewriteMap</code> 把
+      <code>{HTTPS}</code> 翻成 <code>https</code>/<code>http</code>），
+      或直接把站台改成 HTTPS。範例見
+      <a href="https://github.com/jasoncheng7115/jt-doc-tools/blob/main/OPS.md" target="_blank" rel="noopener">OPS.md</a>。</p>
+  </section>
+
+  <section class="ts-item" id="more">
+    <h2>還是沒解決？</h2>
+    <p>把下面這些一起附上，會快很多：</p>
+    <ul>
+      <li>作業系統與版本、<code>jtdt status</code> 的輸出</li>
+      <li><code>jtdt logs</code> 的<b>最後 20 行</b></li>
+      <li>失敗指令的<b>完整輸出</b>（不要只貼最後一行 —— 真正的原因常在上面幾行）</li>
+    </ul>
+    <p><a class="btn btn-primary" href="https://github.com/jasoncheng7115/jt-doc-tools/issues" target="_blank" rel="noopener">回報問題</a></p>
+  </section>
+</main>
+
+<script>
+/* 疑難排解頁的搜尋：**純前端過濾**，不需要任何相依。
+   比對的是「標題 ＋ 內文」的純文字 —— 使用者記得的通常是**錯誤訊息**
+   （`fetch failed`、`CERTIFICATE_VERIFY_FAILED`），不是我們下的標題。
+   目錄膠囊也一起過濾，否則點下去會跳到被隱藏的段落。 */
+(function () {
+  var q = document.getElementById('tsQ');
+  var clear = document.getElementById('tsClear');
+  var empty = document.getElementById('tsEmpty');
+  if (!q) return;
+  var items = [].slice.call(document.querySelectorAll('.ts-item'));
+  var chips = [].slice.call(document.querySelectorAll('.ts-toc a'));
+  items.forEach(function (el) { el.dataset.text = (el.textContent || '').toLowerCase(); });
+
+  function apply() {
+    var s = (q.value || '').trim().toLowerCase();
+    clear.hidden = !s;
+    var shown = 0, ids = {};
+    items.forEach(function (el) {
+      var hit = !s || el.dataset.text.indexOf(s) >= 0;
+      el.hidden = !hit;
+      if (hit) { shown++; if (el.id) ids['#' + el.id] = 1; }
+    });
+    chips.forEach(function (a) { a.hidden = !!s && !ids[a.getAttribute('href')]; });
+    empty.hidden = shown > 0;
+  }
+  q.addEventListener('input', apply);
+  q.addEventListener('keydown', function (e) { if (e.key === 'Escape') { q.value = ''; apply(); } });
+  clear.addEventListener('click', function () { q.value = ''; q.focus(); apply(); });
+  // 從別處帶著 ?q= 進來也能直接篩（錯誤訊息裡附網址時很好用）
+  var pre = new URLSearchParams(location.search).get('q');
+  if (pre) { q.value = pre; apply(); }
+})();
+</script>
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-col">
+      <div class="footer-brand">Jason Tools 文件工具箱</div>
+      <p class="footer-tag">PDF / Office 整合式文件處理平台：不上雲，資料留在自己手中。</p>
+    </div>
+    <div class="footer-col">
+      <div class="footer-h">連結</div>
+      <a href="index.html">介紹網站</a>
+      <a href="https://github.com/jasoncheng7115/jt-doc-tools" target="_blank" rel="noopener">原始碼庫</a>
+      <a href="https://github.com/jasoncheng7115/jt-doc-tools/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a>
+      <a href="troubleshooting.html">安裝與升級疑難排解</a>
+      <a href="https://github.com/jasoncheng7115/jt-doc-tools/issues" target="_blank" rel="noopener">回報問題</a>
+    </div>
+    <div class="footer-col">
+      <div class="footer-h">作者</div>
+      <p>
+        <strong>Jason Cheng</strong><br>
+        <a href="https://[網址]" target="_blank" rel="noopener">Jason Tools</a>
+      </p>
+    </div>
+    <div class="footer-col">
+      <div class="footer-h">授權</div>
+      <p>GNU Affero General Public License v3.0</p>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="container">
+      © 2026 Jason Tools · Built with HTML & CSS, hosted on GitHub Pages
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
