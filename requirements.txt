@@ -28,6 +28,8 @@ httpx>=0.27,<1
 # idna>=3.15: CVE-2026-45409 idna.encode() DoS (transitive via httpx/fastapi/starlette)
 idna>=3.15,<4
 python-docx>=1.0.0
+# Editable Slides: native PowerPoint text/shape import and export
+python-pptx>=1.0.2,<2
 odfpy>=1.4
 ldap3>=2.9.1,<3
 # SSO（OIDC + SAML，v1.12+）— PyJWT 驗 OIDC JWKS；python3-saml(onelogin) SAML SP；
