@@ -287,30 +287,8 @@ def _build_findings_for_page(page, selected_ids: set[str],
 
 
 def _default_doc_lang(request: Request) -> str:
-    """預設的**文件語言**（不是介面語言）。
-
-    這兩件事會不一樣：介面開中文、手上是一份英文合約，是很常見的情況。
-    所以只拿介面語言當**預設值**，畫面上可以改。
-
-    為什麼要有「文件語言」這個概念：台灣的市話 / 地址 / 統編式子套在英文
-    文件上不是「抓不到」而是**抓錯**（實測把護照號、IBAN 片段、信用卡片段
-    都當成電話）。**誤判比漏抓更危險** —— 畫面會顯示「已處理」。
-    """
-    try:
-        from ...core.ui_locale import resolve
-        ui = str(resolve(request))
-    except Exception:  # noqa: BLE001
-        return "zh-Hant"
-    if ui.lower().startswith("en"):
-        return "en"
-    if ui.startswith("zh"):
-        return "zh-Hant"
-    # **介面語言不在 `DOC_LANGS` 裡時不可以退回 `zh-Hant`**（2026-09-14 加日文
-    # 介面時抓到）。台灣的市話 / 地址 / 統編式子套在別的語言的文件上是
-    # **抓錯**不是抓不到 —— 畫面會顯示「已處理」，那比漏抓更危險。
-    # 退回 `en` 至少只剩語言中立的那組 ＋ 英美式子，不會拿台灣的式子亂套。
-    # 真要支援該語言的文件是另一批工作（要有那個語言的式子與誤判語料）。
-    return "en"
+    """見 `patterns.default_doc_lang` —— **兩支去識別化工具共用同一支**。"""
+    return P.default_doc_lang(request)
 
 
 @router.get("/", response_class=HTMLResponse)

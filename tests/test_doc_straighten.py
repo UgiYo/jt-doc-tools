@@ -243,7 +243,12 @@ def test_the_public_api_returns_a_pdf_with_the_residual_in_a_header(tmp_path):
     assert r.status_code == 200, r.text[:300]
     assert r.content[:5] == b"%PDF-"
     assert r.headers.get("x-straighten-pages") == "1"
-    assert float(r.headers["x-straighten-worst-residual"]) <= 0.3
+    # **0.5 是「已經是正的」的門檻**（見 `straighten_core` 的說明：完全沒歪的
+    # 頁面估計器自己也會回報最多 0.40°）。原本寫 0.3 是照「整條管線都在灰階上
+    # 跑」那時候的數字定的 —— v1.15.47 起幾何套在**彩色**那一張上（不然沒有勾
+    # 「轉成黑白」的輸出也是灰的），彩色內插後再轉灰階跟灰階內插差了 0.25°，
+    # 而**修正角度完全相同**（兩條路都是 -2.0°）。
+    assert float(r.headers["x-straighten-worst-residual"]) <= 0.5
     assert "straightened.pdf" in r.headers.get("content-disposition", "")
 
 
@@ -731,3 +736,92 @@ def test_a_photo_with_real_perspective_is_still_corrected():
     q = SC.find_page_quad(g, rgb)
     assert q is not None, "有透視的翻拍照片應該仍然抓得到紙"
     assert SC.quad_angle_range(q) > 1.0, "這張的四個角本來就不是直角"
+
+
+def test_a_colour_page_stays_in_colour_unless_you_ask_for_black_and_white():
+    """**沒有勾「轉成黑白」就不可以把彩色洗掉**（2026-09-14 使用者回報）。
+
+    以前整條管線都在灰階上跑（`crop_page(gray)` / `warp_quad(gray, …)`），
+    所以拍彩色名片、沒有勾任何東西，拿回來的也是灰的 —— 而畫面上那個勾選框
+    寫著「轉成黑白（預設不要用）」，等於**介面承諾了一件沒有做到的事**。
+
+    判準是**飽和度**，不是「有幾個通道」：輸出成 3 通道但每個通道都一樣，
+    看起來仍然是黑白的。
+    """
+    import cv2
+    import numpy as np
+    from app.tools.doc_straighten import straighten_core as SC
+
+    # 白底 + 一塊飽和的紅 / 藍（模擬名片上的色塊）
+    rgb = np.full((400, 600, 3), 245, np.uint8)
+    rgb[80:180, 60:300] = (220, 30, 30)
+    rgb[220:320, 60:300] = (30, 60, 220)
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+
+    out, _ = SC.straighten_page(gray, rgb=rgb, dpi=150)
+    assert out.ndim == 3, "彩色進去卻回了灰階"
+    sat = cv2.cvtColor(out, cv2.COLOR_RGB2HSV)[:, :, 1]
+    assert sat.max() > 150, f"顏色被洗掉了（最大飽和度只有 {sat.max()}）"
+
+    # 紅的還是紅的、藍的還是藍的 —— RGB / BGR 弄反的話這兩條會對調
+    red = out[120, 150]
+    blue = out[260, 150]
+    assert int(red[0]) > int(red[2]) + 60, f"紅色區塊變成 {red}（RGB/BGR 反了？）"
+    assert int(blue[2]) > int(blue[0]) + 60, f"藍色區塊變成 {blue}"
+
+    # 勾了才可以變黑白
+    bw, _ = SC.straighten_page(gray, rgb=rgb, dpi=150, do_binarize=True)
+    assert bw.ndim == 2, "勾了「轉成黑白」卻沒有變成單通道"
+
+
+def test_a_grey_only_page_behaves_exactly_as_before():
+    """只給灰階時**一個位元都不可以變** —— 掃描件那條路沒有彩色可留。"""
+    import cv2
+    import numpy as np
+    from app.tools.doc_straighten import straighten_core as SC
+
+    rng = np.random.default_rng(7)
+    gray = np.full((400, 600), 240, np.uint8)
+    gray[100:300, 80:520] = rng.integers(0, 90, (200, 440), dtype=np.uint8)
+    out, res = SC.straighten_page(gray, dpi=150)
+    assert out.ndim == 2, "灰階進去不可以變成彩色"
+
+
+def test_the_output_size_never_crops_or_stretches():
+    """指定輸出尺寸時**維持比例、四周留白** —— 不裁切也不拉伸。
+
+    這支工具從第一版就寫著「切到內容不可原諒，多框一條桌面只是難看」。
+    輸出尺寸是同一條規則：比例對不上時寧可補白。
+    """
+    import numpy as np
+    from app.tools.doc_straighten.straighten_core import fit_to, mm_to_px, PAPER_MM
+
+    img = np.zeros((400, 300, 3), np.uint8)
+    img[:] = (10, 20, 30)
+    out = fit_to(img, 600, 600)
+    assert out.shape[:2] == (600, 600)
+    # 四周是白的（補白不是補黑 —— 補黑列印會整片吃墨）
+    assert tuple(out[0, 0]) == (255, 255, 255)
+    # 內容還在，而且**沒有被拉伸**：原圖 3:4，放進 600×600 之後應該是 450×600
+    ink = np.argwhere((out != 255).any(axis=2))
+    h = ink[:, 0].max() - ink[:, 0].min() + 1
+    w = ink[:, 1].max() - ink[:, 1].min() + 1
+    assert abs(w / h - 300 / 400) < 0.01, f"比例跑掉了：{w}×{h}"
+
+    # mm 換算：A4 在 200 dpi 是 1654 × 2339
+    assert mm_to_px(PAPER_MM["a4"][0], 200) == 1654
+    assert mm_to_px(PAPER_MM["a4"][1], 200) == 2339
+
+
+def test_a_bad_output_size_is_ignored_not_a_500():
+    """輸出尺寸填壞了就當作沒填 —— 使用者打錯一個數字不該看到 500。"""
+    from app.tools.doc_straighten.router import _parse_out_size
+
+    assert _parse_out_size("", "", "px", 200) is None
+    assert _parse_out_size("abc", "10", "px", 200) is None
+    assert _parse_out_size("-5", "10", "px", 200) is None
+    assert _parse_out_size("999999", "10", "px", 200) is None, "大到會把記憶體吃光"
+    assert _parse_out_size("210", "297", "mm", 200) == (1654, 2339)
+    assert _parse_out_size("800", "600", "px", 200) == (800, 600)
+    # 單位打錯一律當像素（白名單），不可以丟例外
+    assert _parse_out_size("800", "600", "furlong", 200) == (800, 600)

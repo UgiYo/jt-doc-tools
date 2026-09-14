@@ -1,6 +1,6 @@
 [繁體中文](README.md) ｜ **English** ｜ [日本語](README_ja.md)
 
-# Jason Tools Document Toolbox v1.15.46
+# Jason Tools Document Toolbox v1.15.47
 
 > ### ⚠ Installed with git before 2026-09-13? Run one command before this upgrade
 >
@@ -15,6 +15,12 @@
 > # Windows (run PowerShell as Administrator)
 > git -C "C:\Program Files\jt-doc-tools" fetch --tags --force origin
 > ```
+>
+> **That `-C` is upper case.** Typing `git -c /opt/jt-doc-tools/ …` instead gives you
+> 「`fatal: not a git repository (or any of the parent directories): .git`」
+> — a lower-case `-c` is the **config** flag (`-c key=value`), so git never changes into that directory
+> and looks for `.git` where you are standing instead. The message **reads as though the install were not a git checkout,
+> when in fact one letter was mistyped** (reported by a customer on 2026-09-14).
 >
 > `jtdt update` then works as usual. **Unaffected**: tarball installs, the Windows installer,
 > and anything installed after 2026-09-13. Fixed from v1.15.43 onwards.
@@ -125,7 +131,7 @@ Detailed installation notes are in **[INSTALL.md](INSTALL.md)** (required tools,
 - **Images to PDF**
 - **PDF to Markdown**: convert a PDF into structured Markdown, keeping headings, tables and bold; handy for LLM and RAG pipelines
 - **Markdown to office document** [needs OxOffice/LibreOffice]; paste or drop Markdown, apply a theme and export PDF or a word processing file (.docx /.odt), with a preview of every page
-- **PDF to Word (beta)**; convert a PDF back into a word processing file (.docx /.odt) with three engines: pdf2docx (classic and stable), our own jtdt-reform (geometric rules rebuilding editable body text) and our own jtdt-layout (most faithful to the original: page-anchored text frames keeping position, images and rules almost 1:1)
+- **PDF to Word**; convert a PDF back into a word processing file (.docx /.odt) with three engines: pdf2docx (classic and stable), our own jtdt-reform (geometric rules rebuilding editable body text) and our own jtdt-layout (most faithful to the original: page-anchored text frames keeping position, images and rules almost 1:1)
 - **PDF to slides**; convert a PDF into PowerPoint (.pptx) or an OpenDocument presentation (.odp), **one page per slide**, keeping the original slide size (portrait PDFs are reproduced too); uses the jtdt-layout reproduction engine
 
 ### Security

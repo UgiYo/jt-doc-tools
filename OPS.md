@@ -52,6 +52,12 @@ sudo git -C /opt/jt-doc-tools fetch --tags --force origin
 git -C "C:\Program Files\jt-doc-tools" fetch --tags --force origin
 ```
 
+> **`-C` 是大寫。** 打成小寫的 `git -c /opt/jt-doc-tools/ …` 會回
+> `fatal: not a git repository (or any of the parent directories): .git`
+> —— 小寫的 `-c` 是**設定參數**（`-c key=value`），git 不會切到那個目錄。
+> 那個訊息看起來像「這個安裝不是用 git 裝的」，其實只是打錯一個字母
+>（2026-09-14 客戶回報）。
+
 **不受影響的**：用 tarball 安裝（沒有 `.git`）、用 Windows 安裝程式安裝、
 或 2026-09-13 之後才安裝的。v1.15.41 起 `jtdt update` 會把分支與標籤分開拉、
 標籤一律帶 `--force`，不會再發生。

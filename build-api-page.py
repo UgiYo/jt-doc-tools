@@ -343,6 +343,7 @@ PAGE = """\
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="stylesheet" href="style.css">
+<script src="lang-switch.js" defer></script>
 </head>
 <body>
 

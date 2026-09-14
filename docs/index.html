@@ -10,6 +10,7 @@
 <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="stylesheet" href="style.css">
+<script src="lang-switch.js" defer></script>
 </head>
 <body>
 
@@ -40,7 +41,7 @@
       <a href="#install" class="nav-link">安裝</a>
       <a href="api.html" class="nav-link">API</a>
       <a href="troubleshooting.html" class="nav-link">疑難排解</a>
-      <span id="langSwitch" class="nav-lang-group"><a href="index-en.html" class="nav-link nav-lang" hreflang="en" lang="en">English</a><a href="index-ja.html" class="nav-link nav-lang" hreflang="ja" lang="ja">日本語</a></span>
+      <select id="langSwitch" class="nav-lang" aria-label="Language"><option value="index.html" lang="zh-Hant" selected>繁體中文</option><option value="index-en.html" lang="en">English</option><option value="index-ja.html" lang="ja">日本語</option></select>
       <a class="btn btn-outline nav-github" href="https://github.com/jasoncheng7115/jt-doc-tools" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.2 1.9 1.2 1.1 1.9 2.9 1.4 3.6 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg>
         GitHub
@@ -346,7 +347,7 @@
           </li>
           <li>
             <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 18 3-3 3 3"/><path d="M12 15v6"/></svg></span>
-            <div class="fl-text"><span class="fn">PDF 轉文書檔（Beta）<span class="ofc-mark" title="需 OxOffice / LibreOffice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">PDF 反轉成 Word (.docx) / OpenDocument (.odt)，三引擎可選：pdf2docx、自家 jtdt-reform、jtdt-layout 版面重現（版面近 1:1），還原版面、表格與圖片</span></div>
+            <div class="fl-text"><span class="fn">PDF 轉文書檔<span class="ofc-mark" title="需 OxOffice / LibreOffice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">PDF 反轉成 Word (.docx) / OpenDocument (.odt)，三引擎可選：pdf2docx、自家 jtdt-reform、jtdt-layout 版面重現（版面近 1:1），還原版面、表格與圖片</span></div>
           </li>
           <li>
             <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="m8 11 2.5 2.5L16 8"/></svg></span>
@@ -839,7 +840,7 @@
       <figure class="ss-row reverse">
         <div class="ss-text">
           <div class="ss-num">14</div>
-          <h3>PDF 轉文書檔（Beta）</h3>
+          <h3>PDF 轉文書檔</h3>
           <p>把 PDF 反轉成 <b>Word (.docx)</b> 或 <b>OpenDocument (.odt)</b>，內含字型 / 段落 / 表格智慧校正。三引擎可選：<b>pdf2docx</b>（經典穩定，跨平台相容性高、速度快）、自家 <b>jtdt-reform</b>（依 PDF 實際版面座標用幾何規則重組成可流動、可編輯的內文）、自家 <b>jtdt-layout</b>（版面最忠於原稿：把每頁內容依原始座標放進頁面錨定的文字方塊，位置 / 圖片 / 框線幾乎 1:1 保留，表單 / 多欄 / 含框線表格最接近原 PDF；本質是浮動文字方塊、非流動文字）。轉完直接前後對照逐頁比對品質，再下載。</p>
           <div class="ss-tags">
             <span class="tag">Word / ODT</span>
@@ -1294,7 +1295,10 @@
         專案改寫過 git 歷史（移除一筆誤入版控的資料），舊版的 <code>jtdt update</code>
         會在 <code>git fetch --tags</code> 失敗（<code>would clobber existing tag</code>），
         訊息只說 <code>git fetch failed</code>。先跑
-        <code>git -C &lt;安裝目錄&gt; fetch --tags --force origin</code> 一次即可永久解決。
+        <code>git -C &lt;安裝目錄&gt; fetch --tags --force origin</code> 一次即可永久解決
+        （<b>是大寫的 <code>-C</code></b>；小寫的 <code>-c</code> 是設定參數，
+        git 不會切到那個目錄，會回「<code>not a git repository</code>」，
+        看起來像安裝壞掉其實只是打錯一個字母）。
         tarball 安裝與 Windows 安裝程式不受影響；v1.15.41 起已修正。</p>
         <div class="cmd-block">
           <div class="cmd-os">Linux / macOS</div>

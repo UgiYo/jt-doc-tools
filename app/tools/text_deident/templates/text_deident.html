@@ -481,7 +481,7 @@ $('btnDetect').addEventListener('click', async () => {
     $('resultMeta').textContent = metaTxt;
     // counts pills
     $('counts').innerHTML = (j.counts || []).map(c =>
-      `<span class="pill">${escapeHTML(c.label)}<span class="ct">${c.count}</span></span>`
+      `<span class="pill">${escapeHTML(tr(c.label))}<span class="ct">${c.count}</span></span>`
     ).join('');
     renderFindings(lastFindings);
     $('btnApply').disabled = lastFindings.length === 0;
@@ -505,7 +505,7 @@ function renderFindings(findings) {
     const repl = previewReplacement(f, lastMode);
     return `<div class="td-finding-row" data-fid="${f.id}">
       <input type="checkbox" data-finding-id="${f.id}" checked>
-      <span class="type">${escapeHTML(f.type_label)}</span>
+      <span class="type">${escapeHTML(tr(f.type_label))}</span>
       <span class="orig">${escapeHTML(f.value)}</span>
       <span class="repl ${lastMode === 'redact' ? 'is-redact' : ''}">${escapeHTML(repl)}</span>
     </div>`;

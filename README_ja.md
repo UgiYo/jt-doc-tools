@@ -1,6 +1,6 @@
 [繁體中文](README.md) ｜ [English](README_en.md) ｜ **日本語**
 
-# Jason Tools ドキュメントツールボックス v1.15.46
+# Jason Tools ドキュメントツールボックス v1.15.47
 
 > ### ⚠ 2026-09-13 より前に git でインストールした場合、このバージョンにアップグレードする前に 1 行実行してください
 >
@@ -15,6 +15,12 @@
 > # Windows（管理者として PowerShell を実行）
 > git -C "C:\Program Files\jt-doc-tools" fetch --tags --force origin
 > ```
+>
+> **`-C` は大文字です。** 小文字で `git -c /opt/jt-doc-tools/ …` と打つと、
+> 「`fatal: not a git repository (or any of the parent directories): .git`」
+> と表示されます —— 小文字の `-c` は**設定オプション**（`-c key=value`）なので、git はそのディレクトリへ移動せず、
+> 今いる場所で `.git` を探します。このメッセージは**「インストール先が git 管理ではない」ように読めますが、
+> 実際には 1 文字打ち間違えただけです**（2026-09-14 お客様からの報告）。
 >
 > 以降 `jtdt update` は通常どおり動作します。**影響を受けないもの**：tarball でのインストール、Windows インストーラー、
 > または 2026-09-13 より後にインストールしたもの。v1.15.43 以降は修正済みで、再発しません。
@@ -125,7 +131,7 @@ $f="$env:TEMP\jtdt-install.ps1"; try { Invoke-WebRequest 'https://cdn.jsdelivr.n
 - **画像 → PDF**
 - **PDF → Markdown** —— PDF を構造化された Markdown に変換し、見出し / 表 / 太字を保持します。LLM や RAG の前処理に向いています
 - **Markdown → オフィス文書** [OxOffice/LibreOffice が必要] —— Markdown を貼り付けるかドラッグし、テーマを適用して PDF または文書ファイル（.docx / .odt）として出力します。全ページのプレビュー付きです
-- **PDF → 文書ファイル（Beta）** —— PDF を文書ファイル（.docx / .odt）に逆変換します。3 つのエンジンから選べます：pdf2docx（定番で安定）、自社の jtdt-reform（幾何的なルールで編集しやすい本文に再構成）、自社の jtdt-layout（レイアウトが原本に最も忠実：ページ固定のテキストボックスで、位置 / 画像 / 枠線をほぼ 1:1 で保持）
+- **PDF → 文書ファイル** —— PDF を文書ファイル（.docx / .odt）に逆変換します。3 つのエンジンから選べます：pdf2docx（定番で安定）、自社の jtdt-reform（幾何的なルールで編集しやすい本文に再構成）、自社の jtdt-layout（レイアウトが原本に最も忠実：ページ固定のテキストボックスで、位置 / 画像 / 枠線をほぼ 1:1 で保持）
 - **PDF → プレゼンテーション** —— PDF を PowerPoint (.pptx) / OpenDocument プレゼンテーション (.odp) に逆変換します。**1 ページが 1 枚のスライドに対応**し、スライドサイズは原本のままです（縦向きの PDF もそのまま再現します）。jtdt-layout のレイアウト再現エンジンを使います
 
 ### セキュリティ処理

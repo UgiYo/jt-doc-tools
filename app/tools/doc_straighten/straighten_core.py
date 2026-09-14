@@ -49,15 +49,21 @@ def normalize_illum(g: np.ndarray) -> np.ndarray:
     return cv2.divide(g, bg, scale=255)
 
 
-def crop_page(g: np.ndarray) -> np.ndarray:
-    """裁掉掃描機蓋板的暗邊。找不到（或找到的東西太小）就整張退回，不敢裁。"""
+def crop_page(g: np.ndarray, img: "np.ndarray | None" = None) -> np.ndarray:
+    """裁掉掃描機蓋板的暗邊。找不到（或找到的東西太小）就整張退回，不敢裁。
+
+    **量在 `g`（灰階）上，裁的是 `img`** —— 彩色的那一張要跟著一起裁，
+    不然輸出就只剩灰階（2026-09-14 使用者回報「沒有勾轉成黑白，修正後卻
+    像黑白」）。`img` 沒給就裁 `g` 自己（舊的呼叫方式照樣能用）。
+    """
+    src = g if img is None else img
     bw = cv2.threshold(normalize_illum(g), 200, 255, cv2.THRESH_BINARY)[1]
     bw = cv2.morphologyEx(bw, cv2.MORPH_OPEN, np.ones((15, 15), np.uint8))
     cnts, _ = cv2.findContours(bw, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not cnts:
-        return g
+        return src
     x, y, w, h = cv2.boundingRect(max(cnts, key=cv2.contourArea))
-    return g if w * h < g.size * 0.2 else g[y:y + h, x:x + w]
+    return src if w * h < g.size * 0.2 else src[y:y + h, x:x + w]
 
 
 def deskew_angle(g: np.ndarray, limit: float = 6.0, step: float = 0.1) -> float:
@@ -418,7 +424,10 @@ def flatten_shading(gray: "np.ndarray", *, dpi: int = 200,
     """
     import cv2
 
-    g = gray
+    # **彩色要保住彩色。** 增益場從亮度算，再原封不動套到每一個通道 ——
+    # 三個通道各自算一次會改到色相，看起來就褪色了。
+    colour = gray.ndim == 3
+    g = cv2.cvtColor(gray, cv2.COLOR_RGB2GRAY) if colour else gray
     k = int(max(15, round(dpi * 0.20))) | 1
     bg = cv2.morphologyEx(g, cv2.MORPH_CLOSE,
                           cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
@@ -432,23 +441,76 @@ def flatten_shading(gray: "np.ndarray", *, dpi: int = 200,
     field = cv2.GaussianBlur(field.astype(np.float32), (0, 0), max(3.0, dpi * 0.02))
     target = float(np.percentile(field, 90))
     if target < 1:
-        return g
+        return gray
     field = np.maximum(field, target / gain_max)
-    out = np.clip(g.astype(np.float32) * np.clip(target / field, 1.0, gain_max),
-                  0, 255).astype(np.uint8)
+    gain = np.clip(target / field, 1.0, gain_max)
+    if colour:
+        out = np.clip(gray.astype(np.float32) * gain[:, :, None],
+                      0, 255).astype(np.uint8)
+    else:
+        out = np.clip(g.astype(np.float32) * gain, 0, 255).astype(np.uint8)
     return _white_point(out)
 
 
 def _white_point(g: "np.ndarray", *, pct: int = 88, target: int = 245,
                  gain_max: float = 2.2) -> "np.ndarray":
-    """把紙面拉到接近白。**只提亮不壓暗** —— 見 `flatten_shading` 的說明。"""
-    hi = float(np.percentile(g, pct))
+    """把紙面拉到接近白。**只提亮不壓暗** —— 見 `flatten_shading` 的說明。
+
+    彩色時**三個通道乘同一個數**（色相不變），而且百分位是從亮度取的 ——
+    直接對 BGR 取百分位會被最亮的那個通道帶著跑。
+    """
+    lum = cv2.cvtColor(g, cv2.COLOR_RGB2GRAY) if g.ndim == 3 else g
+    hi = float(np.percentile(lum, pct))
     if hi < 1:
         return g
     gain = float(np.clip(target / hi, 1.0, gain_max))
     if gain <= 1.0:
         return g
     return np.clip(g.astype(np.float32) * gain, 0, 255).astype(np.uint8)
+
+
+#: 常用的紙張尺寸（mm）。`A4` 直的；橫的由呼叫端把長寬對調。
+PAPER_MM: dict[str, tuple[float, float]] = {
+    "a4": (210.0, 297.0),
+    "a3": (297.0, 420.0),
+    "b5": (176.0, 250.0),
+    "letter": (215.9, 279.4),
+    "legal": (215.9, 355.6),
+}
+
+
+def mm_to_px(mm: float, dpi: int) -> int:
+    return max(1, int(round(mm / 25.4 * dpi)))
+
+
+def fit_to(img: "np.ndarray", w: int, h: int) -> "np.ndarray":
+    """把修正好的圖放進指定的畫布，**維持比例、留白補齊**。
+
+    **不可以拉伸、更不可以裁切。** 這支工具從一開始就是
+    「切到內容不可原諒，多留一條白邊只是難看」——
+    指定的尺寸比例跟紙不一樣時，寧可上下（或左右）補白。
+
+    留白補**白色**（紙的顏色），不是黑色：補黑的話列印會整片吃墨，
+    而且看起來像掃描機蓋板沒關。
+    """
+    import cv2
+
+    w = max(1, int(w))
+    h = max(1, int(h))
+    ih, iw = img.shape[:2]
+    if (iw, ih) == (w, h):
+        return img
+    s = min(w / iw, h / ih)
+    nw, nh = max(1, int(round(iw * s))), max(1, int(round(ih * s)))
+    interp = cv2.INTER_AREA if s < 1 else cv2.INTER_CUBIC
+    small = cv2.resize(img, (nw, nh), interpolation=interp)
+    if img.ndim == 3:
+        canvas = np.full((h, w, img.shape[2]), 255, np.uint8)
+    else:
+        canvas = np.full((h, w), 255, np.uint8)
+    x, y = (w - nw) // 2, (h - nh) // 2
+    canvas[y:y + nh, x:x + nw] = small
+    return canvas
 
 
 def straighten_page(gray: "np.ndarray", *, quad=None, rgb=None,
@@ -505,11 +567,18 @@ def straighten_page(gray: "np.ndarray", *, quad=None, rgb=None,
         q = find_page_quad(gray, rgb)
     if q is not None and not quad_is_sane(q, gray.shape):
         q = None
+    # **量在灰階、做在彩色。** 幾何（透視 / 裁邊 / 旋轉）一律套在彩色那一張
+    # 上，灰階只拿來量角度與找紙邊 —— 以前整條管線都在 `gray` 上跑，所以
+    # 「沒有勾轉成黑白」的輸出其實也是灰的（2026-09-14 使用者回報：拍的是
+    # 彩色名片，修正後變黑白）。沒有彩色版時行為完全不變。
+    work = rgb if rgb is not None else gray
     if q is not None:
-        base = warp_quad(gray, q)
+        base = warp_quad(work, q)
+        base_g = warp_quad(gray, q) if rgb is not None else base
     else:
-        base = crop_page(gray)
-    ang = deskew_angle(base)
+        base = crop_page(gray, work)
+        base_g = crop_page(gray) if rgb is not None else base
+    ang = deskew_angle(base_g)
     out = rotate(base, ang)
     # 順序：壓平底色在二值化之前。**這一步不是為了二值化** ——
     # `binarize()` 自己就會先跑 `normalize_illum()`，對陰影本來就有抵抗力
@@ -518,8 +587,12 @@ def straighten_page(gray: "np.ndarray", *, quad=None, rgb=None,
     if enhance:
         out = flatten_shading(out, dpi=dpi)
     if do_binarize:
-        out = binarize(out, dpi)
-    resid = deskew_angle(out, limit=2.0, step=0.05)
+        # 二值化本來就是「轉成黑白」—— 彩色先降成灰階再做。
+        out = binarize(cv2.cvtColor(out, cv2.COLOR_RGB2GRAY)
+                       if out.ndim == 3 else out, dpi)
+    # 殘留角要量在灰階上
+    resid = deskew_angle(cv2.cvtColor(out, cv2.COLOR_RGB2GRAY)
+                         if out.ndim == 3 else out, limit=2.0, step=0.05)
     used = None
     if q is not None:
         used = [[round(float(x) / w0, 5), round(float(y) / h0, 5)] for x, y in q]
@@ -589,6 +662,7 @@ def _should_skip(page, gray) -> bool:
 def straighten_pdf(src: Path, dst: Path, *, dpi: int = 200,
                    do_binarize: bool = False, detect_quad: bool = True,
                    enhance: bool = True,
+                   out_size: "tuple[int, int] | None" = None,
                    overrides: dict | None = None,
                    progress=None, cancelled=None) -> list[PageResult]:
     """整份 PDF：一頁進、一頁出，**不把整份留在記憶體裡**。
@@ -640,10 +714,21 @@ def straighten_pdf(src: Path, dst: Path, *, dpi: int = 200,
             # **編碼要看內容**：灰階掃描件用 JPEG（實測 2.7 MB → 1.0 MB，
             # 50 頁差 85 MB）；二值化過的用 PNG（只有黑白，實測 42 KB，
             # 換成 JPEG 反而會多出壓縮雜點）。
+            # **`imencode` 吃的是 BGR**，而 PyMuPDF 的 pixmap 給的是 RGB ——
+            # 不轉的話紅藍會對調（名片的紅色標題會變成藍色）。
+            # **指定輸出尺寸**（像素）：維持比例放進去、留白補齊。
+            # 轉 90° / 270° 的那幾頁跟著把長寬對調 —— 不然直的頁面會被塞進
+            # 橫的畫布，中間一小條、兩邊一大片白。
+            if out_size:
+                ow, oh = out_size
+                if rot in (90, 270):
+                    ow, oh = oh, ow
+                fixed = fit_to(fixed, ow, oh)
+            enc = cv2.cvtColor(fixed, cv2.COLOR_RGB2BGR) if fixed.ndim == 3 else fixed
             if do_binarize:
-                blob = cv2.imencode(".png", fixed)[1].tobytes()
+                blob = cv2.imencode(".png", enc)[1].tobytes()
             else:
-                blob = cv2.imencode(".jpg", fixed,
+                blob = cv2.imencode(".jpg", enc,
                                     [cv2.IMWRITE_JPEG_QUALITY, 85])[1].tobytes()
             # 頁面尺寸照原頁（點數）—— 不可以用像素當點數，那會變成巨大的頁面
             rect = src_doc[i].rect
@@ -652,6 +737,11 @@ def straighten_pdf(src: Path, dst: Path, *, dpi: int = 200,
             pw, ph = rect.width, rect.height
             if rot in (90, 270):
                 pw, ph = ph, pw
+            if out_size:
+                # 指定過尺寸就照它算頁面大小：像素 ÷ dpi × 72 = 點。
+                # （使用者填 mm 時呼叫端已經換算成像素了。）
+                pw = fixed.shape[1] / dpi * 72.0
+                ph = fixed.shape[0] / dpi * 72.0
             page = out_doc.new_page(width=pw, height=ph)
             page.insert_image(page.rect, stream=blob)
             results.append(res)

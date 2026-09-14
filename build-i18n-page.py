@@ -37,9 +37,9 @@ _HAS_WORD = re.compile(r"[㐀-鿿A-Za-z0-9]")
 #: 這些區段不翻：程式碼、樣式、註解、以及安裝指令那一類原樣照抄的東西。
 _SKIP_BLOCK = re.compile(
     r"<(script|style|code|pre)\b.*?</\1>|<!--.*?-->"
-    # 語言切換那一組是**產生的**（見 `_lang_group`）—— 抽出來翻只會多出
+    # 語言選單是**產生的**（見 `lang_group`）—— 抽出來翻只會多出
     # 「English」「日本語」這種每加一種語言就變動一次的假條目。
-    r"|<span id=\"langSwitch\".*?</span>", re.S | re.I)
+    r"|<select id=\"langSwitch\".*?</select>", re.S | re.I)
 #: 會翻的屬性（使用者看得到的）。
 _ATTRS = ("alt", "title", "placeholder", "aria-label", "content")
 
@@ -145,6 +145,41 @@ def _translate_install_command(html: str, lang: str) -> str:
     return html
 
 
+def _drop_hidden_tool_shots(html: str, lang: str) -> str:
+    """台灣專屬的工具在別的語言底下是反灰的 —— **介紹站也不要放它們的截圖**
+    （使用者 2026-09-14：「台灣專用功能 不需在 英文 日文 pages 截圖」）。
+
+    整個 `<figure class="ss-row">` 拿掉，然後把 `ss-num` 的編號重排 ——
+    少了一張卻留著 01 / 03 / 04 的跳號比沒拿掉還難看。
+
+    要拿掉哪幾張**由註冊表的 `ToolMetadata.locales` 決定**（共用擷取工具的
+    `hidden_shots`），不要在這裡再維護一份名單。
+    """
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from tools.capture_locale_screenshots import hidden_shots
+
+    names = hidden_shots(lang)
+    if not names:
+        return html
+    pat = re.compile(r"\s*<figure class=\"ss-row[^\"]*\">.*?</figure>", re.S)
+
+    def keep(m):
+        seg = m.group(0)
+        return "" if any(f"screenshots/{n}.png" in seg for n in names) else seg
+
+    html = pat.sub(keep, html)
+
+    # 編號重排：`<div class="ss-num">01</div>`
+    n = [0]
+
+    def renum(m):
+        n[0] += 1
+        return f'<div class="ss-num">{n[0]:02d}</div>'
+
+    return re.sub(r'<div class="ss-num">\d+</div>', renum, html)
+
+
 def _localised_screenshots(html: str, docs_dir, lang: str) -> str:
     """某語言版指到該語言介面的截圖（`screenshots/<語言>/…`）。
 
@@ -236,8 +271,8 @@ def build(src: Path, cat_path: Path, dst: Path, lang: str = "en") -> int:
     # （原本靠 `id="langSwitch"` 在 `<a>` 上跳過，id 移到 `<span>` 之後就失效了）。
     out = _rewrite_internal_links(out, lang)
     # 語言切換：列出**其他所有語言**（三語之後「切換」這個形狀就不成立了）。
-    out = re.sub(r'<span id="langSwitch"[^>]*>.*?</span>',
-                 _lang_group(src.stem, lang), out, count=1, flags=re.S)
+    out = re.sub(r'<select id="langSwitch"[^>]*>.*?</select>',
+                 lang_group(src.stem, lang), out, count=1, flags=re.S)
     # **只有英文需要在行內標籤旁補空白**（英文詞之間要空格，日文不要 ——
     # 補了會變成「設定 を 保存」）。安裝指令與截圖則是逐語言各自一份。
     if lang == "en":
@@ -245,6 +280,7 @@ def build(src: Path, cat_path: Path, dst: Path, lang: str = "en") -> int:
     elif lang == "ja":
         out = _tighten_cjk_spaces(out)
     out = _translate_install_command(out, lang)
+    out = _drop_hidden_tool_shots(out, lang)
     out = _localised_screenshots(out, dst.parent, lang)
     dst.write_text(out, encoding="utf-8")
     print(f"{dst.name}: 產生完成（{len(missing)} 條還沒翻，暫時保留中文）")
@@ -273,25 +309,35 @@ def _rewrite_internal_links(html: str, lang: str) -> str:
 
 
 #: 語言的自稱 —— 唯一來源是 `ui_locale.LOCALE_NAMES`（樣板不要自己寫死）。
-def _lang_group(page: str, current: str) -> str:
-    """產生「切到其他語言」那一組連結。
+def lang_group(page: str, current: str) -> str:
+    """語言選單（導覽列上的下拉）。
 
-    **兩語的時候這是一個切換鈕，三語之後就不是了** —— 原本的寫法是
+    **兩語的時候一顆切換鈕就夠，三語之後就不夠了** —— 原本是
     「中文頁指向 -en、英文頁指回中文」，加第三種語言之後日文頁就沒有出口
-    到英文頁。這裡一律列出**除了自己以外**的所有語言。
+    到英文頁；改成並排連結之後又變成導覽列上「English日本語」黏成一團
+    （2026-09-14 使用者截圖回報）。**語言只會越加越多，所以用下拉。**
+
+    列出**全部**語言（含目前這個，`selected`）—— 下拉的慣例是先讓人看到
+    「現在是哪一個」，這跟「列出其他語言」的連結寫法不一樣。
+
+    行為在 `docs/lang-switch.js`（**只有那一份**），不寫 inline 的
+    `onchange`。
     """
     import sys as _sys
     _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from app.core.ui_locale import DEFAULT_LOCALE, LOCALE_NAMES, SUPPORTED
-    out = [f'<span id="langSwitch" class="nav-lang-group">']
+    out = ['<select id="langSwitch" class="nav-lang" aria-label="Language">']
     for code in SUPPORTED:
-        if code == current:
-            continue
         href = f"{page}.html" if code == DEFAULT_LOCALE else f"{page}-{code}.html"
-        out.append(f'<a href="{href}" class="nav-link nav-lang"'
-                   f' hreflang="{code}" lang="{code}">{LOCALE_NAMES[code]}</a>')
-    out.append("</span>")
+        sel = " selected" if code == current else ""
+        out.append(f'<option value="{href}" lang="{code}"{sel}>'
+                   f'{LOCALE_NAMES[code]}</option>')
+    out.append("</select>")
     return "".join(out)
+
+
+#: 舊名字留著給舊的呼叫端（同一支函式，不要抄第二份）。
+_lang_group = lang_group
 
 
 def _locales() -> "list[str]":

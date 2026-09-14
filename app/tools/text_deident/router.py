@@ -70,21 +70,16 @@ def _extract_text_from_file(filename: str, data: bytes) -> str:
 def _doc_lang(body: dict | None = None, request=None) -> str:
     """這次要用哪一組式子（文件語言，不是介面語言）。
 
-    台灣的市話 / 地址 / 統編式子套在英文文字上是**抓錯**不是抓不到，
-    所以「支援英文」必須連「在英文模式下關掉台灣專屬那幾條」一起做
-    —— 詳見 `patterns.catalog_for`。
+    預設值走 `patterns.default_doc_lang` —— **跟文件去識別化共用同一支**。
+    原本這裡自己抄了一份「不是 en 就當 zh-Hant」，於是日文介面的使用者
+    套到的是台灣那組規則（截圖裡信用卡號被認成「市話」）。
     """
     if body:
         val = str(body.get("doc_lang") or "").strip()
         if val:
             return val
     if request is not None:
-        try:
-            from ...core.ui_locale import resolve
-            return "en" if str(resolve(request)).lower().startswith("en") \
-                else "zh-Hant"
-        except Exception:  # noqa: BLE001
-            pass
+        return P.default_doc_lang(request)
     return "zh-Hant"
 
 

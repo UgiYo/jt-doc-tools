@@ -39,7 +39,9 @@ _STRIP = re.compile(
     r"<(script|style|code|pre)\b.*?</\1>|<!--.*?-->"
     # 語言切換那一組是**產生的**，裡面一定會有其他語言的自稱
     #（英文頁上的「日本語」、日文頁上的「繁體中文」）—— 那是對的，不是漏翻。
-    r"|<span id=\"langSwitch\".*?</span>", re.S | re.I)
+    # （v1.15.47 起它是一個 `<select>` 下拉 —— 三種語言之後並排連結會
+    #   黏成一團「繁體中文English日本語」，使用者截圖回報過。）
+    r"|<select id=\"langSwitch\".*?</select>", re.S | re.I)
 
 
 @pytest.mark.parametrize("src,cat,dst", PAGES)
@@ -73,15 +75,25 @@ def test_language_link_points_both_ways(src: str, cat: str, dst: str):
     """
     zh = (DOCS / src).read_text(encoding="utf-8")
     other = (DOCS / dst).read_text(encoding="utf-8")
-    assert f'href="{dst}"' in zh, f"{src} 少了往 {dst} 的連結"
-    assert f'href="{src}"' in other, f"{dst} 少了回 {src} 的連結"
+    # 語言選單是 `<select>`，每個語言是一個 `<option value="…">`
+    # —— 判準看的是**去得了哪些頁**，不是它長成連結還是下拉。
+    def targets(html: str) -> set:
+        m = re.search(r'<select id="langSwitch".*?</select>', html, re.S)
+        assert m, "找不到語言選單"
+        return set(re.findall(r'value="([^"]+\.html)"', m.group(0)))
+
+    assert dst in targets(zh), f"{src} 的語言選單少了 {dst}"
+    assert src in targets(other), f"{dst} 的語言選單少了 {src}"
     page = src.removesuffix(".html")
     me = dst.rsplit("-", 1)[1].removesuffix(".html")
     for lang in _locales():
         if lang == me:
             continue
-        assert f'href="{page}-{lang}.html"' in other, \
-            f"{dst} 少了往 {page}-{lang}.html 的連結（三語要互相連得到）"
+        assert f"{page}-{lang}.html" in targets(other), \
+            f"{dst} 的語言選單少了 {page}-{lang}.html（三語要互相去得了）"
+    # 目前這一頁自己也要在選單裡而且是選起來的 —— 下拉要先讓人看到「現在是哪一個」
+    assert f'value="{dst}" lang="{me}" selected' in other, \
+        f"{dst} 的語言選單沒有把自己標成 selected"
 
 
 # ---------------------------------------------------------------------------
@@ -209,9 +221,22 @@ def _block_heads(html: str) -> list[str]:
     return out
 
 
-@pytest.mark.parametrize("src,dst", [("index.html", "index-en.html"),
-                                     ("api.html", "api-en.html")])
-def test_no_block_starts_with_punctuation_unless_the_chinese_one_does(src: str, dst: str):
+def _generator():
+    """載入 `build-i18n-page.py`（檔名有連字號，只能用 importlib）。"""
+    import importlib.util as ilu
+
+    root = Path(__file__).resolve().parents[1]
+    f = _public_root(root) / "build-i18n-page.py"
+    spec = ilu.spec_from_file_location("_bip", f)
+    mod = ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+@pytest.mark.parametrize("name", ["index", "api"])
+@pytest.mark.parametrize("lang", _locales())
+def test_no_block_starts_with_punctuation_unless_the_chinese_one_does(
+        name: str, lang: str):
     """英文頁的每個區塊，開頭標點要跟中文頁一致。
 
     **判準放在產出的頁面上，不放在語系檔**：語系檔裡「以標點開頭」有時候是對的
@@ -219,7 +244,13 @@ def test_no_block_starts_with_punctuation_unless_the_chinese_one_does(src: str, 
     產出則是位置對位置，精確 —— 使用者截圖看到的正是這個症狀：
     「, including but not limited to…」整條以逗號開頭。
     """
-    zh = _block_heads((DOCS / src).read_text(encoding="utf-8"))
+    src, dst = f"{name}.html", f"{name}-{lang}.html"
+    # **比對之前兩邊要是同一個形狀**：台灣專屬工具的截圖區塊在別的語言底下
+    # 整塊拿掉了（使用者 2026-09-14 要求），中文那邊也要照同一條規則拿掉，
+    # 不然區塊數對不上、這條就只能放寬成沒有牙齒。
+    zh_html = _generator()._drop_hidden_tool_shots(
+        (DOCS / src).read_text(encoding="utf-8"), lang)
+    zh = _block_heads(zh_html)
     en = _block_heads((DOCS / dst).read_text(encoding="utf-8"))
     assert len(zh) == len(en), f"{dst} 的區塊數與中文版不同（{len(en)} vs {len(zh)}）"
     bad = [i for i, (a, b) in enumerate(zip(zh, en))

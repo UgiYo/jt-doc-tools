@@ -476,8 +476,8 @@ function renderRows() {
   const isReplace = chosenMode === 'replace';
   body.textContent = '';
   for (const f of detectResult.findings) {
-    const tr = document.createElement('tr');
-    if (f.type === 'custom_term') tr.className = 'term-row';
+    const rowEl = document.createElement('tr');
+    if (f.type === 'custom_term') rowEl.className = 'term-row';
 
     const tdChk = document.createElement('td');
     const chk = document.createElement('input');
@@ -486,7 +486,7 @@ function renderRows() {
 
     const tdType = document.createElement('td');
     const tag = document.createElement('span');
-    tag.className = 'type-tag'; tag.textContent = f.type_label;
+    tag.className = 'type-tag'; tag.textContent = tr(f.type_label);
     tdType.appendChild(tag);
 
     const tdPage = document.createElement('td');
@@ -515,8 +515,8 @@ function renderRows() {
       tdLast.textContent = f.masked;
     }
 
-    tr.append(tdChk, tdType, tdPage, tdVal, tdLast);
-    body.appendChild(tr);
+    rowEl.append(tdChk, tdType, tdPage, tdVal, tdLast);
+    body.appendChild(rowEl);
   }
 }
 

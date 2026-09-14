@@ -11,6 +11,131 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.47] - 2026-09-14
+
+### ⚠ The site's screenshots had never actually had a document in them
+
+Not because anyone forgot to add one:
+
+* `/usr/bin/chromium-browser` here is the **snap** build, and **it cannot read
+  `/opt`** — which is where the sample files lived.
+* `DOM.setFileInputFiles` still "succeeds" and the file name still appears on
+  screen. **Only the eventual XHR fails, with `network error`, and the server
+  never sees a single request.**
+
+So the uploads in that capture had never worked — the English set sitting on a
+"Please upload a PDF first" dialog was the same cause. Staging the samples
+somewhere the browser can read them fixed every page at once.
+
+> **The family lesson**: "it looks like it worked" (the file name is showing)
+> is not the same as "it worked". The check is now *did the server receive the
+> request*, plus *is a dialog covering the screenshot* (that gets printed).
+
+### Screenshots: entirely made-up demo data, and the tools are really run
+
+`tools/seed_demo_data.py` creates a demo company (Example Technology Co., Ltd.,
+VAT 12345675, 02-1234-5678 …, **not one real value**), a demo seal, and a
+synthetic vendor form. The auto-fill screenshot is a form with **18 fields
+actually filled in** — nothing has to be blurred out any more.
+
+Each page now has a recipe (which sample, whether to press the button, where to
+scroll) and **waits until the result is actually painted** rather than sleeping
+for a fixed number of seconds.
+
+### Taiwan-only tools are no longer shown on the English and Japanese site
+
+They are greyed out in those interfaces anyway; showing their screenshots only
+suggests they can be used. Which ones to drop comes from the registry's
+`ToolMetadata.locales` — not a hand-kept list — and the remaining figures are
+renumbered, because 01 / 03 / 04 looks worse than one fewer picture.
+
+### The site's language picker is a dropdown now
+
+The nav bar read `繁體中文English日本語` run together, and the whole bar wrapped
+onto two lines. Languages only ever get added, so a dropdown (whose width does
+not depend on how many there are) is the right shape.
+
+Three things changed in the nav at once:
+
+* **Items no longer wrap** — wrapping broke them mid-word
+  ("Why self- / host").
+* **Shorter Japanese labels** (`インストール` → `導入`, and so on).
+* **The hamburger breakpoint is measured, not guessed** (`chromium
+  --headless`, per language): the bar needs 805 px in Chinese, 875 in
+  Japanese, 933 in English; English stops fitting at 1060 and still fits at
+  1100 — so **1080 px**. The old 980 was set from Chinese lengths alone.
+
+### Document straightening: output was black and white without asking for it
+
+The photo was a colour business card. The whole pipeline ran on the greyscale
+copy (`crop_page(gray)`, `warp_quad(gray, …)`), so colour never survived — while
+the checkbox on screen says "convert to black and white (off by default)".
+**The interface promised something the code did not do.**
+
+It now **measures on grey and transforms the colour image**. That also exposed
+an RGB/BGR mix-up (PyMuPDF hands back RGB, `imencode` wants BGR) which would
+have swapped red and blue.
+
+> The check is **saturation**, not channel count: three identical channels
+> still look black and white.
+
+### Document straightening: you can set the output size (pixels or mm)
+
+Automatic (whatever the corrected page comes out as) / A4 / A4 landscape / A3 /
+Letter / custom width × height with a unit. After a preview the boxes are
+**pre-filled with the size actually produced**, and once you edit them they are
+left alone.
+
+> **When the ratio does not match, proportions are kept and the page is padded
+> with white — never cropped, never stretched.** This tool has said from day
+> one that cutting into content is unforgivable while an extra strip of desk is
+> merely ugly. Padding is white, not black (black would soak the printer). A
+> malformed size is treated as "not set", never a 500.
+
+### Document straightening: a superseded re-render is aborted immediately
+
+There was a token that ignored *late replies*, but the request itself ran to
+completion — **the server rendered a page nobody wanted**. It is now aborted
+with `AbortController`.
+
+> Being superseded **is not a failure**: saying "preview failed" suggests
+> something broke when the next one is simply on its way.
+
+### ⚠ Redaction: a Japanese interface was treated as Taiwan
+
+v1.15.46 fixed the document tool; **the text tool still had its own copy** of
+the old "anything but `en` means `zh-Hant`" rule — a Japanese screenshot caught
+`4111 1111 1111 1111` being reported as a Taiwanese landline. Both now share
+`patterns.default_doc_lang`, with an AST check that they really delegate.
+
+> "**Sweep the whole family at once**" — the same lesson, twice in one day.
+
+Two more from the same round:
+
+* **Category labels were never translated** — that row was Chinese in both the
+  English and Japanese interfaces, in both tools.
+* **Address masking was hard-coded to a Taiwanese shape** —
+  `1842 Maple Street, Springfield, IL 62704` came out as `OO市OO區OO路OOO號`,
+  which reads as though the document had a Taiwanese address to begin with.
+  Masking is meant to *keep the shape and hide the content*; swapping in
+  another country's shape breaks the first half. Chinese addresses keep the old
+  form; everything else is masked character by character, separators and length
+  intact.
+
+### Also
+
+* "PDF to Word" is no longer labelled **beta**.
+* **The upgrade notice now says the `-C` is upper case** (reported by a customer
+  on 2026-09-14): typing `git -c /opt/jt-doc-tools/ …` answers
+  `fatal: not a git repository (or any of the parent directories): .git`,
+  because a lower-case `-c` is the *config* flag and git never changes into that
+  directory. **The message reads as though the install were not a git checkout**,
+  which sent the customer looking in entirely the wrong place. The caveat is in
+  the README, `OPS.md` and on the site, with a check that no copy-and-paste
+  block ever contains a lower-case `git -c <path>`.
+
+---
+
 ## [1.15.46] - 2026-09-14
 
 ### Japanese interface added (site, API guide, troubleshooting and README too)

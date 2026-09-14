@@ -52,3 +52,70 @@ def test_the_intro_site_upgrade_section_carries_it_too():
 def test_ops_guide_explains_it_as_well():
     text = (PUB / "OPS.md").read_text(encoding="utf-8")
     assert _CMD in text, "OPS.md 的升級流程少了那行指令"
+
+
+def test_the_notice_warns_that_the_flag_is_uppercase():
+    """**`-C` 是大寫**這件事要寫在說明旁邊。
+
+    2026-09-14 客戶把它打成小寫的 `git -c /opt/jt-doc-tools/ …`，得到
+    `fatal: not a git repository (or any of the parent directories): .git`
+    —— 小寫的 `-c` 是**設定參數**，git 不會切到那個目錄，於是在目前的位置
+    找 `.git`。**那個訊息看起來像「這個安裝不是用 git 裝的」，其實只是打錯
+    一個字母**，客戶因此往完全錯誤的方向查。
+
+    這條跟「照著做的步驟要用字面守門釘住」（`OPS.md` 的 IIS 安裝順序）是
+    同一條：文件裡叫人跑的指令，**最容易打錯的那個地方要先講**。
+    """
+    root = PUB
+    checks = {
+        "README.md": ("`-C` 是大寫", "not a git repository"),
+        "OPS.md": ("`-C` 是大寫", "not a git repository"),
+        "docs/index.html": ("大寫的 <code>-C</code>", "not a git repository"),
+    }
+    for rel, needles in checks.items():
+        t = (root / rel).read_text(encoding="utf-8")
+        for n in needles:
+            assert n in t, f"{rel} 少了「{n}」這句提醒"
+
+
+def test_no_copy_paste_block_uses_the_lowercase_flag():
+    """**可以複製貼上的那幾塊**裡不可以出現 `git -c <路徑>`。
+
+    `-c` 後面接的是 `key=value`，接路徑一定是打錯。
+
+    **只掃「會被複製走」的地方**（Markdown 的 ``` 區塊、HTML 的 `<pre>`）——
+    說明文字裡一定會**引用**那個錯誤寫法當反例（就在這一份文件上面），
+    整份掃的話會把解釋規則的那句話自己判成違規。本專案在 use vs mention 上
+    踩過很多次，這條是同一件事。
+    """
+    import re
+
+    fenced = re.compile(r"```.*?```", re.S)
+    pre = re.compile(r"<pre\b.*?</pre>", re.S | re.I)
+    wrong = re.compile(r"git -c\s+[/\"'A-Za-z]")
+    bad = []
+    for f in list(PUB.rglob("*.md")) + list(PUB.rglob("*.html")):
+        if "/i18n/" in f.as_posix():
+            continue
+        text = f.read_text(encoding="utf-8")
+        for block in [m.group(0) for m in fenced.finditer(text)] + \
+                     [m.group(0) for m in pre.finditer(text)]:
+            for m in wrong.finditer(block):
+                tail = block[m.start():m.start() + 40]
+                if "=" in tail.split()[2] if len(tail.split()) > 2 else False:
+                    continue          # `git -c safe.directory=…` 是真的設定
+                bad.append(f"{f.relative_to(PUB).as_posix()}: {m.group(0)}")
+    assert not bad, "可複製的指令區塊裡出現小寫的 `git -c <路徑>`：" + str(bad)
+
+
+def test_the_scan_actually_reaches_the_recovery_command():
+    """**先證明掃得到東西** —— 掃 0 個區塊跟全部合格在 pytest 輸出裡一樣。"""
+    import re
+
+    fenced = re.compile(r"```.*?```", re.S)
+    seen = 0
+    for f in PUB.rglob("*.md"):
+        for m in fenced.finditer(f.read_text(encoding="utf-8")):
+            if _CMD in m.group(0):
+                seen += 1
+    assert seen >= 2, f"只在 {seen} 個指令區塊裡看到那一行 —— 掃描器大概壞了"

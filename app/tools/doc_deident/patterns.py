@@ -154,8 +154,26 @@ def _mask_twbiz(v: str) -> str:
     return _mask_keep_edges(v, 2, 2)
 
 
-def _mask_addr(_v: str) -> str:
-    return "OO市OO區OO路OOO號"
+#: 中日韓文字（含全形標點）。用來判斷一個地址是不是中文地址。
+_CJK_RE = re.compile(r"[\u3040-\u30ff\u3400-\u9fff\uff00-\uffef]")
+
+
+def _mask_addr(v: str) -> str:
+    """地址遮罩。**看原文長什麼樣，不是看設定。**
+
+    原本一律回 `OO市OO區OO路OOO號` —— 把
+    `1842 Maple Street, Springfield, IL 62704` 遮成一個台灣地址，
+    讀的人會以為那份文件本來就是台灣的地址（2026-09-14 日文截圖看到）。
+    **遮罩的用途是「保留格式、看不出內容」**，換成另一個國家的格式就違反了
+    前半段。
+
+    中文地址維持原本的樣子（使用者認得那個形狀）；其餘語言逐字遮成 `*`，
+    只留分隔符號與長度 —— 那才是「保留格式」。
+    """
+    if _CJK_RE.search(v):
+        return "OO市OO區OO路OOO號"
+    # 保留空白與逗號等分隔，其餘一律換掉：形狀還在、內容看不出來
+    return "".join(ch if (ch.isspace() or ch in ",.-#/") else "*" for ch in v)
 
 
 def _mask_ip(v: str) -> str:
@@ -824,3 +842,33 @@ DOC_LANGS: tuple[tuple[str, str], ...] = (
     ("zh-Hant", "中文（台灣）"),
     ("en", "English"),
 )
+
+
+def default_doc_lang(request) -> str:
+    """預設的**文件語言**（不是介面語言）。**兩支去識別化工具共用這一支。**
+
+    這兩件事會不一樣：介面開中文、手上是一份英文合約，是很常見的情況。
+    所以只拿介面語言當**預設值**，畫面上可以改。
+
+    為什麼要有「文件語言」這個概念：台灣的市話 / 地址 / 統編式子套在英文
+    文件上不是「抓不到」而是**抓錯**（實測把護照號、IBAN 片段、信用卡片段
+    都當成電話）。**誤判比漏抓更危險** —— 畫面會顯示「已處理」。
+
+    **介面語言不在 `DOC_LANGS` 裡時不可以退回 `zh-Hant`**（2026-09-14 加日文
+    介面時抓到）。退回 `en` 至少只剩語言中立的那組 ＋ 英美式子，不會拿台灣的
+    式子亂套。真要支援該語言的文件是另一批工作（要有那個語言的式子與誤判語料）。
+
+    **一定要共用**：原本兩支工具各寫一份，我只修了文件那一支，文字那一支
+    照樣把日文介面當成台灣 —— 截圖裡當場看到信用卡號被認成「市話」。
+    「同一個家族要一次掃完」這條教訓，同一天犯了兩次。
+    """
+    try:
+        from ...core.ui_locale import resolve
+        ui = str(resolve(request))
+    except Exception:  # noqa: BLE001
+        return "zh-Hant"
+    if ui.lower().startswith("en"):
+        return "en"
+    if ui.startswith("zh"):
+        return "zh-Hant"
+    return "en"

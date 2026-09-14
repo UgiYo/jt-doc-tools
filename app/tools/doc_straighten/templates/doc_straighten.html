@@ -48,7 +48,7 @@
     <label>{{ tr('偵測紙張邊界') }}</label>
     <div class="field">
       <label class="ds-check"><input type="checkbox" id="dsQuad" checked> {{ tr('手機翻拍時把紙張的四個角抓出來做透視校正') }}</label>
-      <div class="muted">{{ tr('純掃描件通常不需要；抓不到時會自動只做拉正。') }}</div>
+      <div class="muted">{{ tr('純掃描件通常不需要；抓不到時只做歪斜修正。') }}</div>
     </div>
   </div>
   <div class="form-row">
@@ -63,6 +63,34 @@
     <div class="field">
       <label class="ds-check"><input type="checkbox" id="dsBin"> {{ tr('縮小檔案（預設不要開）') }}</label>
       <div class="muted">{{ tr('用途是縮小檔案，不是讓文字更清楚 —— 實測轉成黑白會把中文的細筆畫吃掉，文字辨識率反而從 0.775 掉到 0.108。') }}</div>
+    </div>
+  </div>
+  {# 輸出尺寸：**先自動帶**修正後實際的大小，使用者要改再改
+     （使用者 2026-09-14：「還要可以選 修正完成後 的 size 是多少，
+     可以用像素 也可以用 mm」「預先自動抓 但 user 可以自己改」）。 #}
+  <div class="form-row">
+    <label for="dsSizeMode">{{ tr('輸出尺寸') }}</label>
+    <div class="field">
+      <div class="ds-size">
+        <select id="dsSizeMode" class="field ds-size-mode">
+          <option value="auto" selected>{{ tr('自動（依修正後的大小）') }}</option>
+          <option value="a4">A4 210 × 297 mm</option>
+          <option value="a4l">A4 {{ tr('橫') }} 297 × 210 mm</option>
+          <option value="a3">A3 297 × 420 mm</option>
+          <option value="letter">Letter 215.9 × 279.4 mm</option>
+          <option value="custom">{{ tr('自訂') }}</option>
+        </select>
+        <span class="ds-size-custom" id="dsSizeCustom">
+          <input type="number" id="dsSizeW" class="ds-size-no" min="1" step="1">
+          <span class="muted">×</span>
+          <input type="number" id="dsSizeH" class="ds-size-no" min="1" step="1">
+          <select id="dsSizeUnit" class="field ds-size-unit">
+            <option value="px" selected>{{ tr('像素') }}</option>
+            <option value="mm">{{ tr('毫米 mm') }}</option>
+          </select>
+        </span>
+      </div>
+      <div class="muted" id="dsSizeNote">{{ tr('比例跟紙不一樣時維持比例、四周留白，絕不裁切也不拉伸。留空或選「自動」就照修正後實際的大小輸出。') }}</div>
     </div>
   </div>
   {# 「開始拉正」**不放這裡** —— 它要在使用者看過「修正前後」之後才按
@@ -80,14 +108,20 @@
      多檔併成一份之後更分不出哪一頁是哪個檔來的。
      縮圖是 `/thumb`（70 dpi、存磁碟快取），`loading="lazy"` 讓橫向捲到的
      時候才去要 —— 50 頁的文件不會一口氣送 50 個請求。 #}
+  {# 縮圖列要**在欄位那一欄裡面**：原本它是 `form-row` 的兄弟，所以貼在面板
+     最左邊，跟底下「這一頁的轉向」「紙張的四個角」對不齊，整塊看起來很亂
+     （2026-09-14 使用者截圖回報）。順序也重排成
+     〔頁碼 ＋ 這一頁的狀態〕→〔縮圖列〕，狀態講的就是目前這一頁。 #}
   <div class="form-row">
     <label for="dsPvPage">{{ tr('頁碼') }}</label>
     <div class="field">
-      <input type="number" id="dsPvPage" class="ds-page-no" value="1" min="1" />
-      <div class="muted" id="dsPvStat"></div>
+      <div class="ds-pagebar">
+        <input type="number" id="dsPvPage" class="ds-page-no" value="1" min="1" />
+        <div class="muted" id="dsPvStat"></div>
+      </div>
+      <div class="ds-strip" id="dsStrip" hidden></div>
     </div>
   </div>
-  <div class="ds-strip" id="dsStrip" hidden></div>
   <div class="form-row">
     <label>{{ tr('這一頁的轉向') }}</label>
     <div class="field">
@@ -97,7 +131,7 @@
         <button class="btn" type="button" data-rot="180">{{ icon('rotate-180') }} {{ tr('轉 180°') }}</button>
         <button class="btn btn-secondary" type="button" id="dsRotReset">{{ icon('reset') }} {{ tr('回到原方向') }}</button>
       </div>
-      <div class="muted">{{ tr('掃反了或掃成橫的請用這裡 —— 自動拉正只處理 ±6° 的歪斜，方向要自己指定。轉向之後仍然會自動拉正。') }}</div>
+      <div class="muted">{{ tr('掃反了或掃成橫的請用這裡 —— 自動修正只處理 ±6° 以內的歪斜，方向要自己指定。轉向之後仍然會自動修正歪斜。') }}</div>
     </div>
   </div>
   {# **一個勾選框看不出來可以自己拉角**（使用者回報：一眼根本不知道可以按）。
@@ -163,7 +197,7 @@
   </div>
   {# 看完修正前後才按這顆 —— 位置就是它在流程裡的位置。 #}
   <div class="ds-actions">
-    <button class="btn btn-primary" id="dsGo" type="button">{{ icon('play') }} {{ tr('開始拉正（整份文件）') }}</button>
+    <button class="btn btn-primary" id="dsGo" type="button">{{ icon('play') }} {{ tr('開始修正（整份文件）') }}</button>
   </div>
 </div>
 
@@ -221,8 +255,18 @@
            border-radius: 50%; animation: ds-spin .8s linear infinite; }
   @keyframes ds-spin { to { transform: rotate(360deg); } }
   /* 逐頁縮圖列。橫向捲動 —— 頁數多的時候不可以讓它把整頁撐高。 */
-  .ds-strip { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 10px;
-              margin: 2px 0 14px; }
+  .ds-strip { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px;
+              margin: 8px 0 0; }
+  /* 頁碼與這一頁的狀態同一行 —— 狀態是一句話，自己佔一行會把版面拉開。 */
+  .ds-pagebar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .ds-size { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ds-size-mode { width: auto; min-width: 210px; }
+  .ds-size-unit { width: auto; }
+  .ds-size-custom { display: inline-flex; align-items: center; gap: 6px; }
+  .ds-size-no { width: 92px; padding: 6px 8px; border: 1px solid var(--border);
+                border-radius: var(--radius); font: inherit;
+                font-variant-numeric: tabular-nums; }
+  .ds-pagebar .muted { margin: 0; }
   .ds-pg { flex: 0 0 auto; width: 92px; padding: 4px; border: 1px solid var(--border);
            border-radius: var(--radius); background: #fff; cursor: pointer;
            display: flex; flex-direction: column; gap: 4px; text-align: center; }
@@ -304,6 +348,11 @@
   //  這件事從 PDF 本身看不出來，只有上傳時的回應知道。
   let pageSource = {};        // { 頁碼: {name, first} }
   let pvToken = 0;   // 每次重畫預覽換一個 token，過期的回應直接丟掉
+  //: **上一次的預覽要真的停掉**，不是只忽略它的回應。
+  //  右邊還在算的時候又動了左邊（換頁 / 轉向 / 再拉一次四個角），那一張
+  //  已經沒有人要了 —— 讓它跑完是白花一次算圖（使用者 2026-09-14）。
+  //  `pvToken` 只擋「晚到的回應」，擋不住「還在跑的請求」。
+  let pvAbort = null;
 
   //: **每一個檔案都要處理**（使用者 2026-09-14 回報：拖兩個進來只取第一份）。
   //  共用元件在 `multiple` 時第一個參數就是陣列，第二個一律是完整清單 ——
@@ -483,6 +532,9 @@
     if (!uploadId) return;
     const page = curPage();
     const token = ++pvToken;
+    if (pvAbort) pvAbort.abort();     // 舊的那一張沒有人要了
+    const ac = new AbortController();
+    pvAbort = ac;
     $('dsPvPanel').hidden = false;
     $('dsPvStat').textContent = tr('產生預覽中…');
     // **右邊要立刻進處理中** —— 不然拖完四個角之後，畫面上還掛著**上一次**
@@ -511,7 +563,8 @@
       fd.append('quad', ov.quad.map((pt) => pt.join(',')).join(','));
     }
     try {
-      const r = await fetch('/tools/doc-straighten/preview', { method: 'POST', body: fd });
+      const r = await fetch('/tools/doc-straighten/preview',
+                            { method: 'POST', body: fd, signal: ac.signal });
       if (token !== pvToken) return;          // 已經有更新的請求了
       if (!r.ok) {
         $('dsPvStat').textContent = await window.friendlyServerError(r, tr('預覽失敗'));
@@ -528,11 +581,15 @@
         + (d.quad_found ? '　' + tr('（抓到紙張邊界，已做透視校正）') : '')
         + (ovNow.rotate ? '　' + tr('（這一頁另外轉了 {0}°）').replace('{0}', ovNow.rotate) : '')
         + (quadEditOn() && ovNow.quad ? '　' + tr('（用的是你自己拉的四個角）') : '');
+      fillAutoSize(d);
       // 自動抓到的四角回來了就當作拖曳的起點 —— 使用者只要修不準的那幾個。
       if (d.quad && !(quadEditOn() && ovNow.quad)) autoQuad = d.quad;
       renderQuad();
       syncStrip();
     } catch (e) {
+      // 被新的取代**不是失敗** —— 顯示「預覽失敗」會讓人以為壞掉了，
+      // 而其實下一張正在算。
+      if (e && e.name === 'AbortError') return;
       if (token === pvToken) $('dsPvStat').textContent = tr('預覽失敗');
     }
   }
@@ -716,6 +773,50 @@
   // 那會變成兩排幾乎貼在一起的按鈕（使用者截圖回報）。
   const jp = new JobProgress($('dsJob'));
 
+  // ---------- 輸出尺寸 ----------
+  //: 常用紙張（mm）。**跟後端的 `PAPER_MM` 是同一組數字** —— 這裡只是把它
+  //  寫成畫面上的選項，真正換算成像素是在伺服器端做的（前端不知道 dpi 會不會
+  //  被夾住）。
+  const PAPER = { a4: [210, 297], a4l: [297, 210], a3: [297, 420],
+                  letter: [215.9, 279.4] };
+
+  function sizeNow() {
+    const mode = $('dsSizeMode').value;
+    if (mode === 'auto') return null;              // 不指定 ＝ 照修正後的大小
+    if (PAPER[mode]) {
+      return { w: PAPER[mode][0], h: PAPER[mode][1], unit: 'mm' };
+    }
+    const w = parseFloat($('dsSizeW').value);
+    const h = parseFloat($('dsSizeH').value);
+    if (!(w > 0 && h > 0)) return null;
+    return { w, h, unit: $('dsSizeUnit').value };
+  }
+
+  function syncSizeUi() {
+    const custom = $('dsSizeMode').value === 'custom';
+    $('dsSizeCustom').hidden = !custom;
+  }
+  $('dsSizeMode').addEventListener('change', syncSizeUi);
+  syncSizeUi();
+
+  //: 預覽回來之後把**修正後實際的大小**填進自訂欄位 —— 使用者切到「自訂」
+  //  時就有一個合理的起點，不必自己量（使用者 2026-09-14）。
+  //  **已經動過手的不要蓋掉**：填過一次就不再自動改，不然改到一半又被覆寫。
+  let sizeTouched = false;
+  ['dsSizeW', 'dsSizeH', 'dsSizeUnit'].forEach((id) =>
+    $(id).addEventListener('input', () => { sizeTouched = true; }));
+
+  function fillAutoSize(d) {
+    if (sizeTouched || !d || !d.width || !d.height) return;
+    if ($('dsSizeUnit').value === 'mm' && d.dpi) {
+      $('dsSizeW').value = Math.round(d.width / d.dpi * 25.4);
+      $('dsSizeH').value = Math.round(d.height / d.dpi * 25.4);
+    } else {
+      $('dsSizeW').value = d.width;
+      $('dsSizeH').value = d.height;
+    }
+  }
+
   $('dsGo').addEventListener('click', async () => {
     if (!uploadId) return;
     const btn = $('dsGo');
@@ -726,6 +827,9 @@
     fd.append('binarize', $('dsBin').checked ? '1' : '');
     fd.append('detect_quad', $('dsQuad').checked ? '1' : '');
     fd.append('enhance', $('dsEnh').checked ? '1' : '');
+    const sz = sizeNow();
+    if (sz) { fd.append('size_w', sz.w); fd.append('size_h', sz.h);
+              fd.append('size_unit', sz.unit); }
     fd.append('out_name', srcName);
     // 使用者自己調過的那幾頁一起送出去（沒調過就不送，維持自動）。
     // **自動模式要把四個角濾掉** —— 不濾的話畫面上寫著「自動抓」，

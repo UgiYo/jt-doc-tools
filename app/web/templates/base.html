@@ -56,12 +56,18 @@
       border-radius: 10px; box-shadow: 0 18px 40px rgba(0,0,0,0.28); }
     .sb-menu-item { display: flex; align-items: center; gap: 8px; width: 100%;
       padding: 8px 10px; border: 0; border-radius: 7px; background: none;
-      color: #0f172a; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+      color: #0f172a; font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+      /* 標籤與右邊的值都**不折行** —— 日文的詞比中文長，折行之後會斷在詞中間
+         （2026-09-14 使用者截圖回報「日本語」被拆成「日本 / 語」）。
+         放不下就讓標籤自己用刪節號，值一定完整顯示。 */
+      white-space: nowrap; }
+    .sb-menu-item > :not(svg):not(.sb-menu-value) { overflow: hidden; text-overflow: ellipsis; }
     .sb-menu-item:hover { background: #f1f5f9; }
     .sb-menu-item.is-danger { color: #b91c1c; }
     .sb-menu-item.is-danger:hover { background: #fef2f2; }
     .sb-menu-sep { height: 1px; margin: 6px 4px; background: #f1f5f9; }
-    .sb-menu-value { margin-left: auto; font-size: 12px; color: #64748b; }
+    .sb-menu-value { margin-left: auto; font-size: 12px; color: #64748b;
+      white-space: nowrap; flex: 0 0 auto; }
     .sb-submenu { padding: 2px 0 2px 8px; }
     .sb-menu-item.is-sub { font-size: 12.5px; padding: 7px 10px; }
     .sb-menu-item.is-sub.is-on { color: #3730a3; font-weight: 700; }

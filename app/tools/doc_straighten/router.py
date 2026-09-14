@@ -272,8 +272,12 @@ async def preview(request: Request, upload_id: str = Form(...),
                                         dpi=_clamp_dpi(dpi), page_no=page,
                                         rotate_deg=_clamp_rotate(rotate),
                                         enhance=enhance)
-        png = cv2.imencode(".png", cv2.resize(
-            fixed, None, fx=0.45, fy=0.45, interpolation=cv2.INTER_AREA))[1]
+        # **`imencode` 吃 BGR，PyMuPDF 給的是 RGB** —— 不轉的話預覽的紅藍
+        # 會對調（而產出是對的，於是「預覽跟產出不一樣」）。
+        small = cv2.resize(fixed, None, fx=0.45, fy=0.45,
+                           interpolation=cv2.INTER_AREA)
+        png = cv2.imencode(".png", cv2.cvtColor(small, cv2.COLOR_RGB2BGR)
+                           if small.ndim == 3 else small)[1]
         out = settings.temp_dir / f"{_PREFIX}pv_{upload_id}_{page}.png"
         out.write_bytes(png.tobytes())
         # 自動抓到的四角也回給前端**當作拖曳的起點** —— 使用者只要修不滿意的
@@ -284,7 +288,11 @@ async def preview(request: Request, upload_id: str = Form(...),
         return {"url": f"/tools/doc-straighten/preview-img/{upload_id}/{page}",
                 "angle": res.angle, "residual": res.residual,
                 "quad_found": res.quad_found, "ms": res.ms,
-                "rotate": res.rotate_deg, "quad": auto}
+                "rotate": res.rotate_deg, "quad": auto,
+                # 修正後**實際**的像素大小 —— 畫面拿它預先填好「輸出尺寸」，
+                # 使用者要改再改（使用者 2026-09-14：「預先自動抓 但 user
+                # 可以自己改」）。
+                "width": res.width, "height": res.height, "dpi": _clamp_dpi(dpi)}
 
     return await _asyncio.to_thread(_work)
 
@@ -342,19 +350,48 @@ def _clamp_dpi(dpi: int) -> int:
     return min(_DPI_CHOICES[-1], max(_DPI_CHOICES[0], d))
 
 
+#: 輸出尺寸的單位。`px` 直接就是像素；`mm` 依 dpi 換算成像素。
+_SIZE_UNITS = ("px", "mm")
+#: 一張 A4 在 600 dpi 是 4960×7016 —— 再大就只是把檔案撐爆，
+#: 而且 `fit_to` 會把整張圖重新取樣，記憶體跟著翻倍。
+_MAX_OUT_PX = 12000
+
+
+def _parse_out_size(w: str, h: str, unit: str, dpi: int):
+    """畫面上填的輸出尺寸 → 像素。空的（或不合法）就回 `None` ＝ 不指定。
+
+    **不合法一律當成沒填**（回 `None`），不要丟例外 —— 使用者打錯一個數字
+    不該看到 500（本專案「不合法一律當成找不到」那條的同一個道理）。
+    """
+    unit = unit if unit in _SIZE_UNITS else "px"
+    try:
+        fw, fh = float(w), float(h)
+    except (TypeError, ValueError):
+        return None
+    if not (fw > 0 and fh > 0):
+        return None
+    if unit == "mm":
+        pw, ph = SC.mm_to_px(fw, dpi), SC.mm_to_px(fh, dpi)
+    else:
+        pw, ph = int(round(fw)), int(round(fh))
+    if not (0 < pw <= _MAX_OUT_PX and 0 < ph <= _MAX_OUT_PX):
+        return None
+    return pw, ph
+
+
 def _run_job(src: Path, out: Path, *, dpi: int, binarize: bool,
              detect_quad: bool, stem: str, enhance: bool = True,
-             overrides: dict | None = None):
+             out_size=None, overrides: dict | None = None):
     def run(job):
-        job.message = "拉正中…"
+        job.message = "修正中…"
 
         def progress(done: int, total: int):
             job.progress = (done / max(1, total)) * 0.97
-            job.message = f"拉正中… {done}/{total} 頁"
+            job.message = f"修正中… {done}/{total} 頁"
 
         results = SC.straighten_pdf(src, out, dpi=dpi, do_binarize=binarize,
                                     detect_quad=detect_quad, enhance=enhance,
-                                    overrides=overrides,
+                                    out_size=out_size, overrides=overrides,
                                     progress=progress,
                                     cancelled=lambda: job.cancelled)
         job.result_path = out
@@ -429,6 +466,8 @@ async def submit(request: Request, upload_id: str = Form(...),
                  dpi: int = Form(200), binarize: bool = Form(False),
                  detect_quad: bool = Form(True), enhance: bool = Form(True),
                  out_name: str = Form(""),
+                 size_w: str = Form(""), size_h: str = Form(""),
+                 size_unit: str = Form("px"),
                  overrides: str = Form("")):
     require_uuid_hex(upload_id, "upload_id")
     _uo.require(upload_id, request)
@@ -444,6 +483,8 @@ async def submit(request: Request, upload_id: str = Form(...),
         "doc-straighten",
         _run_job(src, out, dpi=_clamp_dpi(dpi), binarize=binarize,
                  detect_quad=detect_quad, stem=stem, enhance=enhance,
+                 out_size=_parse_out_size(size_w, size_h, size_unit,
+                                          _clamp_dpi(dpi)),
                  overrides=ov),
         request=request,
         meta={"filename": f"{stem}.pdf", "count": page_count})

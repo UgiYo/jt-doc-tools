@@ -1,0 +1,331 @@
+#!/usr/bin/env python3
+"""替截圖用的拋棄式實例塞一份**全部是虛構的**示範資料。
+
+介紹站的截圖要看起來像「真的在用」，但**一個字都不可以是真的**：
+公司名、統編、地址、電話、銀行帳號、人名一律杜撰
+（CLAUDE.md：個人 / 客戶資料一個字都不可以進 git，而截圖是要公開的）。
+
+塞三樣：
+  1. 一間示範公司（表單自動填寫要有公司資料才填得出東西）
+  2. 一顆示範印章（印章 / 騎縫章的頁面沒有資產時只會顯示「還沒有共用資產」）
+  3. 一份示範的廠商資料表 PDF（`temp/demo/vendor-form.pdf`）與一份報價單
+
+用法（`JTDT_DATA_DIR` 要先指到那個拋棄式的資料目錄）：
+    JTDT_DATA_DIR=/tmp/xxx python tools/seed_demo_data.py
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO))
+
+#: **全部杜撰。** 統編用不會通過檢查碼的號碼、電話用 02-1234-5678 這種
+#: 明顯是範例的號碼、地址用不存在的門牌 —— 看得出是範例，也不會撞到真人。
+DEMO_COMPANY = {
+    "company_name": "範例科技股份有限公司",
+    "short_name": "範例科技",
+    "english_name": "Example Technology Co., Ltd.",
+    "tax_id": "12345675",
+    "founded_date": "105/03/18",
+    "capital": "5,000,000",
+    "owner": "王小明",
+    "owner_title_zh": "董事長",
+    "address": "臺北市中正區範例路 100 號 5 樓",
+    "invoice_address": "臺北市中正區範例路 100 號 5 樓",
+    "zip_code": "100",
+    "phone": "02-1234-5678",
+    "fax": "02-1234-5679",
+    "mobile": "0912-345-678",
+    "email": "service@example.com.tw",
+    "company_email": "service@example.com.tw",
+    "company_website": "www.example.com.tw",
+    "contact": "陳小華",
+    "bank_name": "範例商業銀行",
+    "bank_code": "999",
+    "bank_branch": "中正分行",
+    "bank_branch_code": "0012",
+    "bank_account_name": "範例科技股份有限公司",
+    "bank_account_no": "999-12-345678-9",
+    "payment_method": "匯款",
+    "payment_terms": "月結 30 天",
+    "vat_status": "一般稅額",
+    "invoice_title": "範例科技股份有限公司",
+}
+
+#: 欄位標題（畫面上顯示用）。只列有填的那幾個。
+LABELS = {
+    "company_name": "公司全名", "short_name": "公司簡稱",
+    "english_name": "英文名稱", "tax_id": "統一編號",
+    "founded_date": "成立日期", "capital": "資本額",
+    "owner": "負責人", "owner_title_zh": "代表人職稱",
+    "address": "公司地址", "invoice_address": "發票地址", "zip_code": "郵遞區號",
+    "phone": "公司電話", "fax": "傳真", "mobile": "行動電話",
+    "email": "聯絡人郵箱", "company_email": "公司郵箱", "company_website": "公司網站",
+    "contact": "聯絡人",
+    "bank_name": "銀行名稱", "bank_code": "銀行代碼", "bank_branch": "銀行分行",
+    "bank_branch_code": "分行代碼", "bank_account_name": "戶名",
+    "bank_account_no": "銀行帳號",
+    "payment_method": "付款方式", "payment_terms": "付款條件",
+    "vat_status": "課稅別", "invoice_title": "發票抬頭",
+}
+
+#: 廠商資料表要填的欄位（標籤 → 右邊留白給工具填）。
+FORM_ROWS = [
+    ("廠商名稱", ""), ("統一編號", ""), ("負責人", ""), ("公司電話", ""),
+    ("傳真", ""), ("登記地址", ""), ("公司網址", ""), ("成立日期", ""),
+    ("資本額", ""), ("聯絡人", ""), ("行動電話", ""), ("Email", ""),
+    ("收款銀行", ""), ("分行名稱", ""), ("銀行代碼", ""), ("帳號", ""),
+    ("付款方式", ""), ("付款條件", ""),
+]
+
+
+def _cjk_font() -> tuple[str, int]:
+    """(字型檔, .ttc 子字型索引)。
+
+    **一定要真的挑得到** —— 缺字型時中文會畫成方框，那樣的截圖比沒有還糟
+    （合成樣本「字集要列全」是同一條教訓）。
+    """
+    from app.core.font_catalog import best_cjk_path
+    got = best_cjk_path("sans", "traditional")
+    if not got:
+        raise SystemExit("找不到中日韓字型 —— 合成表單的字會變方框，不能這樣出截圖")
+    path, idx = got
+    return str(path), idx
+
+
+def make_vendor_form(dst: Path) -> Path:
+    """做一份**空白的**廠商資料表，給表單自動填寫當素材。
+
+    自己合成而不是拿 `temp_pdfs/` 的真實樣本 —— 那些是客戶資料，
+    而截圖是要公開的。
+    """
+    import fitz
+
+    path, idx = _cjk_font()
+    doc = fitz.open()
+    page = doc.new_page(width=595, height=842)      # A4
+    buf = _subset_buffer(path, idx)
+    page.insert_font(fontname="cjk", fontbuffer=buf)
+    page.insert_text((180, 70), "供應商基本資料表", fontname="cjk", fontsize=20)
+    page.insert_text((60, 100), "（範例表單，內容全為虛構）",
+                     fontname="cjk", fontsize=9, color=(0.45, 0.45, 0.45))
+
+    y = 125
+    for label, _ in FORM_ROWS:
+        page.draw_rect(fitz.Rect(60, y, 180, y + 32), color=(0.2, 0.2, 0.2), width=0.8)
+        page.draw_rect(fitz.Rect(180, y, 535, y + 32), color=(0.2, 0.2, 0.2), width=0.8)
+        page.insert_text((70, y + 21), label, fontname="cjk", fontsize=11)
+        y += 32
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(str(dst))
+    doc.close()
+    return dst
+
+
+def _subset_buffer(path: str, idx: int) -> bytes:
+    """把 .ttc 的子字型抽出來 —— PyMuPDF 沒有 ttc 索引參數。"""
+    from fontTools.ttLib import TTFont, TTCollection
+    import io
+
+    if path.lower().endswith(".ttc"):
+        coll = TTCollection(path, lazy=True)
+        font = coll.fonts[idx]
+    else:
+        font = TTFont(path, lazy=True)
+    bio = io.BytesIO()
+    font.save(bio)
+    return bio.getvalue()
+
+
+def make_stamp_png() -> bytes:
+    """畫一顆示範用的紅色方形印（不是任何真實單位的印）。"""
+    import io
+    from PIL import Image, ImageDraw, ImageFont
+
+    path, idx = _cjk_font()
+    size = 420
+    im = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    red = (200, 30, 30, 255)
+    d.rounded_rectangle([8, 8, size - 8, size - 8], radius=18, outline=red, width=14)
+    f = ImageFont.truetype(path, 150, index=idx)
+    for i, ch in enumerate("範例"):
+        d.text((52 + (i % 2) * 160, 40), ch, font=f, fill=red)
+    for i, ch in enumerate("之印"):
+        d.text((52 + (i % 2) * 160, 215), ch, font=f, fill=red)
+    out = io.BytesIO()
+    im.save(out, "PNG")
+    return out.getvalue()
+
+
+
+#: 報價單（中文 / 英文各一份）。內容全部虛構。
+QUOTE_ZH = [
+    ("項次", "品項", "數量", "單價", "金額"),
+    ("1", "年度維護服務（到府）", "12", "1,500", "18,000"),
+    ("2", "遠端支援時數", "40", "120", "4,800"),
+    ("3", "備品包", "2", "3,250", "6,500"),
+]
+QUOTE_EN = [
+    ("No.", "Description", "Qty", "Unit", "Amount"),
+    ("1", "Annual maintenance, on-site", "12", "1,500", "18,000"),
+    ("2", "Remote support hours", "40", "120", "4,800"),
+    ("3", "Spare parts kit", "2", "3,250", "6,500"),
+]
+
+#: 去識別化用的素材：**虛構的**個資，讓偵測真的抓得到東西。
+#: 號碼一律用規定不指派 / 不會通過檢查碼的那種（同 `fake_values` 的原則）。
+DEIDENT_LINES = [
+    "客戶資料表（範例，內容全為虛構）",
+    "",
+    "姓名：王小明",
+    "身分證字號：A123456789",
+    "出生日期：1985-01-05",
+    "行動電話：0912-345-678",
+    "電子郵件：ming.wang@example.com.tw",
+    "通訊地址：臺北市中正區範例路 100 號 5 樓",
+    "統一編號：12345675",
+    "銀行帳號：999-12-345678-9",
+    "信用卡：4111 1111 1111 1111",
+]
+
+
+def _page_with_text(doc, lines, *, title_size=18, body_size=11, font="cjk"):
+    import fitz
+    page = doc.new_page(width=595, height=842)
+    return page
+
+
+def make_quotation(dst: Path, rows, title: str, header: list[str]) -> Path:
+    import fitz
+
+    path, idx = _cjk_font()
+    buf = _subset_buffer(path, idx)
+    doc = fitz.open()
+    page = doc.new_page(width=595, height=842)
+    page.insert_font(fontname="cjk", fontbuffer=buf)
+    for i, line in enumerate(header):
+        page.insert_text((60, 70 + i * 16), line, fontname="cjk",
+                         fontsize=10, color=(0.35, 0.35, 0.35))
+    page.insert_text((60, 130), title, fontname="cjk", fontsize=22)
+    xs = [60, 110, 330, 390, 460, 535]
+    y = 170
+    for r, row in enumerate(rows):
+        page.draw_line(fitz.Point(60, y - 14), fitz.Point(535, y - 14),
+                       color=(0.6, 0.6, 0.6), width=0.7)
+        for c, cell in enumerate(row):
+            page.insert_text((xs[c] + 4, y), cell, fontname="cjk",
+                             fontsize=11 if r else 10.5)
+        y += 30
+    page.draw_line(fitz.Point(60, y - 14), fitz.Point(535, y - 14),
+                   color=(0.6, 0.6, 0.6), width=0.7)
+    total = sum(int(r[4].replace(",", "")) for r in rows[1:])
+    page.insert_text((390, y + 14), f"{rows[0][4]}", fontname="cjk", fontsize=11)
+    page.insert_text((460, y + 14), f"{total:,}", fontname="cjk", fontsize=13)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(str(dst))
+    doc.close()
+    return dst
+
+
+#: 英文版的去識別化素材。英文介面用的是英美那一組式子（SSN / 電話 / 地址），
+#: 塞中文個資進去偵測不到 —— 素材要跟著規則走。號碼全部用**規定不指派**的號段。
+DEIDENT_LINES_EN = [
+    "Employee record (sample — every value here is made up)",
+    "",
+    "Name: John Doe",
+    "SSN: 900-12-3456",
+    "Date of birth: January 5, 1985",
+    "Phone: +1 (555) 010-4477",
+    "Email: john.doe@example.com",
+    "Address: 1842 Maple Street, Springfield, IL 62704",
+    "Card: 4111 1111 1111 1111",
+    "IBAN: GB00 EXMP 6016 1331 9268 19",
+]
+
+
+def make_deident_doc(dst: Path, lines=None) -> Path:
+    import fitz
+
+    path, idx = _cjk_font()
+    buf = _subset_buffer(path, idx)
+    doc = fitz.open()
+    page = doc.new_page(width=595, height=842)
+    page.insert_font(fontname="cjk", fontbuffer=buf)
+    y = 90
+    for i, line in enumerate(lines or DEIDENT_LINES):
+        page.insert_text((70, y), line, fontname="cjk",
+                         fontsize=18 if i == 0 else 12)
+        y += 34 if i == 0 else 26
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(str(dst))
+    doc.close()
+    return dst
+
+
+def make_scan(dst: Path, src: Path) -> Path:
+    """把一份 PDF 轉成「掃描件」（整頁是圖、沒有文字層）給 OCR 當素材。"""
+    import fitz
+
+    src_doc = fitz.open(str(src))
+    out = fitz.open()
+    for page in src_doc:
+        pix = page.get_pixmap(dpi=150)
+        p = out.new_page(width=page.rect.width, height=page.rect.height)
+        p.insert_image(p.rect, pixmap=pix)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    out.save(str(dst))
+    out.close(); src_doc.close()
+    return dst
+
+
+def main() -> int:
+    import os
+    if not os.environ.get("JTDT_DATA_DIR"):
+        raise SystemExit("要先設 JTDT_DATA_DIR（不可以動到開發樹的 data/）")
+
+    from app.core.profile_manager import profile_manager
+    from app.core.asset_manager import asset_manager
+
+    cid = profile_manager.active_id()
+    profile_manager.save(cid, DEMO_COMPANY["company_name"], DEMO_COMPANY, LABELS)
+    print(f"公司資料：{DEMO_COMPANY['company_name']}（{len(DEMO_COMPANY)} 個欄位）")
+
+    # **要可以重複跑**：多跑幾次就多幾顆一模一樣的章，畫面上排成一排很蠢
+    # （實測跑了五次就有五顆）。同名的先清掉再建。
+    for old_a in asset_manager.list():
+        if old_a.name == "範例之印":
+            asset_manager.delete(old_a.id)
+    a = asset_manager.create_from_bytes("範例之印", "stamp", make_stamp_png())
+    asset_manager.update(a.id, is_default=True)
+    print(f"印章資產：{a.name} ({a.id})")
+
+    # **LLM 只是「打開」不是真的接**：逐句翻譯 / 文件翻譯的頁面在沒有設定
+    # LLM 時整頁被擋住，只看得到一張「本工具需要 LLM 服務」的卡片 ——
+    # 那不是產品截圖。打開之後頁面就會正常渲染，而抽句子是本機做的
+    # （PyMuPDF），不必真的呼叫模型（截圖也不會按下去翻譯）。
+    from app.core.llm_settings import llm_settings
+    s = llm_settings.update({"enabled": True})
+    print(f"LLM：已啟用（截圖用；model={s.get('model')}，不會真的呼叫）")
+
+    demo = REPO / "temp" / "demo"
+    form = make_vendor_form(demo / "vendor-form.pdf")
+    print(f"示範表單：{form}")
+
+    zh = make_quotation(demo / "quotation.zh-Hant.pdf", QUOTE_ZH, "報價單",
+                        ["範例科技股份有限公司", "臺北市中正區範例路 100 號 5 樓",
+                         "報價單號 Q-2026-0417"])
+    en = make_quotation(demo / "quotation.pdf", QUOTE_EN, "QUOTATION",
+                        ["Example Technology Co., Ltd.",
+                         "100 Example Rd, Taipei", "No. Q-2026-0417"])
+    print(f"報價單：{zh.name} / {en.name}")
+    print(f"去識別化素材：{make_deident_doc(demo / 'deident.zh-Hant.pdf').name}"
+          f" / {make_deident_doc(demo / 'deident.pdf', DEIDENT_LINES_EN).name}")
+    print(f"掃描件：{make_scan(demo / 'scan.pdf', en).name}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

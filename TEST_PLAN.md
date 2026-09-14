@@ -232,13 +232,29 @@ JTDT_DATA_DIR=$(mktemp -d) JTDT_CSRF_DISABLE=1 \
 - [ ] **同一個家族要一次掃完**：文件去識別化與文字去識別化各有一份同樣的樣板，
       只修其中一支的話另一支照樣是中文
 
+### ⑥ 截圖：**要證明檔案真的送出去了**（2026-09-14 使用者回報）
+
+- [ ] `python tools/seed_demo_data.py`（`JTDT_DATA_DIR` 指到拋棄式目錄）
+      —— 示範公司 / 印章 / 合成表單，**內容全部虛構**（截圖是要公開的）
+- [ ] `python tools/capture_locale_screenshots.py --locale <語言> --base …`
+- [ ] **看伺服器日誌有沒有收到那些上傳請求** ——
+      `DOM.setFileInputFiles` 在 snap 版瀏覽器上會「成功」、檔名也顯示得出來，
+      但 `/opt` 讀不到，XHR 到最後才炸 `network error`，
+      **伺服器端一筆請求都沒有**（這一整批截圖從上線起就沒成功過）
+- [ ] 擷取工具印出「畫面上有對話框」時那一張就是**拍壞的**，不可以留著
+- [ ] 逐張看過：每一頁都要是「工具真的在用」的畫面，不是空的上傳區
+- [ ] 表單自動填寫要看到**真的填好的那張表**，不是只有「已填入 N 個」
+
 ### ⑤ 加新語言時額外要做的（2026-09-14 加日文的清單）
 
 - [ ] 語言清單只改 `app/core/ui_locale.SUPPORTED` 與 `LOCALE_NAMES`
       —— **生成器與守門一律從那裡讀**，不可以再寫死一次 `en`
       （原本有八個地方各寫死一次，加第三種語言之後會安靜地只驗英文）
 - [ ] 截圖：`python tools/capture_locale_screenshots.py --locale <語言> --base …`
-      —— 介紹站要用**該語言介面**的截圖（`screenshots/<語言>/`）
+      —— 介紹站要用**該語言介面**的截圖（`screenshots/<語言>/`；中文放在
+      `screenshots/` 沒有語言那一層）
+- [ ] **台灣專屬的工具不要出現在別的語言的介紹站** —— 判準走註冊表的
+      `ToolMetadata.locales`，整個 `<figure>` 拿掉之後編號要重排
 - [ ] 產生四份公開文件並**逐位元組驗過是最新生成的**：
       `python3 github/build-i18n-page.py` ＋ `python3 github/build-i18n-md.py`
 - [ ] 語言切換是**列出其他所有語言**不是「切換」——
@@ -2137,7 +2153,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 - [ ] `GET /tools/pdf-to-markdown/download/{upload_id}/{kind}`
 - [ ] `GET /tools/pdf-to-markdown/pdf/{upload_id}`
 
-**pdf-to-office（PDF 轉文書檔（Beta））**
+**pdf-to-office（PDF 轉文書檔）**
 
 - [ ] `POST /tools/pdf-to-office/convert`
 - [ ] `GET /tools/pdf-to-office/preview/{job_id}/{kind}`

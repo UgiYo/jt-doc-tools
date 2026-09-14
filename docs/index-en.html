@@ -10,6 +10,7 @@
 <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="stylesheet" href="style.css">
+<script src="lang-switch.js" defer></script>
 </head>
 <body>
 
@@ -40,7 +41,7 @@
       <a href="#install" class="nav-link">Install</a>
       <a href="api-en.html" class="nav-link">API</a>
       <a href="troubleshooting-en.html" class="nav-link">Troubleshooting</a>
-      <span id="langSwitch" class="nav-lang-group"><a href="index.html" class="nav-link nav-lang" hreflang="zh-Hant" lang="zh-Hant">繁體中文</a><a href="index-ja.html" class="nav-link nav-lang" hreflang="ja" lang="ja">日本語</a></span>
+      <select id="langSwitch" class="nav-lang" aria-label="Language"><option value="index.html" lang="zh-Hant">繁體中文</option><option value="index-en.html" lang="en" selected>English</option><option value="index-ja.html" lang="ja">日本語</option></select>
       <a class="btn btn-outline nav-github" href="https://github.com/jasoncheng7115/jt-doc-tools" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.2 1.9 1.2 1.1 1.9 2.9 1.4 3.6 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg>
         GitHub
@@ -346,7 +347,7 @@
           </li>
           <li>
             <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 18 3-3 3 3"/><path d="M12 15v6"/></svg></span>
-            <div class="fl-text"><span class="fn">PDF to Word (beta) <span class="ofc-mark" title="Needs OxOffice / LibreOffice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">Convert a PDF back into Word (.docx) or OpenDocument (.odt) with a choice of three engines: pdf2docx, our own jtdt-reform, and jtdt-layout for near 1:1 layout reproduction; restoring layout, tables and images</span></div>
+            <div class="fl-text"><span class="fn">PDF to Word <span class="ofc-mark" title="Needs OxOffice / LibreOffice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">Convert a PDF back into Word (.docx) or OpenDocument (.odt) with a choice of three engines: pdf2docx, our own jtdt-reform, and jtdt-layout for near 1:1 layout reproduction; restoring layout, tables and images</span></div>
           </li>
           <li>
             <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="m8 11 2.5 2.5L16 8"/></svg></span>
@@ -611,27 +612,9 @@
 
     <div class="ss-grid">
 
-      <figure class="ss-row">
-        <div class="ss-text">
-          <div class="ss-num">01</div>
-          <h3>Auto-fill forms </h3>
-          <p>Upload a vendor form or application (PDF / Word / Excel / ODF) and the fields are detected and filled from your company details. One profile per company, switching between them painlessly.</p>
-          <div class="ss-tags">
-            <span class="tag">PDF</span>
-            <span class="tag">Word</span>
-            <span class="tag">Excel</span>
-            <span class="tag">ODF</span>
-            <span class="tag">multiple companies</span>
-          </div>
-        </div>
-        <div class="ss-img">
-          <img src="screenshots/en/fill.png" alt="Auto-fill forms; fields detected and filled from company details" loading="lazy">
-        </div>
-      </figure>
-
       <figure class="ss-row reverse">
         <div class="ss-text">
-          <div class="ss-num">02</div>
+          <div class="ss-num">01</div>
           <h3>Stamp and sign</h3>
           <p>Drag a stamp, signature or logo onto the PDF, exactly where it will print. Edit mode drags live; composite mode previews page by page (page switcher, previous/next buttons, arrow keys). Batches supported.</p>
           <div class="ss-tags">
@@ -648,7 +631,7 @@
 
       <figure class="ss-row">
         <div class="ss-text">
-          <div class="ss-num">03</div>
+          <div class="ss-num">02</div>
           <h3>Watermark</h3>
           <p>An image or text watermark. Opacity, angle and size are all adjustable, tiled across the page or placed at a chosen spot. It is written into the page content stream, so a recipient cannot simply remove it.</p>
           <div class="ss-tags">
@@ -665,7 +648,7 @@
 
       <figure class="ss-row reverse">
         <div class="ss-text">
-          <div class="ss-num">04</div>
+          <div class="ss-num">03</div>
           <h3>Document redaction </h3>
           <p>Detects ID numbers, mobile numbers, email addresses, tax IDs, credit cards, bank accounts, company names and personal names automatically. Two treatments are supported: <b>redaction</b>; genuinely removed from the PDF content stream and unrecoverable; and <b>masking</b>; the shape is kept but the content is hidden, which suits documents that go outside.</p>
           <div class="ss-tags">
@@ -682,7 +665,7 @@
 
       <figure class="ss-row">
         <div class="ss-text">
-          <div class="ss-num">05</div>
+          <div class="ss-num">04</div>
           <h3>Document redaction: preview of the result</h3>
           <p>Following on, <b>document redaction</b> lets you tick each detected item to keep or remove it and preview the result immediately. The output can be a real PDF (<b>genuinely removed from the content stream</b>, unrecoverable) or a masked version (the layout is kept, which suits documents that go outside). All of it happens <b>on your own server</b>; nothing sensitive goes to any cloud.</p>
           <div class="ss-tags">
@@ -699,7 +682,7 @@
 
       <figure class="ss-row reverse">
         <div class="ss-text">
-          <div class="ss-num">06</div>
+          <div class="ss-num">05</div>
           <h3>PDF editor (light, but enough)</h3>
           <p><b>Where it sits: light, good enough, not an Acrobat-class editor.</b> A frame-based model inspired by Scribus: the original PDF is the background, and you overlay text, images, shapes, white-out and mark-up, or <b>delete the text and images already on the PDF</b>. Font management is built in (the standard 14 + Source Han Traditional Chinese + system fonts + your own uploads). More than enough for everyday stamping, patching, blanking and annotating; complex re-layout and automatic reflow across pages are out of scope.</p>
           <div class="ss-tags">
@@ -716,7 +699,7 @@
 
       <figure class="ss-row">
         <div class="ss-text">
-          <div class="ss-num">07</div>
+          <div class="ss-num">06</div>
           <h3>Document to images </h3>
           <p>Turns every page of a PDF or Office document into a PNG. <b>Five DPI settings</b> (100 for drafts up to 400 for print), a real byte-level progress bar while uploading, and the size and file size of each page once done, so the estimated ZIP size is obvious at a glance. Multiple pages are packed automatically.</p>
           <div class="ss-tags">
@@ -733,7 +716,7 @@
 
       <figure class="ss-row reverse">
         <div class="ss-text">
-          <div class="ss-num">08</div>
+          <div class="ss-num">07</div>
           <h3>OCR (scans become selectable)</h3>
           <p>Turns a <b>scanned PDF or image into a PDF whose text can be selected and searched</b>; the same idea as macOS Live Text, but running in your own server room. Two engines (<b>EasyOCR</b> by default, <b>Tesseract</b> as backup) with strong Chinese, Japanese and Korean accuracy; you can select text on the page preview to check it.<br><br><b>External GPU recognition server</b>: download install.sh from the admin interface and deploy it to a GPU host (DGX Spark / H100 / 4090 …), taking each page from <b>8-15 seconds</b> on CPU to <b>0.3-0.8 seconds</b> on GPU (<b>more than 10×</b>). If it is unreachable, processing falls back to the local machine.</p>
           <div class="ss-tags">
@@ -752,7 +735,7 @@
 
       <figure class="ss-row">
         <div class="ss-text">
-          <div class="ss-num">09</div>
+          <div class="ss-num">08</div>
           <h3>Accounts from several realms side by side</h3>
           <p>The same name can exist in different authentication sources; <code>jason@local</code> (for emergencies) alongside <code>jason@ldap</code> (for everyday sign-in), each with its own roles and permissions. <b>Source badges are colour-coded</b> (local grey, ldap blue, ad purple) so administrators can tell at a glance. Columns sort, and search and source filters are all there.</p>
           <div class="ss-tags">
@@ -768,7 +751,7 @@
 
       <figure class="ss-row reverse">
         <div class="ss-text">
-          <div class="ss-num">10</div>
+          <div class="ss-num">09</div>
           <h3>Permission matrix (RBAC)</h3>
           <p>Subjects on the left (search, plus All / Users / Groups tabs), roles and tool permissions edited live on the right. Six built-in roles (administrator, general user, records, finance, sales, legal and security) plus your own, assignable to users</p>
           <div class="ss-tags">
@@ -784,7 +767,7 @@
 
       <figure class="ss-row">
         <div class="ss-text">
-          <div class="ss-num">11</div>
+          <div class="ss-num">10</div>
           <h3>font management</h3>
           <p>Three sources of fonts in one place: the <b>standard 14</b> (universally compatible in PDF), <b>bundled CJK fonts</b> (Source Han Sans / Serif Traditional Chinese), <b>system fonts</b> (scanned at runtime) and <b>your own uploads</b> (company .ttf / .otf). A default font can be set separately for the PDF editor, form filling and watermarks.</p>
           <div class="ss-tags">
@@ -801,7 +784,7 @@
 
       <figure class="ss-row reverse">
         <div class="ss-text">
-          <div class="ss-num">12</div>
+          <div class="ss-num">11</div>
           <h3>Sentence translation (local LLM)</h3>
           <p>Splits a long passage, PDF, DOCX or TXT into sentences and sends them to an LLM server on your own network (Ollama / vLLM / LM Studio …), showing the original on the left and the translation on the right, with any sentence re-translatable on its own. <b>Nothing goes to the cloud and no document content ever leaves</b>, which satisfies personal data law, trade secrets and customer NDAs. Parallel translation (4 at a time by default) makes batches 4-8× faster; every cell has a small copy button, rows highlight on hover, and the header shows the source and target languages and the character count.</p>
           <div class="ss-tags">
@@ -817,29 +800,10 @@
         </div>
       </figure>
 
-      <figure class="ss-row">
-        <div class="ss-text">
-          <div class="ss-num">13</div>
-          <h3>e-Invoice processing (desktop + phone)</h3>
-          <p>Scan the QR code on the left of a receipt with your phone camera and <b>a row appears on the desktop screen immediately</b>. Press "scan with phone" on the desktop and a one-time pairing QR appears; scan it and the phone browser opens the camera, and every receipt it reads is synchronised: no cable, no USB, no app, just the same LAN. Seller tax-ID lookup is built in (name, address and industry filled in automatically), as is automatic accounting classification (built-in rules + your own rules + optional LLM batch judgement) and a current-period check (today's date decides which period is being collected, and receipts from another period are marked in red); there are 7 export formats, and the column headings can be renamed to match the fields your accounting system imports.</p>
-          <div class="ss-tags">
-            <span class="tag">phone camera pushes straight to the desktop</span>
-            <span class="tag">tax ID lookup</span>
-            <span class="tag">automatic accounting category</span>
-            <span class="tag">current-period check</span>
-            <span class="tag">7 export formats</span>
-            <span class="tag">optional LLM reading</span>
-          </div>
-        </div>
-        <div class="ss-img">
-          <img src="screenshots/en/einvoice-scan.png" alt="e-Invoice processing: scan with a phone and the desktop table fills in, with tax ID lookup, accounting category and period checks" loading="lazy">
-        </div>
-      </figure>
-
       <figure class="ss-row reverse">
         <div class="ss-text">
-          <div class="ss-num">14</div>
-          <h3>PDF to Word (beta) </h3>
+          <div class="ss-num">12</div>
+          <h3>PDF to Word </h3>
           <p>Turns a PDF back into <b>Word (.docx)</b> or <b>OpenDocument (.odt)</b>, with intelligent correction of fonts, paragraphs and tables. Three engines to choose from: <b>pdf2docx</b> (the classic, stable, widely compatible and fast), our own <b>jtdt-reform</b> (rebuilds flowing, editable body text from the real layout coordinates using geometric rules), and our own <b>jtdt-layout</b> (the most faithful to the original: each page's content goes into page-anchored text boxes at its original coordinates, keeping positions, images and borders almost 1:1: the closest match for forms, multi-column pages and bordered tables; by nature it is floating text boxes, not flowing text). Compare the result page by page before downloading.</p>
           <div class="ss-tags">
             <span class="tag">Word / ODT</span>
@@ -1279,8 +1243,15 @@
       </div>
       <div>
         <strong>Upgrade / remove</strong>
-        <p class="upg-warn"><b>⚠ Installed with git before 2026-09-13? Run one command before this upgrade.</b>
-        The project's git history was rewritten (to remove a piece of data that should never have been committed), so older <code>jtdt update</code> fails at <code>git fetch --tags</code> with <code>would clobber existing tag</code> and reports only <code>git fetch failed</code>. Run <code>git -C &lt;install directory&gt; fetch --tags --force origin</code> once and it is fixed for good. Tarball installs and the Windows installer are unaffected; v1.15.41 onwards handles it.</p>
+        <p class="upg-warn"><b>⚠ Installed with git before 2026-09-13? Run one line before upgrading to this version.</b>
+        The project's git history was rewritten (to remove a record that should never have been committed), so an older <code>jtdt update</code>
+        fails at <code>git fetch --tags</code> (<code>would clobber existing tag</code>)
+        and only reports <code>git fetch failed</code>. Running
+        <code>git -C &lt;install dir&gt; fetch --tags --force origin</code> once fixes it for good
+        (<b>that <code>-C</code> is upper case</b>; a lower-case <code>-c</code> is the config flag, so git never changes
+        into that directory and answers “<code>not a git repository</code>”,
+        which reads like a broken install when only one letter was mistyped).
+        Tarball installs and the Windows installer are unaffected; fixed since v1.15.41.</p>
         <div class="cmd-block">
           <div class="cmd-os">Linux / macOS</div>
           <div><code>sudo jtdt update</code></div>

@@ -1,6 +1,6 @@
 **繁體中文** ｜ [English](README_en.md) ｜ [日本語](README_ja.md)
 
-# Jason Tools 文件工具箱 v1.15.46
+# Jason Tools 文件工具箱 v1.15.47
 
 > ### ⚠ 2026-09-13 之前用 git 安裝的，這一版升級前要先跑一行
 >
@@ -15,6 +15,12 @@
 > # Windows（以系統管理員身分執行 PowerShell）
 > git -C "C:\Program Files\jt-doc-tools" fetch --tags --force origin
 > ```
+>
+> **`-C` 是大寫。** 打成小寫的 `git -c /opt/jt-doc-tools/ …` 會得到
+> 「`fatal: not a git repository (or any of the parent directories): .git`」
+> —— 小寫的 `-c` 是**設定參數**（`-c key=value`），git 不會切到那個目錄，
+> 於是在你目前的位置找 `.git`。那個訊息**看起來像「安裝目錄不是 git 安裝」，
+> 其實只是打錯一個字母**（2026-09-14 客戶回報）。
 >
 > 之後 `jtdt update` 恢復正常。**不受影響**：tarball 安裝、Windows 安裝程式、
 > 或 2026-09-13 之後才安裝的。v1.15.43 起已修正，不會再發生。
@@ -125,7 +131,7 @@ $f="$env:TEMP\jtdt-install.ps1"; try { Invoke-WebRequest 'https://cdn.jsdelivr.n
 - **圖片轉 PDF**
 - **PDF 轉 Markdown** — PDF 轉結構化 Markdown，保留標題 / 表格 / 粗體，適合餵 LLM、RAG 預處理
 - **Markdown 轉辦公文件** [需 OxOffice/LibreOffice] — 貼上或拖入 Markdown，套用主題後輸出 PDF 或文書檔（.docx / .odt），含所有頁面預覽
-- **PDF 轉文書檔（Beta）** — PDF 反轉成文書檔（.docx / .odt），三引擎可選：pdf2docx（經典穩定）、自家 jtdt-reform（幾何規則重組成可編輯內文）、自家 jtdt-layout（版面最忠於原稿：頁面錨定文字方塊，位置 / 圖片 / 框線近 1:1 保留）
+- **PDF 轉文書檔** — PDF 反轉成文書檔（.docx / .odt），三引擎可選：pdf2docx（經典穩定）、自家 jtdt-reform（幾何規則重組成可編輯內文）、自家 jtdt-layout（版面最忠於原稿：頁面錨定文字方塊，位置 / 圖片 / 框線近 1:1 保留）
 - **PDF 轉簡報** — PDF 反轉成 PowerPoint (.pptx) / OpenDocument 簡報 (.odp)，**一頁對一張投影片**，投影片尺寸沿用原稿（直向 PDF 也照樣還原）；用 jtdt-layout 版面重現引擎
 
 ### 資安處理

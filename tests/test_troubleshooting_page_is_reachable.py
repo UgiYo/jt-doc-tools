@@ -100,9 +100,10 @@ def test_the_translated_pages_link_to_the_same_language(lang: str):
 
 def test_the_chinese_page_has_a_language_switch():
     t = (PUB / "docs" / "troubleshooting.html").read_text(encoding="utf-8")
+    # 語言選單是 `<select>`（v1.15.47 起），每個語言一個 `<option value="…">`
     for lang in _locales():
-        assert f'href="troubleshooting-{lang}.html"' in t, \
-            f"中文頁少了切到 {lang} 的連結"
+        assert f'value="troubleshooting-{lang}.html"' in t, \
+            f"中文頁的語言選單少了 {lang}"
 
 
 def test_the_installers_print_the_url_when_they_fail():

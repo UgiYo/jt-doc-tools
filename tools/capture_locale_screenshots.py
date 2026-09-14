@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import re
 import base64
 import json
 import subprocess
@@ -35,7 +36,9 @@ _sys.path.insert(0, str(REPO))
 
 
 def _out_dir(locale: str) -> Path:
-    return _public_root(REPO) / "docs" / "screenshots" / locale
+    """中文是原文 —— 它的截圖放在 `screenshots/`，沒有語言那一層。"""
+    base = _public_root(REPO) / "docs" / "screenshots"
+    return base if locale == "zh-Hant" else base / locale
 
 #: 檔名 → 頁面路徑。名字**跟中文版那組對齊**，各語言版只要改資料夾就好。
 SHOTS: dict[str, str] = {
@@ -57,27 +60,218 @@ SHOTS: dict[str, str] = {
 }
 WIDTH, HEIGHT = 1400, 1020
 
-#: 要**先上傳一份檔案**才有東西可看的頁面。空的上傳頁當產品截圖沒有意義
-#: （2026-09-05 使用者回報：中文版的截圖都是「工具實際在用」的畫面）。
-#: 檔案一律用合成的示範 PDF —— `temp_pdfs/` 裡是客戶資料，截圖要公開。
-NEEDS_FILE = {
-    "pdf-editor": "#peFile, input[type=file]",
-    "pdf-ocr": "input[type=file]",
-    "pdf-to-image": "input[type=file]",
-    "pdf-to-office": "input[type=file]",
-    "stamp": "input[type=file]",
-    "watermark": "input[type=file]",
-    "deident-1": "input[type=file]",
+#: 每一頁要怎麼弄成「真的在用」的樣子。空的上傳頁當產品截圖沒有意義
+#: （2026-09-05 使用者回報），**而且送出失敗的錯誤對話框更糟**
+#: （2026-09-14 使用者截圖：日文版一堆頁面停在「先に PDF をアップロード
+#: してください」）。
+#:
+#: 欄位：
+#:   `file`   要上傳哪一份範例檔（`SAMPLES` 的鍵）
+#:   `before` 上傳前先做的事（JS，回傳值不看）
+#:   `submit` 上傳後要不要按主要按鈕
+#:   `wait`   按完等幾秒（轉檔類要久一點）
+#:
+#: **檔案一律塞 `.file-upload input[type=file]`** —— 不可以用
+#: `input[type=file]`：印章 / 浮水印頁**第一個** file input 是隱藏的
+#: 資產上傳框，PDF 塞進去永遠不會被當成文件，然後按下去就是一個錯誤對話框。
+#: 範例檔一律自己合成（`tools/seed_demo_data.py`）—— `temp_pdfs/` 裡是客戶
+#: 資料，而截圖是要公開的。
+RECIPES: dict[str, dict] = {
+    # 表單自動填寫：**要看到真的填好的那張表**，不是只看到「已填入 N 個」。
+    # 結果區的上半是統計，填好的表在更下面 —— 所以指定要捲到哪裡。
+    "fill": {"file": "form", "submit": True, "wait": 20,
+             "focus": "#previewStack"},
+    # 印章要**按下去**才會進到拖曳定位的畫面 —— 只選好檔案的話畫面停在
+    # 上傳區，跟空的頁面沒兩樣。
+    "stamp": {"file": "doc", "submit": True, "wait": 25},
+    "watermark": {
+        # 浮水印要先有「來源」才按得下去。用**文字**模式最單純，
+        # 不必另外準備一張圖，而且畫面上看得到設定。
+        "before": """(() => {
+            const t = [...document.querySelectorAll('.opt-label, label, button')]
+              .find(e => /文字|Text|テキスト/.test((e.textContent||'').trim())
+                         && e.closest('.wm-source, .opt, label'));
+            if (t) (t.closest('label') || t).click();
+            const box = document.querySelector('#wmText, textarea, input[type=text]');
+            if (box) { box.value = 'CONFIDENTIAL'; box.dispatchEvent(new Event('input', {bubbles:true})); }
+          })()""",
+        "file": "doc", "submit": True, "wait": 12},
+    "pdf-editor": {"file": "doc", "submit": False, "wait": 6},
+    "pdf-ocr": {"file": "scan", "submit": False, "wait": 6},
+    "pdf-to-image": {"file": "doc", "submit": True, "wait": 14},
+    "pdf-to-office": {"file": "doc", "submit": True, "wait": 40},
+    # 逐句翻譯沒有用共用的上傳元件（它自己一個 `#fileInput`）。
+    "translate-doc": {"file": "doc", "input": "#fileInput",
+                      "submit": False, "wait": 8},
+    "deident-1": {"file": "deident", "submit": True, "wait": 14},
+    # 文字去識別化沒有檔案可放 —— 直接把範例文字貼進去（**內容全部虛構**，
+    # 跟 `seed_demo_data.py` 那份是同一批假資料）。空白的輸入框當產品截圖
+    # 沒有意義（2026-09-14 使用者回報）。
+    "deident-2": {"before": """(() => {
+        const box = document.getElementById('srcText');
+        if (!box) return false;
+        box.value = [
+          'Employee record (sample \u2014 every value here is made up)', '',
+          'Name: John Doe',
+          'SSN: 900-12-3456',
+          'Date of birth: January 5, 1985',
+          'Phone: +1 (555) 010-4477',
+          'Email: john.doe@example.com',
+          'Address: 1842 Maple Street, Springfield, IL 62704',
+          'Card: 4111 1111 1111 1111',
+        ].join('\\n');
+        box.dispatchEvent(new Event('input', {bubbles: true}));
+        return true;
+      })()""", "submit": True, "wait": 12},
 }
-SAMPLE = REPO / "temp" / "en-shots" / "sample-quotation.pdf"
+
+#: 範例檔的檔名前綴，全部由 `tools/seed_demo_data.py` 合成。
+SAMPLES = ("doc", "form", "scan", "deident")
+_SAMPLE_FILE = {"doc": "quotation", "form": "vendor-form",
+                "scan": "scan", "deident": "deident"}
+
+
+#: 瀏覽器是 snap 版時，**它讀不到 `/opt`，而且 `/tmp` 是它自己的那一個**
+#: （CLAUDE.md 慣例第⑲條）。`DOM.setFileInputFiles` 照樣「成功」、檔名也
+#: 顯示得出來 —— 只有真的要送的時候 XHR 才會炸 `network error`，
+#: **而伺服器端一筆請求都沒有**。這一整批截圖的上傳從來沒有成功過
+#: （英文那組停在「Please upload a PDF first」就是這個原因）。
+_SNAP_STAGE = Path.home() / "snap" / "chromium" / "common" / "jtdt-shots"
+
+
+def _browser_is_snap(exe: str) -> bool:
+    if "/snap/" in str(Path(exe).resolve()):
+        return True
+    try:                      # `/usr/bin/chromium-browser` 是一支 shell 包裝
+        return "snap" in Path(exe).read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return False
+
+
+def stage_for_browser(f: Path, snap: bool) -> Path:
+    """把範例檔放到瀏覽器讀得到的地方。不是 snap 就原樣回。"""
+    if not snap:
+        return f
+    _SNAP_STAGE.mkdir(parents=True, exist_ok=True)
+    dst = _SNAP_STAGE / f.name
+    dst.write_bytes(f.read_bytes())
+    return dst
+
+
+def sample_for(kind: str, locale: str) -> "Path | None":
+    """該語言要用哪一份範例檔。
+
+    有 `<名字>.<語言>.pdf` 就用那一份，否則退回 `<名字>.pdf` ——
+    **素材要跟著規則走**：中文介面放英文報價單只是怪，但去識別化在英文介面
+    用的是英美那組式子，塞中文個資進去會**一筆都偵測不到**，截圖就變成
+    「這個工具沒作用」。
+    """
+    base = _SAMPLE_FILE.get(kind)
+    if not base:
+        return None
+    d = REPO / "temp" / "demo"
+    for f in (d / f"{base}.{locale}.pdf", d / f"{base}.pdf"):
+        if f.is_file():
+            return f
+    return None
+
+
+def tool_id_for(name: str) -> "str | None":
+    """截圖名字 → 工具 id（`/tools/<id>/` 這種路徑才有）。"""
+    m = re.match(r"^/tools/([^/]+)/$", SHOTS.get(name, ""))
+    return m.group(1) if m else None
+
+
+def hidden_shots(locale: str) -> set:
+    """在這個語言下**反灰**的工具 —— 那幾張截圖不要出現在該語言的介紹站。
+
+    台灣專屬的工具（統編查詢 / 電子發票 / 表單自動填寫…）在英文 / 日文介面下
+    本來就點不下去，介紹站還放它們的截圖只會讓人以為能用
+    （使用者 2026-09-14：「台灣專用功能 不需在 英文 日文 pages 截圖」）。
+
+    判準走註冊表的 `ToolMetadata.locales`，**不要自己維護一份名單** ——
+    那種名單在這個專案漂掉過很多次。
+    """
+    from app.core.ui_locale import tool_visible
+    from app.tool_registry import discover_tools
+
+    locales = {t.metadata.id: t.metadata.locales for t in discover_tools()}
+    out = set()
+    for name in SHOTS:
+        tid = tool_id_for(name)
+        if tid and not tool_visible(locales.get(tid), locale):
+            out.add(name)
+    return out
+
+
+
+#: 主要文件的上傳框。**共用元件 `components/file_upload.html` 的那一個** ——
+#: 頁面上還有別的 file input（印章 / 浮水印的資產上傳是隱藏的），
+#: 用 `input[type=file]` 會挑到錯的那個。
+_MAIN_FILE_INPUT = ".file-upload input[type=file]"
+
+#: 按下主要按鈕（看得到、沒有 disabled 的第一顆）。
+_CLICK_PRIMARY = """
+  (() => {
+    const vis = (e) => e && e.offsetParent !== null && !e.disabled;
+    const b = [...document.querySelectorAll('.btn-primary, button[type=submit]')]
+      .find(vis);
+    if (b) { b.click(); return true; }
+    return false;
+  })()"""
+
+#: 結果區的圖片載好了沒。**固定 sleep 幾秒是猜的** —— 猜少了就拍到一塊
+#: 空白的灰底（實測印章的編輯器 12 秒還沒畫出來），猜多了每一張都在空等。
+#: 判準：畫面上有沒有一張**真的載進來**的圖（`naturalWidth > 0`），
+#: 或是有內容的 canvas。
+_RESULT_READY = """
+  (() => {
+    const vis = (e) => e && e.offsetParent !== null;
+    const imgs = [...document.querySelectorAll('img')].filter(vis);
+    if (imgs.some((i) => i.naturalWidth > 40 && i.clientWidth > 40)) return true;
+    const cv = [...document.querySelectorAll('canvas')].filter(vis);
+    return cv.some((c) => c.width > 40 && c.height > 40);
+  })()"""
+
+#: 按完之後**要捲到結果那一塊**。上傳區在頁面上半部，結果 / 編輯器在下面 ——
+#: 不捲的話截到的還是那個上傳框，看起來就像「檔案放進去了但什麼都沒發生」
+#: （2026-09-14 使用者回報「截圖要放文件進去啊」）。
+#: 判準是「**最後一個看得到的 `.panel`**」，不是捲到底（頁尾沒有內容）。
+_SCROLL_TO_RESULT = """
+  (() => {
+    const vis = (e) => e && e.offsetParent !== null
+      && e.getBoundingClientRect().height > 80;
+    const panels = [...document.querySelectorAll('.panel, .result, .preview')]
+      .filter(vis);
+    const el = panels[panels.length - 1];
+    if (!el) return false;
+    el.scrollIntoView({block: 'start'});
+    window.scrollBy(0, -70);          // 別讓標題被上面的列蓋住
+    return true;
+  })()"""
+
+#: 畫面上有沒有蓋著對話框（`showConfirm` / `showModal` / 原生 alert 用的殼）。
+#: 有的話這一張就是拍壞的 —— 印出來讓人看得到，不要安靜地存下去。
+_DIALOG_TEXT = """
+  (() => {
+    const d = [...document.querySelectorAll(
+      '.jt-modal, .modal, [role=dialog], .jt-confirm')]
+      .find(e => e.offsetParent !== null);
+    return d ? (d.textContent || '').trim().replace(/\\s+/g, ' ') : '';
+  })()"""
+
+CHROME = "/usr/bin/chromium-browser"
 
 
 async def _capture(base: str, cdp_port: int, locale: str) -> list[str]:
     import httpx
     import websockets
 
+    snap = _browser_is_snap(CHROME)
+    if snap:
+        print("  瀏覽器是 snap 版 —— 範例檔改放到它讀得到的地方")
     proc = subprocess.Popen(
-        ["/usr/bin/chromium-browser", "--headless", "--no-sandbox", "--disable-gpu",
+        [CHROME, "--headless", "--no-sandbox", "--disable-gpu",
          f"--remote-debugging-port={cdp_port}", "--remote-allow-origins=*",
          "--hide-scrollbars", f"--window-size={WIDTH},{HEIGHT}", "about:blank"],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -124,40 +318,79 @@ async def _capture(base: str, cdp_port: int, locale: str) -> list[str]:
             out = _out_dir(locale)
             out.mkdir(parents=True, exist_ok=True)
             await cmd("DOM.enable")
+            skip = hidden_shots(locale)
+            if skip:
+                print(f"  {locale} 跳過（該語言下反灰的工具）：{sorted(skip)}")
             for name, path in SHOTS.items():
+                if name in skip:
+                    continue
                 await cmd("Page.navigate", {"url": base + path})
                 await asyncio.sleep(2.0)
-                if name in NEEDS_FILE and SAMPLE.is_file():
-                    # 用 CDP 直接把檔案塞進 <input type=file> —— headless 沒有
-                    # 檔案選擇器，只能這樣做。塞完要自己發 change 事件，
-                    # 頁面才會開始處理（少了它畫面完全不動，看起來像沒作用）。
-                    try:
+                r = RECIPES.get(name)
+                if r:
+                    sample = sample_for(r.get("file", ""), locale)
+                    if r.get("before"):
+                        await cmd("Runtime.evaluate", {"expression": r["before"]})
+                        await asyncio.sleep(1.0)
+                    if sample and sample.is_file():
+                        sample = stage_for_browser(sample, snap)
+                        # 用 CDP 直接把檔案塞進 <input type=file> —— headless 沒有
+                        # 檔案選擇器，只能這樣做。塞完要自己發 change 事件，
+                        # 頁面才會開始處理（少了它畫面完全不動）。
                         doc = await cmd("DOM.getDocument", {"depth": -1})
+                        sel = r.get("input") or _MAIN_FILE_INPUT
                         node = await cmd("DOM.querySelector", {
                             "nodeId": doc["root"]["nodeId"],
-                            "selector": "input[type=file]"})
-                        if node.get("nodeId"):
+                            "selector": sel})
+                        if not node.get("nodeId"):
+                            print(f"  ! {name}: 找不到主要的上傳框")
+                        else:
                             await cmd("DOM.setFileInputFiles", {
-                                "files": [str(SAMPLE)], "nodeId": node["nodeId"]})
+                                "files": [str(sample)], "nodeId": node["nodeId"]})
                             await cmd("Runtime.evaluate", {"expression":
-                                "document.querySelector('input[type=file]')"
+                                f"document.querySelector({sel!r})"
                                 ".dispatchEvent(new Event('change',{bubbles:true}))"})
                             await asyncio.sleep(4.0)
-                            # 大部分工具**還要按一下主要按鈕**才會真的開始 ——
-                            # 只塞檔案的話畫面停在「已選好檔案」，跟空的上傳頁
-                            # 一樣沒有內容可看。
-                            await cmd("Runtime.evaluate", {"expression": '''
-                              (() => {
-                                const vis = (e) => e && e.offsetParent !== null
-                                  && !e.disabled;
-                                const b = [...document.querySelectorAll(
-                                  '.btn-primary, button[type=submit]')].find(vis);
-                                if (b) { b.click(); return true; }
-                                return false;
-                              })()'''})
-                            await asyncio.sleep(12.0)  # 等預覽 / 轉檔跑完
-                    except Exception:
-                        pass
+                    if r.get("submit"):
+                        await cmd("Runtime.evaluate", {"expression": _CLICK_PRIMARY})
+                    # 等到結果真的畫出來（最多 `wait` 秒），不是死等。
+                    deadline = float(r.get("wait", 10))
+                    waited = 0.0
+                    while waited < deadline:
+                        await asyncio.sleep(1.0)
+                        waited += 1.0
+                        ok = await cmd("Runtime.evaluate",
+                                       {"expression": _RESULT_READY,
+                                        "returnByValue": True})
+                        if (ok.get("result", {}) or {}).get("value"):
+                            await asyncio.sleep(1.5)   # 讓它畫完
+                            break
+                    # 等滿了也沒關係：**不是每一頁的結果都是圖**（去識別化是
+                    # 一張清單、轉文書檔是一條下載連結）。這個輪詢只是「有圖就
+                    # 早點收工」，不是判斷成功與否 —— 真正的判準是下面那條
+                    # 「畫面上有沒有蓋著對話框」，以及人逐張看過。
+                    if r.get("focus"):
+                        # 指定捲到哪一塊 —— 「最後一個 panel」有時候只捲到
+                        # 結果區的**標題**，真正要看的東西還在下面。
+                        await cmd("Runtime.evaluate", {"expression": f"""
+                          (() => {{
+                            const el = document.querySelector({r['focus']!r});
+                            if (!el) return false;
+                            el.scrollIntoView({{block: 'center'}});
+                            return true;
+                          }})()"""})
+                        await asyncio.sleep(1.2)
+                    elif r.get("scroll", True):
+                        await cmd("Runtime.evaluate",
+                                  {"expression": _SCROLL_TO_RESULT})
+                        await asyncio.sleep(1.2)
+                    # **對話框 = 這一張沒拍成功**：畫面上蓋著「請先上傳…」那種
+                    # 提示時，截圖比空的上傳頁還糟（使用者 2026-09-14 回報）。
+                    bad = await cmd("Runtime.evaluate", {
+                        "expression": _DIALOG_TEXT, "returnByValue": True})
+                    msg = (bad.get("result", {}) or {}).get("value") or ""
+                    if msg:
+                        print(f"  ! {name}: 畫面上有對話框 → {msg[:60]}")
                 shot = await cmd("Page.captureScreenshot", {})
                 (out / f"{name}.png").write_bytes(base64.b64decode(shot["data"]))
                 done.append(name)
@@ -169,8 +402,7 @@ async def _capture(base: str, cdp_port: int, locale: str) -> list[str]:
 def main() -> int:
     from app.core import ui_locale
 
-    # 中文是原文，不需要另外抓一組（介紹站的中文版用 `screenshots/` 那一層）。
-    langs = [c for c in ui_locale.SUPPORTED if c != "zh-Hant"]
+    langs = list(ui_locale.SUPPORTED)
     ap = argparse.ArgumentParser()
     ap.add_argument("--locale", default="en", choices=langs)
     ap.add_argument("--base", default="http://127.0.0.1:8799")
