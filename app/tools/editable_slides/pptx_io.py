@@ -7,7 +7,7 @@ import uuid
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE, MSO_SHAPE_TYPE
-from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
+from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
 from pptx.util import Inches, Pt
 
 EMU_PER_INCH = 914400
@@ -19,7 +19,13 @@ def _rgb(value: str | None, fallback="000000") -> RGBColor:
 def _inch(value): return round(value / EMU_PER_INCH, 4)
 
 def _set_text(shape, el):
-    tf = shape.text_frame; tf.clear(); tf.word_wrap = True; tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+    tf = shape.text_frame; tf.clear(); tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+    if el.get("source") == "ocr":
+        tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
+        tf.word_wrap = False
+        if el.get("fitText"): tf.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+    else:
+        tf.word_wrap = True
     p = tf.paragraphs[0]
     p.alignment = {"left": PP_ALIGN.LEFT, "right": PP_ALIGN.RIGHT}.get(el.get("align"), PP_ALIGN.CENTER)
     run = p.add_run(); run.text = str(el.get("text", ""))

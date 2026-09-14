@@ -121,3 +121,16 @@ def test_editable_pptx_download_contains_native_text_box():
     pictures = [shape for shape in result.slides[0].shapes if shape.shape_type == MSO_SHAPE_TYPE.PICTURE]
     assert "可編輯文字" in texts
     assert len(pictures) == 1
+
+
+def test_ocr_fragments_are_grouped_into_fitted_line_text():
+    from app.tools.ppt_image_text_editor.editable_bridge import _line_segments, _segment_text
+    words = [
+        {"left": 10, "top": 10, "width": 30, "height": 20, "text": "Dev"},
+        {"left": 43, "top": 11, "width": 25, "height": 19, "text": "Ops"},
+        {"left": 300, "top": 10, "width": 30, "height": 20, "text": "Other"},
+        {"left": 10, "top": 50, "width": 30, "height": 20, "text": "Next"},
+    ]
+    segments = _line_segments(words)
+    assert len(segments) == 3
+    assert _segment_text(segments[0], {}, 0) == "DevOps"
