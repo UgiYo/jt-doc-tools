@@ -145,3 +145,21 @@ def test_text_removal_mask_covers_entire_expanded_ocr_box():
     assert mask[30:50, 50:130].min() == 255
     assert mask[27:53, 47:133].max() == 255
     assert mask[0, 0] == 0
+
+
+def test_cleaned_background_has_no_dark_text_fragments_and_preserves_neighbours():
+    import numpy as np
+    from app.tools.ppt_image_text_editor.editable_bridge import _clean_image
+
+    image = Image.new("RGB", (400, 160), "white")
+    draw = ImageDraw.Draw(image)
+    draw.text((100, 60), "Old text", fill="black")
+    draw.ellipse((20, 50, 70, 100), fill=(230, 55, 90))
+    source = io.BytesIO()
+    image.save(source, "PNG")
+    cleaned = Image.open(io.BytesIO(_clean_image(source.getvalue(), [
+        {"left": 98, "top": 57, "width": 90, "height": 22, "text": "Old text"}
+    ]))).convert("RGB")
+    pixels = np.asarray(cleaned)
+    assert ((pixels[57:82, 98:190].mean(axis=2)) < 100).sum() == 0
+    assert tuple(pixels[75, 45]) == (230, 55, 90)

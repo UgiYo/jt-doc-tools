@@ -112,6 +112,9 @@ dependencies = [
     # ocr_engine 影像前處理。原本靠 easyocr/opencv 的 transitive 帶入，但程式直接
     # 使用，須顯式宣告（避免日後 transitive 變動破壞）。
     "numpy>=1.26,<3",
+    # OpenCV inpainting removes complete OCR text boxes before native PPT text is overlaid.
+    # Keep it direct: the default Docker image excludes EasyOCR, so transitive deps are not reliable.
+    "opencv-python-headless>=4.10,<5",
     # lxml — 直接 import：pdf-to-office docx_builder 寫 w:drawing anchor XML。
     # 原本靠 python-docx transitive 帶入，直接使用須顯式宣告。
     "lxml>=4.9,<7",

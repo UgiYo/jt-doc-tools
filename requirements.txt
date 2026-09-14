@@ -67,6 +67,8 @@ openpyxl>=3.1,<4
 # 直接 import 的套件，顯式鎖版（numpy: pdf-to-office fixer + ocr 前處理；
 # lxml: pdf-to-office docx anchor XML）。原本只靠 transitive 帶入。
 numpy>=1.26,<3
+# OCR editable-PPT background inpainting (must remain installed when EasyOCR is excluded)
+opencv-python-headless>=4.10,<5
 lxml>=4.9,<7
 truststore>=0.9
 pyasn1>=0.6.4
