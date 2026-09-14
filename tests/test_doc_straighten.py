@@ -86,9 +86,9 @@ def test_a_bad_quad_is_ignored_instead_of_producing_garbage():
     矩形當「蝴蝶結」，測到的其實是正常行為。
     """
     gray = _skewed_page(2.3)
-    h, w = gray.shape
-    # 箭頭形（第二個點凹進去）—— 這才是 isContourConvex 會拒絕的形狀
-    concave = [[10, 10], [w // 2, h // 3], [w - 10, 10], [w // 2, h - 10]]
+    # 箭頭形（第二個點凹進去）—— 這才是 isContourConvex 會拒絕的形狀。
+    # **座標是正規化 0~1**（轉向後的座標系，見 `straighten_page` 的說明）。
+    concave = [[0.02, 0.02], [0.5, 0.33], [0.98, 0.02], [0.5, 0.98]]
     out, res = SC.straighten_page(gray, quad=concave)
     assert res.quad_found is False, "凹四邊形被當成有效的了"
     assert abs(res.residual) <= 0.3
@@ -97,8 +97,7 @@ def test_a_bad_quad_is_ignored_instead_of_producing_garbage():
 def test_shuffled_corner_order_is_fixed_not_rejected():
     """使用者拉四個點時順序一定會亂 —— 那要**修正**不是拒絕。"""
     gray = _skewed_page(2.3)
-    h, w = gray.shape
-    shuffled = [[w - 20, h - 20], [20, 20], [w - 20, 20], [20, h - 20]]
+    shuffled = [[0.96, 0.96], [0.04, 0.04], [0.96, 0.04], [0.04, 0.96]]
     _out, res = SC.straighten_page(gray, quad=shuffled)
     assert res.quad_found is True, "順序打亂的正常四邊形被拒絕了"
 
@@ -452,41 +451,87 @@ def test_user_quad_is_used_instead_of_the_detected_one(tmp_path):
             "指定四個角之後產出跟自動的一模一樣 —— 那就是沒有吃到"
 
 
-def test_the_quad_is_rotated_together_with_the_page():
-    """四個角要跟著整頁轉向一起轉。
+def test_a_user_quad_is_read_in_the_rotated_frame():
+    """**轉向 ＋ 自己拉四個角**：座標系是使用者看到的那張圖（轉向後）。
 
-    只轉影像不轉座標的話，透視校正會抓到完全不相干的區域。開發時實測：
-    轉 90° 之後 `quad_is_sane()` 會把它擋掉（長寬對調了），所以**看起來沒事**
-    —— 其實是「使用者拉的四個角被安靜地丟掉」，比算錯更難發現。
+    2026-09-14 使用者回報「有拉但出來的跑掉」。當時是兩個錯疊在一起：
+    呼叫端用**未轉**的長寬把 0~1 換成像素，然後核心又把它轉了一次。
+    轉 90° 的實測：產出 834×358（應為 471×629）、墨點比例 **41.2%**
+    （框到的大半是桌面，正確值 1.9%）。
+
+    判準是**產出本身**：拿「在轉向後的圖上自動抓到的那組座標」當使用者拉的
+    輸入，結果要跟「直接在轉向後的圖上自動抓」幾乎一樣。
+    只驗 `quad_found` 是不夠的 —— 當年那個 bug 的 `quad_found` 也是 True。
     """
     import cv2
     import numpy as np
 
-    from app.tools.doc_straighten.straighten_core import _rotate_quad
-
-    img = np.zeros((100, 60), np.uint8)
-    img[5, 10] = 255                       # (x=10, y=5)
-    for deg, code in ((90, cv2.ROTATE_90_CLOCKWISE),
-                      (180, cv2.ROTATE_180),
-                      (270, cv2.ROTATE_90_COUNTERCLOCKWISE)):
-        rotated = cv2.rotate(img, code)
-        ys, xs = np.where(rotated == 255)
-        want = (int(xs[0]), int(ys[0]))
-        got = tuple(int(v) for v in _rotate_quad(np.float32([[10, 5]]), deg,
-                                                 img.shape)[0])
-        assert got == want, f"{deg}°：座標換算 {got} 與影像實際 {want} 對不上"
-
-
-def test_a_user_quad_survives_a_rotation():
-    """**行為層**：轉向 ＋ 自己拉的四角一起用時，四角不可以被丟掉。"""
     from app.tools.doc_straighten import straighten_core as SC
 
-    g = _page_gray()
-    quad = np.float32([[30, 40], [400, 30], [410, 560], [40, 570]]) \
-        if (np := __import__("numpy")) else None
-    _out, res = SC.straighten_page(g, quad=quad, page_no=1, rotate_deg=90)
-    assert res.quad_found, "轉向之後使用者拉的四個角被丟掉了"
-    assert res.rotate_deg == 90
+    g = _photo_on_desk()
+    g90 = cv2.rotate(g, cv2.ROTATE_90_CLOCKWISE)
+    auto90 = SC.find_page_quad(g90)
+    assert auto90 is not None, "素材不對：轉向後抓不到紙，這條測不到東西"
+    h2, w2 = g90.shape[:2]
+    as_user = [[float(x) / w2, float(y) / h2] for x, y in auto90]
+
+    want, _ = SC.straighten_page(g, detect_quad=True, rotate_deg=90,
+                                 page_no=1, enhance=False)
+    got, res = SC.straighten_page(g, quad=as_user, rotate_deg=90,
+                                  page_no=1, enhance=False)
+    assert res.quad_found and res.rotate_deg == 90
+    assert abs(got.shape[0] - want.shape[0]) <= 4, (
+        f"轉向後用使用者的座標裁出來是 {got.shape}，自動抓是 {want.shape}")
+    assert abs(got.shape[1] - want.shape[1]) <= 4
+    # **墨點比例**才看得出「框到的是紙還是桌面」—— 尺寸對了也可能框錯位置
+    ink = float((got < 128).mean())
+    assert ink < 0.15, f"產出有 {ink:.0%} 是暗的 —— 框到桌面了"
+
+
+def test_the_quad_the_core_reports_back_is_in_the_rotated_frame():
+    """回給前端的四個角也要是**轉向後**的正規化座標。
+
+    不然使用者轉了 90° 再切到手動時，手柄會落在完全不相干的位置
+    —— 而畫面上「有四個點」，看起來完全正常。
+    """
+    import cv2
+
+    from app.tools.doc_straighten import straighten_core as SC
+
+    g = _photo_on_desk()
+    _out, res = SC.straighten_page(g, detect_quad=True, rotate_deg=90,
+                                   page_no=1, enhance=False)
+    assert res.quad and len(res.quad) == 4
+    g90 = cv2.rotate(g, cv2.ROTATE_90_CLOCKWISE)
+    h2, w2 = g90.shape[:2]
+    direct = SC.find_page_quad(g90)
+    assert direct is not None
+    want = [[float(x) / w2, float(y) / h2] for x, y in SC.order_quad(direct)]
+    # **比對要與起點無關**：同一個四邊形從哪個角開始列都是同一個四邊形，
+    # 逐項比的話會因為清單旋轉一格就誤報（我第一版就是這樣紅的）。
+    got_s = sorted([round(x, 3), round(y, 3)] for x, y in res.quad)
+    want_s = sorted([round(x, 3), round(y, 3)] for x, y in want)
+    for (gx, gy), (wx, wy) in zip(got_s, want_s):
+        assert abs(gx - wx) < 0.02 and abs(gy - wy) < 0.02, (
+            f"回報的四個角 {got_s} 跟轉向後實際抓到的 {want_s} 對不上")
+
+
+def _photo_on_desk():
+    """深色桌面上的一張斜紙 —— 四個角抓得到，而且框錯就會看得出來。"""
+    import cv2
+    import numpy as np
+
+    h, w = 900, 1200
+    img = np.full((h, w), 60, np.uint8)
+    sheet = np.full((640, 480), 245, np.uint8)
+    for i, txt in enumerate(("TOP LEFT", "middle line", "BOTTOM")):
+        cv2.putText(sheet, txt, (30, 120 + i * 220), cv2.FONT_HERSHEY_SIMPLEX,
+                    1.1, (20,), 3)
+    m = cv2.getRotationMatrix2D((240, 320), 8, 1.0)
+    m[0, 2] += (w - 480) / 2
+    m[1, 2] += (h - 640) / 2
+    return cv2.warpAffine(sheet, m, (w, h), dst=img,
+                          borderMode=cv2.BORDER_TRANSPARENT)
 
 
 # ---------------------------------------------------------- 真實手機照片（v1.15.37）
@@ -518,7 +563,9 @@ def test_a_real_phone_photo_finds_the_sheet(photo):
     o = SC.order_quad(quad)
     frac = cv2.contourArea(o) / float(g.shape[0] * g.shape[1])
     assert 0.05 <= frac <= 0.95, f"四邊形佔畫面 {frac:.0%}，不像一張紙"
-    out, res = SC.straighten_page(g, quad=quad, page_no=1, dpi=200)
+    # **走產品那條路**：偵測交給 `straighten_page`（`quad` 現在一律是
+    # 正規化、轉向後的座標，自己先抓再傳像素進去是舊契約）。
+    out, res = SC.straighten_page(g, detect_quad=True, page_no=1, dpi=200)
     assert abs(res.residual) < 0.5, (
         f"{photo.name}：修正後殘留 {res.residual}°（應該接近 0）")
     # **殘留角小不代表抓對紙**（隨便一個凸四邊形 warp 完都會很正）——

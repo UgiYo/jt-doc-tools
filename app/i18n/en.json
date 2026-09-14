@@ -4879,5 +4879,7 @@
  "需要保留簽章的話，請改用原檔，或在編輯完成後重新請人簽章。": "If the signature must be preserved, use the original file, or have the document signed again after editing.",
  "清晰化": "Clean up",
  "壓平不勻的底色與陰影": "Flatten uneven background and shadows",
- "手機翻拍最常見的問題是半邊有陰影 —— 實測辨識率 0.472 → 0.982。已經很平的掃描件開著也不會有任何變化。": "A shadow across half the sheet is the most common problem with phone photos; measured text recognition went from 0.472 to 0.982. Scans that are already even are left completely untouched."
+ "手機翻拍最常見的問題是半邊有陰影 —— 實測辨識率 0.472 → 0.982。已經很平的掃描件開著也不會有任何變化。": "A shadow across half the sheet is the most common problem with phone photos; measured text recognition went from 0.472 to 0.982. Scans that are already even are left completely untouched.",
+ "轉 {0}°": "Rotated {0}°",
+ "自拉四角": "Manual corners"
 }

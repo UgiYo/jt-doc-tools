@@ -1,6 +1,6 @@
 **繁體中文** ｜ [English](README_en.md)
 
-# Jason Tools 文件工具箱 v1.15.44
+# Jason Tools 文件工具箱 v1.15.45
 
 > ### ⚠ 2026-09-13 之前用 git 安裝的，這一版升級前要先跑一行
 >

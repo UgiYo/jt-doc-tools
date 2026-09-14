@@ -132,12 +132,18 @@ async def _stash(request: Request, uploads: list[tuple[bytes, str]]) -> dict:
     dst = _src_path(upload_id)
 
     parts: list[Path] = []
+    #: 每個來源檔各佔幾頁 —— 縮圖列要標出「這一頁是哪個檔案來的」。
+    #  併起來之後這件事從 PDF 本身**看不出來**，只有這裡知道。
+    sources: list[dict] = []
     try:
         for i, (data, filename) in enumerate(uploads):
             part = (dst if len(uploads) == 1
                     else settings.temp_dir / f"{_PREFIX}p{i}_{upload_id}.pdf")
             await _to_pdf(data, filename, part, f"{upload_id}_{i}")
             parts.append(part)
+            with fitz.open(str(part)) as one:
+                sources.append({"name": Path(filename or "document").name,
+                                "pages": one.page_count})
         if len(parts) > 1:
             merged = fitz.open()
             try:
@@ -164,7 +170,7 @@ async def _stash(request: Request, uploads: list[tuple[bytes, str]]) -> dict:
         raise HTTPException(400, "檔案沒有任何頁面")
     first = Path(uploads[0][1] or "document").stem
     return {"upload_id": upload_id, "pages": n, "name": first,
-            "files": len(uploads)}
+            "files": len(uploads), "sources": sources}
 
 
 @router.post("/load")
@@ -253,18 +259,16 @@ async def preview(request: Request, upload_id: str = Form(...),
                 pix.height, pix.width, pix.n)
             gray = cv2.cvtColor(arr, cv2.COLOR_RGB2GRAY) if pix.n >= 3 \
                 else arr[:, :, 0]
-        h, w = gray.shape[:2]
+        # **座標一路都是正規化 0~1、轉向後的** —— 換算與自動偵測都在
+        # `straighten_page` 裡面做（那裡才知道轉向後的長寬）。
+        # 這裡自己換算過一次，結果是用**未轉**的長寬去乘，轉 90° 時整組跑掉
+        # （2026-09-14 使用者回報）。
         user_quad = _parse_quad(quad)
-        if user_quad is not None:
-            # 使用者拉的是**正規化座標**（0~1）—— 換算成這次算圖的像素。
-            # 收像素的話，預覽用 200 dpi、輸出用 300 dpi 就整組跑掉了。
-            q = np.float32([[x * w, y * h] for x, y in user_quad])
-        else:
-            # 彩色一起送（見 `_paper_mask`）—— 預覽與輸出要用同一組判準，
-            # 不然畫面上看到的四個角跟實際裁出來的不一樣。
-            q = SC.find_page_quad(
-                gray, arr if pix.n >= 3 else None) if detect_quad else None
-        fixed, res = SC.straighten_page(gray, quad=q, do_binarize=binarize,
+        # 彩色一起送（見 `_paper_mask`）—— 陰影裡的紙只有靠色度才救得回來。
+        fixed, res = SC.straighten_page(gray, quad=user_quad,
+                                        rgb=arr if pix.n >= 3 else None,
+                                        detect_quad=detect_quad,
+                                        do_binarize=binarize,
                                         dpi=_clamp_dpi(dpi), page_no=page,
                                         rotate_deg=_clamp_rotate(rotate),
                                         enhance=enhance)
@@ -273,10 +277,10 @@ async def preview(request: Request, upload_id: str = Form(...),
         out = settings.temp_dir / f"{_PREFIX}pv_{upload_id}_{page}.png"
         out.write_bytes(png.tobytes())
         # 自動抓到的四角也回給前端**當作拖曳的起點** —— 使用者只要修不滿意的
-        # 那幾個角，不必四個重拉。回正規化座標，畫面縮放多少都對得上。
-        auto = None
-        if q is not None:
-            auto = [[round(float(x) / w, 5), round(float(y) / h, 5)] for x, y in q]
+        # 那幾個角，不必四個重拉。`res.quad` 已經是正規化、轉向後的座標，
+        # **這裡不可以再自己換算一次**（原本用未轉的長寬換算，轉 90° 之後
+        # 畫面上的手柄會落在完全不相干的位置）。
+        auto = res.quad
         return {"url": f"/tools/doc-straighten/preview-img/{upload_id}/{page}",
                 "angle": res.angle, "residual": res.residual,
                 "quad_found": res.quad_found, "ms": res.ms,

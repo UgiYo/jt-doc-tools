@@ -75,6 +75,11 @@
 
 <div class="panel" id="dsPvPanel" hidden>
   <h2>{{ tr('3. 修正前後') }}</h2>
+  {# **多頁 / 多檔都要看得到每一頁**（使用者 2026-09-14 要求）。
+     原本只有一個數字框：要用打字的，看不到有哪些頁、也看不出哪幾頁調過，
+     多檔併成一份之後更分不出哪一頁是哪個檔來的。
+     縮圖是 `/thumb`（70 dpi、存磁碟快取），`loading="lazy"` 讓橫向捲到的
+     時候才去要 —— 50 頁的文件不會一口氣送 50 個請求。 #}
   <div class="form-row">
     <label for="dsPvPage">{{ tr('頁碼') }}</label>
     <div class="field">
@@ -82,6 +87,7 @@
       <div class="muted" id="dsPvStat"></div>
     </div>
   </div>
+  <div class="ds-strip" id="dsStrip" hidden></div>
   <div class="form-row">
     <label>{{ tr('這一頁的轉向') }}</label>
     <div class="field">
@@ -214,6 +220,23 @@
            border: 2px solid currentColor; border-right-color: transparent;
            border-radius: 50%; animation: ds-spin .8s linear infinite; }
   @keyframes ds-spin { to { transform: rotate(360deg); } }
+  /* 逐頁縮圖列。橫向捲動 —— 頁數多的時候不可以讓它把整頁撐高。 */
+  .ds-strip { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 10px;
+              margin: 2px 0 14px; }
+  .ds-pg { flex: 0 0 auto; width: 92px; padding: 4px; border: 1px solid var(--border);
+           border-radius: var(--radius); background: #fff; cursor: pointer;
+           display: flex; flex-direction: column; gap: 4px; text-align: center; }
+  .ds-pg:hover { border-color: var(--primary); }
+  .ds-pg.is-on { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,.22); }
+  .ds-pg .jt-thumb { height: 104px; display: flex; align-items: center;
+                     justify-content: center; background: #f1f5f9; border-radius: 4px; }
+  .ds-pg img { max-width: 100%; max-height: 104px; display: block; }
+  .ds-pg-cap { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ds-pg-cap b { color: var(--text); font-weight: 600; }
+  /* 調整過的頁面要看得出來 —— 不然翻了十頁之後不記得改過哪幾頁 */
+  .ds-pg-mark { font-size: 10.5px; color: #b45309; min-height: 14px; }
+  /* 多檔併成一份時，每個來源檔的第一頁前面加一條分隔 */
+  .ds-pg.is-file-start { border-left: 3px solid var(--primary); }
   .ds-quad { position: absolute; inset: 0; width: 100%; height: 100%;
              pointer-events: none; }
   /* 四個角要**連成看得見的線**（使用者 2026-09-14 回報）。
@@ -277,6 +300,9 @@
 (function () {
   const $ = (id) => document.getElementById(id);
   let uploadId = null, pageCount = 0, srcName = '';
+  //: 第 N 頁來自哪個來源檔（1-based → 檔名）。多檔併成一份之後，
+  //  這件事從 PDF 本身看不出來，只有上傳時的回應知道。
+  let pageSource = {};        // { 頁碼: {name, first} }
   let pvToken = 0;   // 每次重畫預覽換一個 token，過期的回應直接丟掉
 
   //: **每一個檔案都要處理**（使用者 2026-09-14 回報：拖兩個進來只取第一份）。
@@ -301,8 +327,95 @@
     $('dsInfo').hidden = false;
     $('dsOptPanel').hidden = false;
     $('dsPvPage').max = pageCount;
+    pageSource = {};
+    let at = 1;
+    for (const s of (d.sources || [])) {
+      for (let i = 0; i < s.pages; i++, at++) {
+        pageSource[at] = { name: s.name, first: i === 0 };
+      }
+    }
+    buildStrip();
     drawPreview();
   });
+
+  //: 逐頁縮圖列。**每一頁都要看得到**（多檔併起來之後更需要）。
+  //  重建整列只在上傳完成時做一次；之後只更新標記與目前頁。
+  function buildStrip() {
+    const strip = $('dsStrip');
+    strip.textContent = '';
+    strip.hidden = pageCount <= 1;      // 只有一頁時列一格反而是雜訊
+    if (strip.hidden) return;
+    const multi = Object.keys(pageSource).length > 0
+                  && new Set(Object.values(pageSource).map((s) => s.name)).size > 1;
+    for (let n = 1; n <= pageCount; n++) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ds-pg';
+      b.dataset.page = String(n);
+      const src = pageSource[n];
+      if (multi && src) {
+        // **檔名是使用者取的** —— 一律走 title / textContent，不碰 innerHTML
+        b.title = src.name;
+        if (src.first) b.classList.add('is-file-start');
+      }
+      const wrap = document.createElement('span');
+      wrap.className = 'jt-thumb';
+      const im = document.createElement('img');
+      im.loading = 'lazy';
+      im.alt = tr('第 {0} 頁').replace('{0}', n);
+      im.src = `/tools/doc-straighten/thumb/${uploadId}/${n}?rotate=0`;
+      wrap.appendChild(im);
+      const cap = document.createElement('span');
+      cap.className = 'ds-pg-cap';
+      const num = document.createElement('b');
+      num.textContent = String(n);
+      cap.append(num);
+      if (multi && src && src.first) {
+        cap.append(document.createTextNode(' · ' + shortName(src.name)));
+      }
+      const mark = document.createElement('span');
+      mark.className = 'ds-pg-mark';
+      b.append(wrap, cap, mark);
+      b.addEventListener('click', () => {
+        if (curPage() === n) return;
+        $('dsPvPage').value = String(n);
+        autoQuad = null;
+        drawPreview();
+      });
+      strip.appendChild(b);
+    }
+    syncStrip();
+  }
+
+  //: 檔名可能很長 —— 縮圖只有 92px 寬，全名塞不下。
+  function shortName(s) {
+    const base = String(s).replace(/\.[^.]+$/, '');
+    return base.length > 9 ? base.slice(0, 8) + '…' : base;
+  }
+
+  //: 更新「目前在哪一頁」與「哪幾頁調整過」。**每次預覽之後都要跑** ——
+  //  轉向會讓縮圖本身也要換（`/thumb` 的 `rotate` 是快取鍵的一部分）。
+  function syncStrip() {
+    const strip = $('dsStrip');
+    if (strip.hidden) return;
+    const now = curPage();
+    strip.querySelectorAll('.ds-pg').forEach((b) => {
+      const n = parseInt(b.dataset.page, 10);
+      b.classList.toggle('is-on', n === now);
+      const ov = overrides[n] || {};
+      const bits = [];
+      if (ov.rotate) bits.push(tr('轉 {0}°').replace('{0}', ov.rotate));
+      if (quadEditOn() && ov.quad) bits.push(tr('自拉四角'));
+      b.querySelector('.ds-pg-mark').textContent = bits.join(' · ');
+      const im = b.querySelector('img');
+      const want = `/tools/doc-straighten/thumb/${uploadId}/${n}?rotate=${ov.rotate || 0}`;
+      if (im && !im.src.endsWith(want)) im.src = want;
+    });
+    const on = strip.querySelector('.ds-pg.is-on');
+    if (on && on.scrollIntoView) {
+      on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+  }
 
   //: 解析度與四角模式都改用 `option-card`（radio group）—— 取值要走
   //  `name=…:checked`，**不可以再 `$('dsDpi').value`**（那個 id 已經不存在，
@@ -391,7 +504,12 @@
     fd.append('detect_quad', $('dsQuad').checked ? '1' : '');
     fd.append('enhance', $('dsEnh').checked ? '1' : '');
     fd.append('rotate', ov.rotate || 0);
-    if (ov.quad) fd.append('quad', ov.quad.map((pt) => pt.join(',')).join(','));
+    // **自動模式不可以帶使用者拉的四個角**（2026-09-14 使用者回報「切回自動
+    // 抓沒有回到自動的結果，範圍也沒回去」）。模式是**開關**不是刪除鍵 ——
+    // 座標留著，切回手動時使用者拉好的點還在，不會白拉一次。
+    if (quadEditOn() && ov.quad) {
+      fd.append('quad', ov.quad.map((pt) => pt.join(',')).join(','));
+    }
     try {
       const r = await fetch('/tools/doc-straighten/preview', { method: 'POST', body: fd });
       if (token !== pvToken) return;          // 已經有更新的請求了
@@ -409,10 +527,11 @@
           .replace('{0}', d.angle).replace('{1}', d.residual)
         + (d.quad_found ? '　' + tr('（抓到紙張邊界，已做透視校正）') : '')
         + (ovNow.rotate ? '　' + tr('（這一頁另外轉了 {0}°）').replace('{0}', ovNow.rotate) : '')
-        + (ovNow.quad ? '　' + tr('（用的是你自己拉的四個角）') : '');
+        + (quadEditOn() && ovNow.quad ? '　' + tr('（用的是你自己拉的四個角）') : '');
       // 自動抓到的四角回來了就當作拖曳的起點 —— 使用者只要修不準的那幾個。
-      if (d.quad && !ovNow.quad) autoQuad = d.quad;
+      if (d.quad && !(quadEditOn() && ovNow.quad)) autoQuad = d.quad;
       renderQuad();
+      syncStrip();
     } catch (e) {
       if (token === pvToken) $('dsPvStat').textContent = tr('預覽失敗');
     }
@@ -573,8 +692,11 @@
     });
   }
 
+  //: 切模式要**重跑預覽**，不是只切疊圖的顯示。只呼叫 `renderQuad()` 的話，
+  //  右邊那張仍然是上一個模式算出來的（使用者 2026-09-14 回報）。
+  //  `autoQuad = null` 是為了讓自動抓的範圍重新從伺服器拿一次。
   document.querySelectorAll('input[name="dsQuadMode"]').forEach((el) =>
-    el.addEventListener('change', renderQuad));
+    el.addEventListener('change', () => { autoQuad = null; drawPreview(); }));
   $('dsQuadReset').addEventListener('click', () => {
     const ov = overrides[curPage()];
     if (ov) { delete ov.quad; if (!Object.keys(ov).length) delete overrides[curPage()]; }
@@ -605,9 +727,18 @@
     fd.append('detect_quad', $('dsQuad').checked ? '1' : '');
     fd.append('enhance', $('dsEnh').checked ? '1' : '');
     fd.append('out_name', srcName);
-    // 使用者自己調過的那幾頁一起送出去（沒調過就不送，維持自動）
-    if (Object.keys(overrides).length) {
-      fd.append('overrides', JSON.stringify(overrides));
+    // 使用者自己調過的那幾頁一起送出去（沒調過就不送，維持自動）。
+    // **自動模式要把四個角濾掉** —— 不濾的話畫面上寫著「自動抓」，
+    // 送出去的卻還是使用者之前拉的那組座標，而且完全看不出來。
+    // 轉向不受模式影響（那是另一個控制項），所以只濾 `quad`。
+    const send = {};
+    for (const [pg, ov] of Object.entries(overrides)) {
+      const one = { ...ov };
+      if (!quadEditOn()) delete one.quad;
+      if (Object.keys(one).length) send[pg] = one;
+    }
+    if (Object.keys(send).length) {
+      fd.append('overrides', JSON.stringify(send));
     }
     try {
       const r = await fetch('/tools/doc-straighten/submit', { method: 'POST', body: fd });

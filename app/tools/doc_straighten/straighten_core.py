@@ -359,19 +359,11 @@ class PageResult:
     skipped: bool = False
     #: 使用者指定的整頁轉向（0 / 90 / 180 / 270），自動流程一律 0。
     rotate_deg: int = 0
+    #: 這一頁**實際用到**的四個角，正規化 0~1、**轉向後**的座標系。
+    #: 前端拿它當拖曳的起點 —— 由這裡回出去，呼叫端就不必自己換算
+    #: （換算一次就是一次搞錯長寬的機會，v1.15.45 就是這樣錯的）。
+    quad: "list[list[float]] | None" = None
 
-
-
-def _rotate_quad(q: "np.ndarray", deg: int, shape) -> "np.ndarray":
-    """把四個角的座標跟著整頁轉向一起轉（`shape` 是**轉之前**的 (h, w)）。"""
-    h, w = shape[:2]
-    if deg == 90:      # 順時針：(x, y) -> (h-1-y, x)
-        return np.float32([[h - 1 - y, x] for x, y in q])
-    if deg == 180:
-        return np.float32([[w - 1 - x, h - 1 - y] for x, y in q])
-    if deg == 270:     # 逆時針：(x, y) -> (y, w-1-x)
-        return np.float32([[y, w - 1 - x] for x, y in q])
-    return q
 
 
 def flatten_shading(gray: "np.ndarray", *, dpi: int = 200,
@@ -459,36 +451,58 @@ def _white_point(g: "np.ndarray", *, pct: int = 88, target: int = 245,
     return np.clip(g.astype(np.float32) * gain, 0, 255).astype(np.uint8)
 
 
-def straighten_page(gray: "np.ndarray", *, quad=None, do_binarize: bool = False,
+def straighten_page(gray: "np.ndarray", *, quad=None, rgb=None,
+                    detect_quad: bool = False, do_binarize: bool = False,
                     dpi: int = 200, page_no: int = 1,
                     rotate_deg: int = 0,
                     enhance: bool = True) -> tuple["np.ndarray", PageResult]:
-    """處理一頁。`quad` 給了就走透視校正（自動抓到的四角，或使用者拉的）。
+    """處理一頁。
 
-    `rotate_deg`（0 / 90 / 180 / 270）是**使用者自己指定的整頁轉向**，
-    在裁邊與估歪斜**之前**先轉 —— 自動估角只看 ±6°，掃反了或掃成橫的
-    它救不了，那是方向問題不是歪斜問題。轉完之後照樣跑自動拉正，
+    ## 座標系：只有一個 —— **轉向後、正規化 0~1**
+
+    `quad` 是使用者自己拉的四個角，座標系是**他在畫面上看到的那張圖**，
+    也就是**轉向之後**的。自動偵測也在轉完之後才做，所以兩者同一個框架，
+    中間沒有任何換算。
+
+    **這裡曾經有兩個疊在一起的錯**（2026-09-14 使用者回報「有拉但出來的跑掉」）：
+    呼叫端用**未轉**的長寬把 0~1 換成像素，然後這支再用 `_rotate_quad`
+    轉一次。轉 90° 的實測：產出 834×358（應為 471×629）、
+    墨點比例 **41.2%**（框到的大半是桌面，正確值 1.9%）。
+    只要座標系有兩個，遲早會有人在錯的那一邊換算 —— 所以現在只留一個。
+
+    `rotate_deg`（0 / 90 / 180 / 270）是**使用者指定的整頁轉向**，在裁邊與
+    估歪斜**之前**先轉 —— 自動估角只看 ±6°，掃反了或掃成橫的它救不了，
+    那是方向問題不是歪斜問題。轉完照樣跑自動拉正，
     所以「轉 90° 再微調 1.2°」是一次做完的。
+
+    `rgb` 是同一頁的彩色版（給 `_paper_mask` 用）—— 陰影裡的紙只有靠色度
+    才救得回來。沒有就只用灰階。
+
+    `detect_quad` **預設 False**：這支原本的語意就是「`quad=None` ＝ 不做
+    透視校正」，改成預設 True 會把每一個既有呼叫的行為無聲換掉。
+    要自動抓的呼叫端明確傳 `detect_quad=True`（兩支真正的呼叫端都是照使用者
+    在畫面上的選擇傳進來的）。
 
     **一定會回報 `residual`**（修正後再估一次的殘留角）—— 轉錯方向時角度
     看起來「有動」，只有殘留角會現形。
     """
     t0 = time.time()
     rot = int(rotate_deg) % 360
-    q = np.float32(quad) if quad is not None else None
     if rot:
         if rot not in (90, 180, 270):
             raise ValueError(f"rotate_deg 只接受 0 / 90 / 180 / 270（收到 {rotate_deg}）")
         code = {90: cv2.ROTATE_90_CLOCKWISE, 180: cv2.ROTATE_180,
                 270: cv2.ROTATE_90_COUNTERCLOCKWISE}[rot]
-        # **四個角要跟著一起轉。** 不管是自動抓的還是使用者拉的，都是在
-        # **轉之前**那張圖上的座標 —— 只轉影像不轉座標的話，透視校正會抓到
-        # 完全不相干的區域。開發時實測：轉 90° 之後 `quad_is_sane()` 把它擋掉
-        # （因為長寬對調了），所以**看起來沒事**，其實是「使用者拉的四個角被
-        # 安靜地丟掉」—— 比算錯更難發現。
-        if q is not None:
-            q = _rotate_quad(q, rot, gray.shape)
         gray = cv2.rotate(gray, code)
+        if rgb is not None:
+            rgb = cv2.rotate(rgb, code)
+    h0, w0 = gray.shape[:2]
+    q = None
+    if quad is not None:
+        # 正規化 → 像素，用的是**轉向後**的長寬
+        q = np.float32([[float(x) * w0, float(y) * h0] for x, y in quad])
+    elif detect_quad:
+        q = find_page_quad(gray, rgb)
     if q is not None and not quad_is_sane(q, gray.shape):
         q = None
     if q is not None:
@@ -506,9 +520,12 @@ def straighten_page(gray: "np.ndarray", *, quad=None, do_binarize: bool = False,
     if do_binarize:
         out = binarize(out, dpi)
     resid = deskew_angle(out, limit=2.0, step=0.05)
+    used = None
+    if q is not None:
+        used = [[round(float(x) / w0, 5), round(float(y) / h0, 5)] for x, y in q]
     return out, PageResult(page=page_no, angle=round(ang, 2),
                            residual=round(resid, 2), quad_found=q is not None,
-                           rotate_deg=rot,
+                           rotate_deg=rot, quad=used,
                            width=out.shape[1], height=out.shape[0],
                            ms=int((time.time() - t0) * 1000))
 
@@ -610,20 +627,16 @@ def straighten_pdf(src: Path, dst: Path, *, dpi: int = 200,
             # **鍵是 1-based 頁碼**（畫面上看到的那個數字），不是索引。
             ov = (overrides or {}).get(i + 1) or {}
             rot = int(ov.get("rotate", 0) or 0)
-            if "quad" in ov and ov["quad"]:
-                # 使用者拉的點是**正規化座標**（0~1），這裡換成像素。
-                # 送像素的話，預覽圖換個尺寸就全錯了。
-                h, w = gray.shape[:2]
-                quad = np.float32([[x * w, y * h] for x, y in ov["quad"]])
-            else:
-                # **彩色一起送進去**：陰影裡的紙只有靠色度才救得回來
-                # （`_paper_mask`）。只給灰階時 IMG_2905 的純度只有 0.784，
-                # 也就是框進去的東西有兩成是桌面。
-                quad = find_page_quad(
-                    gray, arr if pix.n >= 3 else None) if detect_quad else None
-            fixed, res = straighten_page(gray, quad=quad, do_binarize=do_binarize,
-                                         dpi=dpi, page_no=i + 1, rotate_deg=rot,
-                                         enhance=enhance)
+            # 使用者拉的點是**正規化座標（0~1）、而且是轉向後的座標系** ——
+            # 換算與自動偵測都交給 `straighten_page`（那裡才知道轉向後的
+            # 長寬）。**彩色一起送進去**：陰影裡的紙只有靠色度才救得回來
+            #（`_paper_mask`）。只給灰階時 IMG_2905 的純度只有 0.784，
+            # 也就是框進去的東西有兩成是桌面。
+            fixed, res = straighten_page(
+                gray, quad=(ov.get("quad") or None),
+                rgb=arr if pix.n >= 3 else None, detect_quad=detect_quad,
+                do_binarize=do_binarize, dpi=dpi, page_no=i + 1,
+                rotate_deg=rot, enhance=enhance)
             # **編碼要看內容**：灰階掃描件用 JPEG（實測 2.7 MB → 1.0 MB，
             # 50 頁差 85 MB）；二值化過的用 PNG（只有黑白，實測 42 KB，
             # 換成 JPEG 反而會多出壓縮雜點）。

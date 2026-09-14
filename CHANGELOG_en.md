@@ -11,6 +11,76 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.45] - 2026-09-14
+
+### Document straightening: every page of every file is now visible
+
+There was only a **number input**: you had to type a page number, could not see
+what pages existed or which ones you had adjusted, and once several files were
+merged into one PDF there was no way to tell which page came from which file.
+
+There is now a per-page thumbnail strip: click to switch and re-run that page,
+with the current page highlighted, "rotated N° / manual corners" marked, and a
+separator plus file name at the first page of each source file.
+
+> **Which page came from which file cannot be recovered from the merged PDF** —
+> only the upload knows, so `/load` now returns `sources` (pages per input file).
+> Thumbnails reuse the existing `/thumb` endpoint (70 dpi, cached on disk) with
+> `loading="lazy"`, so a 50-page document does not fire 50 requests at once.
+
+### Document straightening: after rotating, dragging the corners produced garbage
+
+When the status line showed both "rotated 90°" and "using the corners you placed",
+the corrected output was wrong. **Two mistakes stacked:**
+
+* the corners the user drags are on the **rotated** image (since v1.15.44 the
+  "before" view follows the rotation), but the caller converted 0–1 to pixels
+  using the **unrotated** dimensions — which are exactly swapped at 90°;
+* and the core then rotated those coordinates **a second time**.
+
+Measured at 90°: output **834×358** (should be 471×629) and **41.2%** dark pixels
+— i.e. mostly desk rather than paper (correct value: 1.9%).
+
+> **The fix is not to repair the two conversions, it is to have one coordinate
+> system.** `quad` is now always "**normalised 0–1 in the rotated frame**", and
+> detection moved inside `straighten_page` (after the rotation), so nothing is
+> converted in between; `_rotate_quad` is gone. **With two coordinate systems,
+> sooner or later someone converts on the wrong side.**
+>
+> The same root cause had a second, unnoticed branch: the auto-detected corners
+> **returned to the browser** were normalised against the unrotated dimensions
+> too, so after rotating, switching to manual placed the handles somewhere
+> unrelated — while the screen showed four handles and looked perfectly normal.
+
+> **Two layers of guard:** at the core, the output from "corners in the rotated
+> frame" is compared with "detect directly on the rotated image" (size **and**
+> dark-pixel ratio); end-to-end, a real browser rotates 90°, drags the corners,
+> then **draws the corrected image into a canvas and measures the dark ratio**.
+> Checking only where the outline sits is not enough — mutation testing confirmed
+> this bug stays green that way.
+
+### Document straightening: switching back to "detect automatically" did not
+
+After switching to "place the four corners yourself", adjusting them and
+switching back, the corrected image and the outline both stayed on the manual
+version. Two causes stacked:
+
+* switching modes only called `renderQuad()`, which merely shows or hides the
+  overlay — **the preview was never re-run**;
+* and even re-running would have used the stored manual corners.
+
+> **The mode is a switch, not a delete key.** Automatic mode no longer sends
+> those coordinates (both the preview *and* the submit must filter them — filter
+> only one and the screen says "automatic" while the delivered file is manual,
+> with nothing to show for it), but the coordinates are **kept**, so switching
+> back restores the user's work instead of throwing it away.
+>
+> The test is that the status line after switching back is **identical** to the
+> one from the first automatic run; merely checking "did it recalculate" would
+> pass even when recalculating with the manual corners.
+
+---
+
 ## [1.15.44] - 2026-09-14
 
 ### Document straightening: the four corners were **never** joined up
