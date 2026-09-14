@@ -34,17 +34,20 @@ def _valid_words(words: list[dict]) -> list[dict]:
 
 
 def _text_mask(image: Image.Image, words: list[dict]) -> np.ndarray:
-    pixels = np.asarray(image.convert("RGB"))
-    mask = np.zeros(pixels.shape[:2], dtype=np.uint8)
+    """Mask complete OCR boxes so antialiased strokes and glyph interiors cannot survive."""
+    mask = np.zeros((image.height, image.width), dtype=np.uint8)
     for word in _valid_words(words):
-        x0, y0 = max(0, word["left"]), max(0, word["top"])
-        x1, y1 = min(image.width, x0 + word["width"]), min(image.height, y0 + word["height"])
+        # OCR polygons are normally tight. A small height-relative expansion catches
+        # accents, shadows and antialiasing without reaching neighbouring icons.
+        pad_x = max(2, min(12, round(word["height"] * .10)))
+        pad_y = max(2, min(10, round(word["height"] * .08)))
+        x0 = max(0, word["left"] - pad_x)
+        y0 = max(0, word["top"] - pad_y)
+        x1 = min(image.width, word["left"] + word["width"] + pad_x)
+        y1 = min(image.height, word["top"] + word["height"] + pad_y)
         if x1 <= x0 or y1 <= y0:
             continue
-        bg = np.asarray(estimate_background(image, (x0, y0, x1, y1)), dtype=np.int16)
-        crop = pixels[y0:y1, x0:x1].astype(np.int16)
-        distance = np.sqrt(np.sum((crop - bg) ** 2, axis=2))
-        mask[y0:y1, x0:x1] = np.maximum(mask[y0:y1, x0:x1], (distance > 42).astype(np.uint8) * 255)
+        mask[y0:y1, x0:x1] = 255
     return mask
 
 
@@ -54,8 +57,6 @@ def _clean_image(raw: bytes, words: list[dict]) -> bytes:
     try:
         import cv2
         mask = _text_mask(image, words)
-        kernel = np.ones((3, 3), np.uint8)
-        mask = cv2.dilate(mask, kernel, iterations=1)
         repaired = cv2.inpaint(cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR), mask, 3, cv2.INPAINT_TELEA)
         output = Image.fromarray(cv2.cvtColor(repaired, cv2.COLOR_BGR2RGB))
         buffer = io.BytesIO()

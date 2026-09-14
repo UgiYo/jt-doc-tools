@@ -134,3 +134,14 @@ def test_ocr_fragments_are_grouped_into_fitted_line_text():
     segments = _line_segments(words)
     assert len(segments) == 3
     assert _segment_text(segments[0], {}, 0) == "DevOps"
+
+
+def test_text_removal_mask_covers_entire_expanded_ocr_box():
+    from PIL import Image
+    from app.tools.ppt_image_text_editor.editable_bridge import _text_mask
+
+    image = Image.new("RGB", (200, 100), "white")
+    mask = _text_mask(image, [{"left": 50, "top": 30, "width": 80, "height": 20, "text": "Text"}])
+    assert mask[30:50, 50:130].min() == 255
+    assert mask[27:53, 47:133].max() == 255
+    assert mask[0, 0] == 0
