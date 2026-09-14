@@ -22,3 +22,11 @@ def test_every_analysis_endpoint_checks_upload_owner():
     legacy = ROUTER.index('async def images')
     assert "_uo.require(uid,request)" in ROUTER[start:status]
     assert "_uo.require(uid,request)" in ROUTER[status:legacy]
+
+def test_ocr_job_can_resume_and_cancel_safely():
+    assert '@router.post("/analysis/{uid}/cancel")' in ROUTER
+    assert 'job.get("cancel_requested")' in ROUTER
+    assert "localStorage.setItem(JOB_KEY" in TEMPLATE
+    assert "resumeSavedAnalysis();" in TEMPLATE
+    assert "fileFingerprint(file)" in TEMPLATE
+    assert "/cancel" in TEMPLATE

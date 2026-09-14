@@ -7,7 +7,7 @@
 <div class="panel">
   <input id="pptFile" type="file" accept=".pptx">
   <label>{{ tr('OCR 語言') }} <input id="langs" value="chi_tra+eng"></label>
-  <button class="btn btn-primary" id="analyze">{{ tr('上傳並分析') }}</button>
+  <button type="button" class="btn btn-primary" id="analyze">{{ tr('上傳並分析') }}</button>\n  <button type="button" class="btn" id="cancelAnalysis" hidden>{{ tr('停止這份分析') }}</button>
   <span id="status" class="muted"></span>
 </div>
 <div id="results"></div>
@@ -24,24 +24,51 @@ let uploadId=null, analyzed=[], previewTimers=new Map(), previewUrls=new Map(), 
 const $=s=>document.querySelector(s);
 async function responseError(r,fallback){const text=await r.text();try{return JSON.parse(text).detail||fallback}catch{return text||fallback}}
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-$('#analyze').addEventListener('click', async()=>{
- const button=$('#analyze'),f=$('#pptFile').files[0];if(!f){alert('{{ tr("請選擇 PPTX") }}');return}
- if(button.disabled)return;button.disabled=true;clearPreviewUrls();$('#status').textContent='{{ tr("上傳中…") }}';
+const JOB_KEY='pptImageTextEditor.activeJob.v1';let pollGeneration=0;
+function loadSavedJob(){try{return JSON.parse(localStorage.getItem(JOB_KEY)||'null')}catch{return null}}
+function saveJob(value){try{localStorage.setItem(JOB_KEY,JSON.stringify(value))}catch{}}
+function clearSavedJob(){try{localStorage.removeItem(JOB_KEY)}catch{}}
+function fileFingerprint(file){return [file.name,file.size,file.lastModified].join(':')}
+function tracking(active){$('#analyze').disabled=active;$('#cancelAnalysis').hidden=!active}
+async function pollAnalysis(initial=null){
+ const token=++pollGeneration;tracking(true);let response=initial;
  try{
-  const fd=new FormData();fd.append('file',f);let r=await fetch('/tools/ppt-image-text-editor/upload',{method:'POST',body:fd});
-  if(!r.ok)throw new Error(await responseError(r,'upload failed'));const u=await r.json();uploadId=u.upload_id;
-  const start=new FormData();start.append('langs',$('#langs').value);r=await fetch(`/tools/ppt-image-text-editor/analysis/${uploadId}`,{method:'POST',body:start});
-  if(!r.ok)throw new Error(await responseError(r,'OCR start failed'));
-  while(true){
-   const job=await r.json();
-   if(job.status==='queued')$('#status').textContent=`{{ tr("OCR 排隊中") }}（{{ tr("前方") }} ${Math.max(0,(job.queue_position||1)-1)} {{ tr("份") }}）`;
+  while(token===pollGeneration){
+   if(!response){response=await fetch(`/tools/ppt-image-text-editor/analysis/${uploadId}`);if(!response.ok)throw new Error(await responseError(response,'OCR status failed'))}
+   const job=await response.json();const saved=loadSavedJob()||{};saveJob({...saved,upload_id:uploadId,status:job.status});
+   if(job.cancel_requested)$('#status').textContent='{{ tr("正在停止，將於目前圖片完成後結束…") }}';
+   else if(job.status==='queued')$('#status').textContent=`{{ tr("OCR 排隊中") }}（{{ tr("前方") }} ${Math.max(0,(job.queue_position||1)-1)} {{ tr("份") }}）`;
    else if(job.status==='running')$('#status').textContent=`{{ tr("OCR 辨識中") }} ${job.completed||0}/${job.total||'?'}`;
-   else if(job.status==='failed')throw new Error(job.error||'OCR failed');
-   else if(job.status==='done'){analyzed=job.images||[];render();$('#exportPanel').hidden=false;$('#status').textContent=`${analyzed.length} {{ tr("張圖片") }}`;break}
-   await sleep(1000);r=await fetch(`/tools/ppt-image-text-editor/analysis/${uploadId}`);if(!r.ok)throw new Error(await responseError(r,'OCR status failed'));
+   else if(job.status==='failed'){clearSavedJob();throw new Error(job.error||'OCR failed')}
+   else if(job.status==='cancelled'){clearSavedJob();$('#status').textContent='{{ tr("分析已停止") }}';break}
+   else if(job.status==='done'){analyzed=job.images||[];render();$('#exportPanel').hidden=false;$('#status').textContent=`${analyzed.length} {{ tr("張圖片；可離開後再回來") }}`;tracking(false);return}
+   await sleep(1000);response=null;
   }
- }catch(error){$('#status').textContent=error.message||String(error)}
- finally{button.disabled=false}
+ }catch(error){if(token===pollGeneration){$('#status').textContent=error.message||String(error);const text=String(error.message||error);if(/not found|403|404/i.test(text))clearSavedJob()}}
+ finally{if(token===pollGeneration)tracking(false)}
+}
+async function resumeSavedAnalysis(){
+ const saved=loadSavedJob();if(!saved?.upload_id)return;uploadId=saved.upload_id;$('#status').textContent=`{{ tr("正在恢復") }} ${saved.filename||''}…`;
+ try{const r=await fetch(`/tools/ppt-image-text-editor/analysis/${uploadId}`);if(!r.ok){clearSavedJob();$('#status').textContent='';return}await pollAnalysis(r)}
+ catch{clearSavedJob();$('#status').textContent=''}
+}
+$('#analyze').addEventListener('click',async()=>{
+ const button=$('#analyze'),file=$('#pptFile').files[0];if(!file){alert('{{ tr("請選擇 PPTX") }}');return}
+ const existing=loadSavedJob();if(existing?.fingerprint===fileFingerprint(file)&&existing.upload_id){uploadId=existing.upload_id;return resumeSavedAnalysis()}
+ if(button.disabled)return;tracking(true);clearPreviewUrls();$('#results').innerHTML='';$('#exportPanel').hidden=true;$('#status').textContent='{{ tr("上傳中…") }}';
+ try{
+  const fd=new FormData();fd.append('file',file);let r=await fetch('/tools/ppt-image-text-editor/upload',{method:'POST',body:fd});
+  if(!r.ok)throw new Error(await responseError(r,'upload failed'));const uploaded=await r.json();uploadId=uploaded.upload_id;
+  saveJob({upload_id:uploadId,filename:file.name,fingerprint:fileFingerprint(file),status:'uploaded',created_at:Date.now()});
+  const startData=new FormData();startData.append('langs',$('#langs').value);r=await fetch(`/tools/ppt-image-text-editor/analysis/${uploadId}`,{method:'POST',body:startData});
+  if(!r.ok)throw new Error(await responseError(r,'OCR start failed'));await pollAnalysis(r);
+ }catch(error){$('#status').textContent=error.message||String(error);tracking(false)}
+});
+$('#cancelAnalysis').addEventListener('click',async()=>{
+ if(!uploadId)return;const id=uploadId;++pollGeneration;tracking(false);$('#status').textContent='{{ tr("正在要求停止…") }}';
+ try{await fetch(`/tools/ppt-image-text-editor/analysis/${id}/cancel`,{method:'POST'})}finally{
+  clearSavedJob();uploadId=null;analyzed=[];$('#results').innerHTML='';$('#exportPanel').hidden=true;$('#status').textContent='{{ tr("已停止追蹤；目前正在辨識的圖片完成後會停止") }}';
+ }
 });
 function selectWord(card,wi,focusInput=true){card.querySelectorAll('.pite-row,.pite-box').forEach(el=>el.classList.remove('active'));const row=card.querySelector(`.pite-row[data-word="${wi}"]`),box=card.querySelector(`.pite-box[data-word="${wi}"]`);if(row){row.classList.add('active');row.scrollIntoView({block:'nearest'});if(focusInput)row.querySelector('.new').focus()}if(box)box.classList.add('active')}
 function positionBoxes(card,imgData){const image=card.querySelector('.pite-stage img');if(!image.naturalWidth||!imgData.width||!imgData.height)return;const sx=image.clientWidth/imgData.width,sy=image.clientHeight/imgData.height;card.querySelectorAll('.pite-box').forEach(box=>{const w=imgData.words[Number(box.dataset.word)];box.style.left=`${w.left*sx}px`;box.style.top=`${w.top*sy}px`;box.style.width=`${Math.max(3,w.width*sx)}px`;box.style.height=`${Math.max(3,w.height*sy)}px`})}
@@ -69,5 +96,6 @@ $('#editableBtn').addEventListener('click',async()=>{
  sessionStorage.setItem('editableSlidesImport',JSON.stringify(await r.json()));location.href='/tools/editable-slides/';
 });
 $('#exportBtn').addEventListener('click',async()=>{let edits=[];document.querySelectorAll('.pite-card').forEach(card=>{const img=analyzed.find(x=>String(x.index)===card.dataset.imageIndex);if(img)edits.push(...collectImageEdits(card,img))});if(!edits.length){alert('{{ tr("尚未修改任何文字") }}');return}let fd=new FormData();fd.append('edits_json',JSON.stringify(edits));let r=await fetch(`/tools/ppt-image-text-editor/export/${uploadId}`,{method:'POST',body:fd});if(!r.ok){alert(await responseError(r,'export failed'));return}let b=await r.blob();let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='edited.pptx';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)});
+resumeSavedAnalysis();
 </script>
 {% endblock %}

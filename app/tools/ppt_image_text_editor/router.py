@@ -25,7 +25,7 @@ def _remember_task(task):
 def _prune_jobs():
  cutoff=time.time()-86400
  for key,job in list(_jobs.items()):
-  if job["status"] in {"done","failed"} and job.get("completed_at",0)<cutoff:_jobs.pop(key,None)
+  if job["status"] in {"done","failed","cancelled"} and job.get("completed_at",0)<cutoff:_jobs.pop(key,None)
 def _work_dir():p=settings.temp_dir/"ppt_image_text_editor";p.mkdir(parents=True,exist_ok=True);return p
 def _src(uid):return _work_dir()/f"{uid}.pptx"
 def _manifest(uid):return _work_dir()/f"{uid}.json"
@@ -72,8 +72,10 @@ async def _run_analysis(uid,langs):
    item=grouped.setdefault(ref.media_path,{"media_path":ref.media_path,"slides":[],"rel_ids":[]});item["slides"].append(ref.slide);item["rel_ids"].append(ref.rel_id)
   job["total"]=len(grouped)
   async with _OCR_LIMIT:
+   if job.get("cancel_requested"):job.update(status="cancelled",completed_at=time.time());return
    job["status"]="running";job["started_at"]=time.time();result=[]
    for idx,(media_path,item) in enumerate(grouped.items()):
+    if job.get("cancel_requested"):job.update(status="cancelled",completed_at=time.time());return
     try:
      png,(w,h)=await asyncio.to_thread(to_png,read_media(raw,media_path))
      words,engine=await asyncio.to_thread(_oe.recognize_image,png,langs,preprocess=True,allow_local_easyocr=_oe.local_easyocr_safe())
@@ -89,8 +91,15 @@ async def _run_analysis(uid,langs):
 async def start_analysis(uid:str,request:Request,langs:str=Form("chi_tra+eng")):
  uid=_safe_id(uid);_uo.require(uid,request);_prune_jobs();existing=_jobs.get(uid)
  if existing and existing["status"] in {"queued","running","done"}:return _job_view(uid)
- job={"uid":uid,"status":"queued","created_at":time.time(),"completed":0,"total":0,"error":None};_jobs[uid]=job
+ job={"uid":uid,"status":"queued","created_at":time.time(),"completed":0,"total":0,"error":None,"cancel_requested":False};_jobs[uid]=job
  task=asyncio.create_task(_run_analysis(uid,langs));_remember_task(task);return _job_view(uid)
+
+@router.post("/analysis/{uid}/cancel")
+async def cancel_analysis(uid:str,request:Request):
+ uid=_safe_id(uid);_uo.require(uid,request);job=_jobs.get(uid)
+ if not job:raise HTTPException(404,"analysis job not found")
+ if job["status"] in {"queued","running"}:job["cancel_requested"]=True
+ return _job_view(uid)
 
 @router.get("/analysis/{uid}")
 async def analysis_status(uid:str,request:Request):
@@ -108,6 +117,7 @@ async def images(uid:str,request:Request,langs:str="chi_tra+eng"):
  while state["status"] in {"queued","running"}:
   await asyncio.sleep(.5);state=_job_view(uid)
  if state["status"]=="failed":raise HTTPException(500,state.get("error") or "OCR failed")
+ if state["status"]=="cancelled":raise HTTPException(409,"OCR cancelled")
  return {"upload_id":uid,"fonts":available_fonts(),"images":state.get("images",[])}
 
 @router.get("/preview/{uid}/{index}")
