@@ -11,6 +11,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.48] - 2026-09-14
+
+### The site's top-left title wrapped in English and Japanese
+
+**Measured**: the title needs 166 px in Chinese, 225 in English and **285 in
+Japanese** when it is not allowed to wrap; add the nav bar and English needs
+**1186**, Japanese **1188** — while the container is **1180**. It was over by a
+handful of pixels.
+
+The brand block is now a fixed two-line lockup: the first line is always
+`Jason Tools` (identical in every language) and the description sits on the
+second line. The three languages now need 919 / 1052 / 1002 px, with well over a
+hundred to spare.
+
+> **Not a smaller font, and not a higher breakpoint** — either only pushes the
+> problem to the next language. The part whose length varies moved to where
+> length no longer matters.
+
+---
+
 ## [1.15.47] - 2026-09-14
 
 ### ⚠ The site's screenshots had never actually had a document in them

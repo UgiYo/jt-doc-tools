@@ -356,8 +356,8 @@ PAGE = """\
         </svg>
       </div>
       <div class="brand-text">
-        <div class="brand-name">Jason Tools 文件工具箱</div>
-        <div class="brand-sub">jt-doc-tools</div>
+        <div class="brand-name">Jason Tools</div>
+        <div class="brand-sub">文件工具箱</div>
       </div>
     </a>
     <nav class="topnav" id="topnav">

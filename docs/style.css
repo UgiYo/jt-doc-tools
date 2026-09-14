@@ -100,8 +100,15 @@ code {
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 4px 12px rgba(79,70,229,0.3);
 }
-.brand-name { font-weight: 700; font-size: 15px; line-height: 1.1; }
-.brand-sub  { font-size: 11px; color: var(--muted); font-family: var(--font-mono); }
+/* 左上是**兩行的固定版式**：第一行永遠是 `Jason Tools`（每個語言都一樣），
+   說明放第二行。原本把整串產品名放第一行，翻成英文 / 日文之後就折行了
+   —— 量過：不折行時要 中文 166 / 英文 225 / 日文 285 px，加上導覽列
+   剛好超過容器的 1180px（2026-09-14 使用者截圖回報）。
+   **說明放第二行之後，翻成多長都不會再影響第一行。** */
+.brand-name { font-weight: 700; font-size: 15px; line-height: 1.1;
+              white-space: nowrap; }
+.brand-sub  { font-size: 11px; color: var(--muted); line-height: 1.25;
+              white-space: nowrap; }
 .topnav {
   display: flex; gap: 28px; align-items: center;
 }

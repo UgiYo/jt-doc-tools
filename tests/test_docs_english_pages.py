@@ -402,3 +402,40 @@ def test_japanese_pages_do_not_leave_a_stray_space_around_inline_tags():
         for pat in pats:
             bad += [f"{f.name}: …{m.group(0)}…" for m in pat.finditer(html)]
     assert not bad, "日文頁行內標記旁邊多了空白：\n" + "\n".join(bad[:10])
+
+
+# ---------------------------------------------------------------------------
+# 左上的品牌區：**第一行永遠是 `Jason Tools`**（2026-09-14 使用者截圖回報）
+#
+# 原本整串產品名放第一行，翻成英文 / 日文之後就折行了。量過的數字：
+# 標題不折行時要 中文 166 / 英文 225 / **日文 285** px，加上導覽列之後
+# 英文 1186、日文 1188 —— 而容器只有 1180，**就是差那幾個 px**。
+#
+# 說明搬到第二行（11px）之後，翻成多長都不會再影響第一行。
+# 這條擋的是「有人又把整串產品名塞回第一行」。
+# ---------------------------------------------------------------------------
+
+_BRAND_NAME = re.compile(r'<div class="brand-name">(.*?)</div>', re.S)
+
+
+@pytest.mark.parametrize("page", ["index", "api", "troubleshooting"])
+def test_the_brand_first_line_is_the_same_in_every_language(page: str):
+    langs = ["zh-Hant"] + _locales()
+    seen = {}
+    for lang in langs:
+        f = DOCS / (f"{page}.html" if lang == "zh-Hant" else f"{page}-{lang}.html")
+        m = _BRAND_NAME.search(f.read_text(encoding="utf-8"))
+        assert m, f"{f.name} 找不到 .brand-name"
+        seen[lang] = m.group(1).strip()
+    assert set(seen.values()) == {"Jason Tools"}, (
+        "品牌區第一行每個語言都要是 `Jason Tools` —— 把說明放回第一行的話，"
+        f"英文 / 日文會折行（量過：日文要 285px，容器只有 1180px）：{seen}")
+
+
+def test_the_brand_lines_are_pinned_to_one_line_each():
+    """兩行都要 `white-space: nowrap` —— 少了它就是原本那個折行的樣子。"""
+    css = (DOCS / "style.css").read_text(encoding="utf-8")
+    for sel in (".brand-name", ".brand-sub"):
+        i = css.index(sel + " ")
+        block = css[i:css.index("}", i)]
+        assert "nowrap" in block, f"{sel} 少了 white-space: nowrap"
