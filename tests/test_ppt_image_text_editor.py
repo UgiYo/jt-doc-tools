@@ -79,3 +79,45 @@ def test_standalone_image_editor_applies_edits():
     result = Image.open(io.BytesIO(edited))
     assert result.size == (200, 80)
     assert result.format == "PNG"
+
+
+def test_editable_pptx_download_contains_native_text_box():
+    from pptx import Presentation
+    from pptx.enum.shapes import MSO_SHAPE_TYPE
+    from pptx.util import Inches
+    from app.tools.editable_slides.pptx_io import export_pptx
+    from app.tools.ppt_image_text_editor.editable_bridge import build_editable_deck
+
+    image = Image.new("RGB", (1280, 720), "white")
+    ImageDraw.Draw(image).text((120, 100), "Original OCR text", fill="black")
+    png = io.BytesIO()
+    image.save(png, "PNG")
+    source_prs = Presentation()
+    source_prs.slide_width = Inches(13.333)
+    source_prs.slide_height = Inches(7.5)
+    source_slide = source_prs.slides.add_slide(source_prs.slide_layouts[6])
+    source_slide.shapes.add_picture(io.BytesIO(png.getvalue()), 0, 0, source_prs.slide_width, source_prs.slide_height)
+    source = io.BytesIO()
+    source_prs.save(source)
+    ref = list_slide_images(source.getvalue())[0]
+
+    analyses = [{
+        "media_path": ref.media_path, "slides": [1], "rel_ids": [ref.rel_id],
+        "index": 0, "width": 1280, "height": 720,
+        "words": [{"left": 120, "top": 100, "width": 260, "height": 45,
+                   "text": "Original OCR text", "conf": 99}],
+    }]
+    edits = [{
+        "image_index": 0, "word_index": 0, "left": 120, "top": 100,
+        "width": 260, "height": 45, "old_text": "Original OCR text",
+        "new_text": "可編輯文字", "font_family": "Microsoft JhengHei", "font_size": 24,
+    }]
+    download = export_pptx(build_editable_deck(source.getvalue(), analyses, edits))
+
+    assert download[:2] == b"PK"
+    result = Presentation(io.BytesIO(download))
+    assert len(result.slides) == 1
+    texts = [shape.text for shape in result.slides[0].shapes if getattr(shape, "has_text_frame", False)]
+    pictures = [shape for shape in result.slides[0].shapes if shape.shape_type == MSO_SHAPE_TYPE.PICTURE]
+    assert "可編輯文字" in texts
+    assert len(pictures) == 1
