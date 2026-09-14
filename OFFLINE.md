@@ -153,3 +153,76 @@ tesseract 的繁中訓練檔已經在映像檔裡。EasyOCR 首次辨識會下�
 **Q：LLM 加值功能在離線環境還能用嗎？**
 可以，但要有**地端 LLM 伺服器**（Ollama / vLLM 等）並在管理區指向它。
 沒有的話，那些功能維持關閉，其餘工具完全不受影響。
+
+
+## 圖片式 PPT：外網建置 EasyOCR 完整離線映像
+
+以下流程適用於內網只執行 Docker container、不能在啟動後下載模型的環境。
+
+### 1. 在外網 amd64 Linux 主機建置
+
+```bash
+git checkout feature/ppt-image-text-editor
+git pull
+
+docker compose \
+  -f docker-compose.yml \
+  -f docker-compose.easyocr-offline.yml \
+  build --no-cache
+```
+
+建置會同時完成：
+
+- 安裝 EasyOCR 與 PyTorch。
+- 安裝 OpenCV 背景修復功能。
+- 下載繁體中文 `ch_tra` 與英文 `en` 模型。
+- 使用 `download_enabled=False` 再次載入模型，確認不依賴網路。
+
+> 建議在與內網伺服器相同架構的 amd64 Linux 主機建置。EasyOCR/PyTorch 映像通常超過 2 GB。
+
+### 2. 完全斷網驗證
+
+```bash
+docker run --rm --network none \
+  --entrypoint /app/.venv/bin/python \
+  jt-doc-tools:easyocr-offline \
+  -c "import easyocr; easyocr.Reader(['ch_tra','en'], gpu=False, download_enabled=False); print('offline EasyOCR OK')"
+```
+
+### 3. 匯出與校驗
+
+```bash
+docker save jt-doc-tools:easyocr-offline \
+  | gzip > jt-doc-tools-easyocr-offline-amd64.tar.gz
+
+sha256sum jt-doc-tools-easyocr-offline-amd64.tar.gz \
+  > jt-doc-tools-easyocr-offline-amd64.tar.gz.sha256
+```
+
+### 4. 內網匯入並直接啟動
+
+```bash
+sha256sum -c jt-doc-tools-easyocr-offline-amd64.tar.gz.sha256
+
+gunzip -c jt-doc-tools-easyocr-offline-amd64.tar.gz | docker load
+
+docker volume create jtdt-data
+
+docker run -d \
+  --name jt-doc-tools \
+  --restart unless-stopped \
+  -p 8765:8765 \
+  -e TZ=Asia/Taipei \
+  -v jtdt-data:/data \
+  jt-doc-tools:easyocr-offline
+```
+
+更新既有 container 時，先停止並移除舊 container；不要刪除 `jtdt-data` volume。
+
+```bash
+docker stop jt-doc-tools
+docker rm jt-doc-tools
+```
+
+啟動後執行 PPT OCR，結果旁的實際引擎應顯示 `easyocr`。若仍顯示
+`tesseract`，請確認管理後台 OCR 引擎設定與 VM 是否提供 AVX2。

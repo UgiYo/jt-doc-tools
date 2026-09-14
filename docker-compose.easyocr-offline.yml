@@ -1,0 +1,10 @@
+# Build on an internet-connected amd64 Linux host:
+#   docker compose -f docker-compose.yml -f docker-compose.easyocr-offline.yml build --no-cache
+# The resulting image contains EasyOCR, PyTorch, OpenCV and ch_tra+en models.
+services:
+  jt-doc-tools:
+    build:
+      args:
+        WITH_EASYOCR: "1"
+        PRELOAD_EASYOCR_MODELS: "1"
+    image: jt-doc-tools:easyocr-offline

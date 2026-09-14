@@ -24,6 +24,9 @@ FROM python:3.12-slim-bookworm AS base
 
 ARG WITH_OFFICE=1
 ARG WITH_EASYOCR=0
+# When enabled together with WITH_EASYOCR, download ch_tra+en model files during
+# the internet-connected build so the exported image works with --network none.
+ARG PRELOAD_EASYOCR_MODELS=0
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -103,6 +106,14 @@ RUN GPU_EXCL=$(python docker-gpu-excl.py) \
 RUN useradd --system --uid 10001 --create-home --home-dir /home/jtdt jtdt \
     && mkdir -p /data && chown -R jtdt:jtdt /data /app
 USER jtdt
+
+# Optional offline EasyOCR model layer. EasyOCR's default path for this user is
+# /home/jtdt/.EasyOCR/model, which is baked into docker save/load with the image.
+RUN if [ "$WITH_EASYOCR" = "1" ] && [ "$PRELOAD_EASYOCR_MODELS" = "1" ]; then \
+      /app/.venv/bin/python -c "import easyocr; easyocr.Reader(['ch_tra','en'], gpu=False, download_enabled=True); print('EasyOCR ch_tra+en models downloaded')" \
+      && /app/.venv/bin/python -c "import easyocr; easyocr.Reader(['ch_tra','en'], gpu=False, download_enabled=False); print('EasyOCR offline model verification passed')"; \
+    fi
+
 VOLUME ["/data"]
 EXPOSE 8765
 

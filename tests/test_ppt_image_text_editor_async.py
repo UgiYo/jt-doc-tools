@@ -46,3 +46,13 @@ def test_editable_conversion_is_persisted_and_resumable():
     assert "editableJobPanel" in TEMPLATE
     assert "pptImageTextEditor.editableJob.v1" in TEMPLATE
     assert "已送出背景處理，可離開此頁" in TEMPLATE
+
+
+def test_offline_easyocr_docker_build_preloads_models():
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    override = (ROOT / "docker-compose.easyocr-offline.yml").read_text(encoding="utf-8")
+    assert "ARG PRELOAD_EASYOCR_MODELS=0" in dockerfile
+    assert "easyocr.Reader(['ch_tra','en']" in dockerfile
+    assert "download_enabled=False" in dockerfile
+    assert 'WITH_EASYOCR: "1"' in override
+    assert 'PRELOAD_EASYOCR_MODELS: "1"' in override
