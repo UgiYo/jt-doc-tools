@@ -80,7 +80,7 @@
       <label for="realm">{{ tr('認證領域') }}</label>
       <select id="realm" name="realm">
         {% for r in realms %}
-        <option value="{{ r.id }}" {% if r.id == default_realm %}selected{% endif %}>{{ r.label }}</option>
+        <option value="{{ r.id }}" {% if r.id == default_realm %}selected{% endif %}>{{ tr(r.label) }}</option>
         {% endfor %}
       </select>
     </div>
@@ -103,8 +103,9 @@
     <div class="form-row">
       <label for="uiLocale">{{ tr('介面語言') }}</label>
       <select id="uiLocale" name="locale" form="loginLangForm">
-        <option value="zh-Hant" {% if ui_locale(request) == 'zh-Hant' %}selected{% endif %}>{{ tr('繁體中文') }}</option>
-        <option value="en" {% if ui_locale(request) == 'en' %}selected{% endif %}>English</option>
+        {% for code, name in ui_locales() %}
+        <option value="{{ code }}" {% if ui_locale(request) == code %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
       </select>
     </div>
 

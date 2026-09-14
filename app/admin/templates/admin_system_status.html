@@ -599,7 +599,7 @@ async function refreshDbs(thorough) {
     (d.databases || []).forEach((db) => {
       const rowEl = document.createElement('tr');
       const tdName = ssdbEl('td');
-      tdName.appendChild(ssdbEl('div', null, db.label));
+      tdName.appendChild(ssdbEl('div', null, tr(db.label)));
       tdName.appendChild(ssdbEl('div', 'ssdb-impact', db.file));
       rowEl.appendChild(tdName);
 

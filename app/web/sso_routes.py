@@ -137,8 +137,11 @@ def build_router(templates) -> APIRouter:
         txid = secrets.token_urlsafe(32)
         sso_store.save_oidc_tx(txid, state, nonce, safe_next(next),
                                time.time() + _SSO_TX_TTL)
+        # `secure` 看的是**瀏覽器這一段**是不是 https，不是我們送給 IdP 的
+        # redirect_uri —— 兩者在反向代理後面可能不一樣。全站同一支判斷。
+        from .auth_routes import is_https_request
         resp.set_cookie(_SSO_TX_COOKIE, txid, max_age=_SSO_TX_TTL, httponly=True,
-                        secure=redirect_uri.startswith("https"), samesite="lax", path="/")
+                        secure=is_https_request(request), samesite="lax", path="/")
         return resp
 
     @router.get("/auth/oidc/callback")

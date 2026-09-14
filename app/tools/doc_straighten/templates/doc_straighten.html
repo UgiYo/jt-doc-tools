@@ -38,7 +38,7 @@
       <label class="option-card">
         <span class="opt-ic">{{ icon('image', size=22) }}</span>
         <span class="opt-label">{{ d }} dpi</span>
-        <span class="opt-desc">{{ dpi_notes.get(d, '') }}</span>
+        <span class="opt-desc">{{ tr(dpi_notes.get(d, '')) if dpi_notes.get(d) else '' }}</span>
         <input type="radio" name="dsDpi" value="{{ d }}" {% if d == 200 %}checked{% endif %}>
       </label>
       {% endfor %}

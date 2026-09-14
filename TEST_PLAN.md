@@ -146,7 +146,7 @@ JTDT_DATA_DIR=$(mktemp -d) JTDT_CSRF_DISABLE=1 \
 > **判準刻意嚴格**：主控台有錯誤＝那一頁有一段程式碼沒跑到，
 > 而「沒跑到的是哪一段」永遠只有使用者會發現。
 
-## 0.6 英文介面 —— **只掃「頁面剛載入」的狀態是不夠的**（使用者要求，2026-09-05）
+## 0.6 英文 / 日文介面 —— **只掃「頁面剛載入」的狀態是不夠的**（使用者要求，2026-09-05）
 
 > **這一節是被打臉之後改寫的。** 第一版只在頁面載入後掃一次，跑出「0 條殘留」，
 > 我據此回報「全部翻完」。使用者接著一連截了十幾張圖：對話框、屬性面板、
@@ -172,11 +172,19 @@ JTDT_DATA_DIR=$(mktemp -d) JTDT_CSRF_DISABLE=1 \
 ### ② 瀏覽器逐頁掃 —— 看得到「執行期才生出來的字」
 
     JTDT_DATA_DIR=$(mktemp -d) JTDT_CSRF_DISABLE=1 uvicorn app.main:app --port 8799
-    python tools/i18n_untranslated_scan.py --base http://127.0.0.1:8799
+    python tools/i18n_untranslated_scan.py --locale en --base http://127.0.0.1:8799
+    python tools/i18n_untranslated_scan.py --locale ja --base http://127.0.0.1:8799
 
-- [ ] 回報 **0 條**
+- [ ] **每一個非中文語言各跑一次**都回報 **0 條**
+      （語言清單以 `app/core/ui_locale.SUPPORTED` 為準，不要只跑英文）
 - [ ] **知道它的極限**：只涵蓋「頁面載入後的靜止狀態」。對話框、要點開的面板、
       有資料才出現的表格、送出後的結果區**都不在裡面**。
+- [ ] **日文的判準跟英文不一樣**：英文頁「有漢字」就是沒翻，日文頁漢字是正常的。
+      日文看兩個訊號 ——「這串字剛好是語系檔的鍵**而且譯文不一樣**」（確定的 bug）、
+      以及「含有現代日文不會用的中文詞」（啟發式）。
+      **兩種誤報都要排掉**：譯文跟原文一樣的（通知 / 設定 / 項目…日文寫法相同）、
+      以及「它本身就是另一條的譯文」（`字元`→`文字`，而 `文字` 自己也是一個鍵）。
+      第一版沒排，82 頁全部中標、617 條裡幾乎都是誤報。
 
 ### ③ 人工逐頁操作 —— 前兩種都涵蓋不到的互動狀態
 
@@ -208,6 +216,38 @@ JTDT_DATA_DIR=$(mktemp -d) JTDT_CSRF_DISABLE=1 \
 - [ ] **不該翻的沒有翻**：品牌名、語言選項本身、欄位標籤同義詞字典、統編資料庫的
       公司名、會計科目規則的關鍵字、頁碼格式（會原樣印進 PDF）、格式預覽的範例、
       要複製去貼的組態檔範例 —— 這些顯示中文才是對的，容器上標 `data-i18n="skip"`。
+
+### ④ 下拉選單的文字（**掃字面 `tr('…')` 的守門一律看不到**）
+
+2026-09-14 加日文時一次抓到五處，**每一處在英文介面下也一樣是中文**，
+其中翻譯對照字典那兩個下拉從 v1.15.19 上線起就沒對過。共同點是
+「文字來自伺服器送來的資料」。
+
+- [ ] `pytest tests/test_i18n_dynamic_labels.py` 全綠 —— 它驗兩件事：
+      **①每一份「程式算出來的標籤」在每一個語言的語系檔裡都有**
+      （側欄管理區、資料庫清單、對照字典的語言、去識別化的文件語言、
+      文件拉正的解析度說明…），**②`<option>` 裡的運算式有沒有走 `tr()`**
+- [ ] 真的是資料的（使用者名稱、工具 id、事件代號、模型名稱、**語言的自稱**）
+      列進 `_OPTION_RAW_OK` 並**寫下理由** —— 沒有理由的豁免會變成永久的洞
+- [ ] **同一個家族要一次掃完**：文件去識別化與文字去識別化各有一份同樣的樣板，
+      只修其中一支的話另一支照樣是中文
+
+### ⑤ 加新語言時額外要做的（2026-09-14 加日文的清單）
+
+- [ ] 語言清單只改 `app/core/ui_locale.SUPPORTED` 與 `LOCALE_NAMES`
+      —— **生成器與守門一律從那裡讀**，不可以再寫死一次 `en`
+      （原本有八個地方各寫死一次，加第三種語言之後會安靜地只驗英文）
+- [ ] 截圖：`python tools/capture_locale_screenshots.py --locale <語言> --base …`
+      —— 介紹站要用**該語言介面**的截圖（`screenshots/<語言>/`）
+- [ ] 產生四份公開文件並**逐位元組驗過是最新生成的**：
+      `python3 github/build-i18n-page.py` ＋ `python3 github/build-i18n-md.py`
+- [ ] 語言切換是**列出其他所有語言**不是「切換」——
+      兩種語言時一顆按鈕就夠，三種之後站在 C 語言的頁上就沒有去 B 的出口了
+- [ ] **用詞守門要排掉語言版的檔案**（`README_ja.md` / `index-ja.html`）：
+      日文的「保存」「字体」是正確的日文，卻在中文禁用詞清單上
+- [ ] **語系檔的「譯文不可以有漢字」那條對中日韓不成立**，要換一條判準
+- [ ] **介面有那個語言 ≠ 去識別化支援那個語言的文件**：文件語言的預設值
+      不可以退回台灣那組（套錯是**抓錯**不是抓不到，而畫面顯示「已處理」）
 
 ## 0.7 新增管理頁的收尾清單 —— **這五樣漏一樣就會安靜出事**
 
@@ -462,7 +502,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 
 <!-- BEGIN test-index (由 tools/build_test_plan_index.py 產生，不要手改) -->
 
-共 **270 支測試檔**。說明取自每支檔案自己的開頭說明，
+共 **272 支測試檔**。說明取自每支檔案自己的開頭說明，
 跑 `python tools/build_test_plan_index.py` 重建。
 
 > 這裡**刻意不列函式數** —— 那個數字每加一條測試就會變，
@@ -516,6 +556,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_cli_update_rollback.py` | 升級失敗時要真的回復，而且訊息要說出實際結果（外部稽核 F03，v1.15.28） |
 | `test_client_ip_audit.py` | Client-IP resolution for audit / history / display — app/core/client_ip.py. |
 | `test_cookie_flags_on_delete.py` | 刪除 cookie 的回應也要帶安全旗標 |
+| `test_cookie_secure_flag.py` | 每一個 cookie 的 `secure` 旗標都要走同一支判斷 |
 | `test_cpu_limit.py` | CPU 限制（轉檔不影響網頁回應）的測試 |
 | `test_cpu_simd_probe.py` | CPU SIMD 指令集偵測 + sys-deps PyMuPDF 條目測試 |
 | `test_csp_nonce.py` | CSP nonce 靜態回歸測試（Phase 1：script-src 移除 'unsafe-inline'） |
@@ -537,6 +578,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_directory_role_assign.py` | 目錄瀏覽：指派角色給**單一使用者**與**群組**（原本只能指派給 OU） |
 | `test_directory_schema_matrix.py` | 目錄查詢要能在 **AD / OpenLDAP / UCS** 三種結構上都跑得起來 |
 | `test_directory_sync.py` | Scheduled AD/LDAP directory sync + the perf fixes it enables (v1.12.67). |
+| `test_doc_deident_default_doc_lang.py` | 去識別化的**預設文件語言**不可以因為介面語言而抓錯 |
 | `test_doc_deident_e2e.py` | 文件去識別化：**走完整條路徑**的驗收（issue #50 / #51） |
 | `test_doc_deident_english.py` | 英文文件的去識別化（第 2 批，v1.15.32） |
 | `test_doc_deident_english_e2e.py` | 英文文件去識別化的端到端（v1.15.32） |

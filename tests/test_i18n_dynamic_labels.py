@@ -23,8 +23,18 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 CJK = re.compile("[\u3400-\u9fff]")
 
 
-def _catalog() -> dict:
-    return json.loads((REPO / "app" / "i18n" / "en.json").read_text(encoding="utf-8"))
+def _catalog(locale: str = "en") -> dict:
+    return json.loads(
+        (REPO / "app" / "i18n" / f"{locale}.json").read_text(encoding="utf-8"))
+
+
+def _locales() -> list[str]:
+    """要驗哪些語言 —— **唯一來源是 `ui_locale.SUPPORTED`**。
+
+    寫死 `en` 的話，加了第三種語言之後這整支守門會**安靜地只驗英文**。
+    """
+    from app.core.ui_locale import DEFAULT_LOCALE, SUPPORTED
+    return [c for c in SUPPORTED if c != DEFAULT_LOCALE]
 
 
 def _deident_labels() -> list[str]:
@@ -177,6 +187,64 @@ def _llm_tool_labels() -> list[str]:
     return out
 
 
+def _database_labels() -> list[str]:
+    """系統狀態頁的資料庫清單（`db_health.DATABASES` 的 `label`）。
+
+    畫面上是 JS 依 API 回傳的資料畫出來的 —— 樣板掃字面 `tr()` 的守門看不到
+    （2026-09-14 日文版逐頁掃抓到「稽核記錄」「統編資料庫」兩條）。
+    """
+    import re as _re
+    src = (REPO / "app" / "core" / "db_health.py").read_text(encoding="utf-8")
+    return _re.findall(r'"label":\s*"([^"]+)"', src)
+
+
+def _glossary_language_names() -> list[str]:
+    """翻譯對照字典的語言下拉（`translate_doc._LANG_NAMES`）。
+
+    同上：`lang_choices()` 算出來的資料，下拉是 JS 拼的，
+    英文介面從這一頁上線起就一直顯示中文。
+    """
+    from app.tools.translate_doc.router import _LANG_NAMES
+    return list(_LANG_NAMES.values())
+
+
+def _admin_nav_labels() -> list[str]:
+    """側欄管理區每一項的名稱與說明（`app/main.py` 的 `_NAV_SETTINGS_ALL`）。
+
+    樣板端已經包了 `tr()`，缺的是**語系檔裡沒有那一條** —— 於是側欄在英文 /
+    日文介面下原樣顯示中文，而且**掃字面 `tr('…')` 的守門看不到**
+    （翻譯對照字典那一條從 v1.15.19 上線起就一直是中文，2026-09-14 逐頁掃
+    才抓到）。
+    """
+    import app.main as M
+    out: list[str] = []
+    for it in M._NAV_SETTINGS_ALL:
+        for k in ("name", "description"):
+            v = it.get(k)
+            if v and v not in out:
+                out.append(v)
+    for g in M._NAV_TOOL_GROUPS_ALL:
+        v = g.get("name")
+        if v and v not in out:
+            out.append(v)
+    return out
+
+
+def _deident_doc_languages() -> list[str]:
+    """去識別化的「文件語言」下拉（`patterns.DOC_LANGS`）。"""
+    from app.tools.doc_deident.patterns import DOC_LANGS
+    return [n for _c, n in DOC_LANGS]
+
+
+def _straighten_dpi_notes() -> list[str]:
+    """文件拉正的解析度說明（`_DPI_NOTES`）。"""
+    import re as _re
+    src = (REPO / "app" / "tools" / "doc_straighten"
+           / "router.py").read_text(encoding="utf-8")
+    body = src.split("_DPI_NOTES", 1)[1].split("}", 1)[0]
+    return _re.findall(r'"([^"]+)"', body)
+
+
 @pytest.mark.parametrize("name,getter", [
     ("去識別化樣態", _deident_labels),
     ("設定備份的類別", _settings_export_labels),
@@ -189,8 +257,72 @@ def _llm_tool_labels() -> list[str]:
     ("字型名稱", _font_labels),
     ("掃描工具欄位", _scan_tool_column_labels),
     ("LLM 工具清單", _llm_tool_labels),
+    ("資料庫清單", _database_labels),
+    ("對照字典的語言", _glossary_language_names),
+    ("側欄管理區", _admin_nav_labels),
+    ("去識別化的文件語言", _deident_doc_languages),
+    ("文件拉正的解析度說明", _straighten_dpi_notes),
 ])
-def test_dynamic_labels_have_english(name: str, getter):
-    cat = _catalog()
+@pytest.mark.parametrize("locale", _locales())
+def test_dynamic_labels_are_translated(locale: str, name: str, getter):
+    cat = _catalog(locale)
     missing = [s for s in getter() if CJK.search(s) and s not in cat]
-    assert not missing, f"{name} 有 {len(missing)} 條沒有英文：{missing[:8]}"
+    assert not missing, f"{name} 有 {len(missing)} 條沒有 {locale}：{missing[:8]}"
+
+
+# ---------------------------------------------------------------------------
+# `<option>{{ 變數 }}</option>` —— 掃字面 `tr('…')` 的守門看不到的那一類
+#
+# 2026-09-14 加日文時一次抓到四處：去識別化的文件語言（**兩支工具各一份，
+# 我只修了其中一支**）、文件拉正的解析度說明、登入頁的認證來源。
+# 三處的共同點是「下拉的文字來自伺服器送來的資料」——
+# **畫面上就是中文，而且沒有任何測試會紅**。
+#
+# 判準是「這個運算式有沒有走 `tr()`」，不是「這串字看起來像不像介面文字」。
+# 真的是資料的（使用者名稱、工具 id、模型名稱、語言的自稱）列進豁免，
+# **而且要寫理由** —— 沒有理由的豁免下一個人不敢動，就變成永久的洞。
+# ---------------------------------------------------------------------------
+
+#: `<option>` 裡**刻意不翻**的運算式。key 是樣板路徑尾段 + 運算式。
+_OPTION_RAW_OK = {
+    # 使用者名稱、工具 id、事件代號、模型名稱：都是資料不是介面文字
+    ("admin_uploads.html", "u"): "使用者名稱",
+    ("admin_uploads.html", "t"): "工具 id（ASCII）",
+    ("admin_history.html", "u"): "使用者名稱",
+    ("admin_audit.html", "e"): "事件代號（ASCII）",
+    ("llm_settings.html", "settings.model"): "模型名稱",
+    ("llm_settings.html", "_v"): "模型名稱",
+    # 語言選項的**自稱**：「日本語」在英文介面下也要是「日本語」
+    ("login.html", "name"): "語言的自稱，翻掉就選不到自己的語言",
+}
+
+_OPTION_RE = re.compile(r"<option\b[^>]*>\s*\{\{\s*([^}]+?)\s*\}\}\s*</option>")
+
+
+def test_option_labels_go_through_tr():
+    bad: list[str] = []
+    for p in sorted(REPO.joinpath("app").rglob("*.html")):
+        for m in _OPTION_RE.finditer(p.read_text(encoding="utf-8")):
+            expr = m.group(1).strip()
+            if expr.startswith("tr(") or "|" in expr:
+                continue
+            if (p.name, expr) in _OPTION_RAW_OK:
+                continue
+            bad.append(f"{p.relative_to(REPO).as_posix()}: {{{{ {expr} }}}}")
+    assert not bad, (
+        "下拉選項的文字沒有走 tr()（英文 / 日文介面下會原樣顯示中文）：\n"
+        + "\n".join(bad)
+        + "\n真的是資料的話請加進 _OPTION_RAW_OK 並寫下理由。")
+
+
+def test_the_option_exemptions_have_not_gone_stale():
+    """豁免清單裡的每一條都還要真的存在。
+
+    留著沒必要的豁免比沒有豁免更糟 —— 下一個人會以為那裡有一個已知的例外。
+    """
+    seen = set()
+    for p in REPO.joinpath("app").rglob("*.html"):
+        for m in _OPTION_RE.finditer(p.read_text(encoding="utf-8")):
+            seen.add((p.name, m.group(1).strip()))
+    stale = [k for k in _OPTION_RAW_OK if k not in seen]
+    assert not stale, f"豁免清單過期了：{stale}"

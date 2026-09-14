@@ -149,8 +149,41 @@ def _files() -> list[pathlib.Path]:
     pub = _public_root(ROOT)
     for pat in ("*.md", "docs/*.html"):
         out += list(pub.glob(pat))
-    return [p for p in out
-            if not any(part in p.relative_to(ROOT).as_posix() for part in EXEMPT_PARTS)]
+    out = [p for p in out
+           if not any(part in p.relative_to(ROOT).as_posix() for part in EXEMPT_PARTS)]
+    return [p for p in out if not _is_translated_copy(p)]
+
+
+def _translated_suffixes() -> tuple[str, ...]:
+    """其他語言版的檔名尾段（`_en.md` / `-ja.html` …）。
+
+    **從 `ui_locale.SUPPORTED` 算出來**，不要在這裡另外寫一份清單 ——
+    加第四種語言時就不必再改這支測試（同一份清單放兩個地方一定會漂）。
+    """
+    import sys as _sys
+    _sys.path.insert(0, str(ROOT))
+    from app.core.ui_locale import DEFAULT_LOCALE, SUPPORTED
+    out: list[str] = []
+    for code in SUPPORTED:
+        if code == DEFAULT_LOCALE:
+            continue
+        out += [f"_{code}.md", f"-{code}.html"]
+    return tuple(out)
+
+
+def _is_translated_copy(path: pathlib.Path) -> bool:
+    """這個檔案是不是「其他語言的版本」。
+
+    **這條豁免是必要的，不是偷懶**：這份守門是在抓「中文裡的大陸用詞」，
+    而日文的「保存」「字体」「品質」是**正確的日文**，卻剛好落在禁用詞表上
+    （中文要用「儲存」「字型」）。日文幾乎每一行都有漢字，不排掉的話整份
+    誤報 —— 而誤報一多，這份檢查就會被當成雜訊忽略掉，那比沒有檢查更糟。
+
+    判準放在**檔名**上（`README_ja.md` / `index-ja.html`），不是目錄 ——
+    語言版跟中文版放在同一層，用目錄分不出來。
+    """
+    name = path.name
+    return any(name.endswith(sfx) for sfx in _translated_suffixes())
 
 
 def _strip_comments(text: str, suffix: str) -> str:
@@ -334,3 +367,25 @@ def test_no_mainland_terms_in_latest_changelog_entry():
                 k in line for k in ("副檔名", "公司名稱", "前後綴")):
             bad.append(f"CHANGELOG(最新版):{i} 「後綴」在描述位置時請用「尾端」")
     assert not bad, "最新版 CHANGELOG 用了大陸用詞：\n" + "\n".join(bad[:20])
+
+
+def test_the_translated_copies_are_excluded_and_the_chinese_sources_are_not():
+    """豁免要**真的排掉東西**，而且只排掉語言版。
+
+    空的豁免跟沒有豁免一樣（這份守門就會繼續整片誤報）；
+    排過頭則會把中文原版一起排掉 —— 那等於這支測試安靜失效，
+    而「掃 0 個檔」跟「掃過都乾淨」在 pytest 輸出裡長得一模一樣
+    （本專案記過的雷）。
+    """
+    scanned = {p.name for p in _files()}
+    pub = _public_root(ROOT)
+    made = [p.name for sfx in _translated_suffixes()
+            for p in pub.glob(f"*{sfx}")] + \
+           [p.name for sfx in _translated_suffixes()
+            for p in (pub / "docs").glob(f"*{sfx}")]
+    assert made, "一個語言版檔案都找不到 —— 這條豁免在守什麼？"
+    left = sorted(n for n in made if n in scanned)
+    assert left == [], f"語言版沒有被排掉：{left}"
+    # 中文原版一定要還在掃描範圍內
+    for must in ("README.md", "index.html"):
+        assert must in scanned, f"中文原版 {must} 被排掉了 —— 豁免的判準太寬"

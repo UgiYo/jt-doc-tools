@@ -194,19 +194,20 @@
                並排的兩顆看起來像分頁切換，而且語言變多就排不下。 #}
             <button type="button" class="sb-menu-item" id="sbLangBtn" aria-expanded="false">
               {{ icon('globe', size=14) }} {{ tr('介面語言') }}
-              <span class="sb-menu-value">{% if ui_locale(request) == 'en' %}English{% else %}繁體中文{% endif %}</span>
+              {# 語言名稱一律用**該語言自己的寫法**（endonym），而且來源只有
+                 `ui_locale.LOCALE_NAMES` 一份 —— 寫死在樣板裡的話，每加一種
+                 語言就要改三處，漏改沒有任何錯誤訊息，只是選單少一項。 #}
+              <span class="sb-menu-value">{% for code, name in ui_locales() %}{% if ui_locale(request) == code %}{{ name }}{% endif %}{% endfor %}</span>
             </button>
             <form class="sb-submenu" id="sbLangMenu" hidden method="post" action="/ui-locale">
               <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
               <input type="hidden" name="next" value="{{ request.url.path }}">
-              <button type="submit" name="locale" value="zh-Hant"
-                      class="sb-menu-item is-sub{% if ui_locale(request) == 'zh-Hant' %} is-on{% endif %}">
-                <span class="sb-menu-tick">{% if ui_locale(request) == 'zh-Hant' %}{{ icon('check', size=13) }}{% endif %}</span>繁體中文
+              {% for code, name in ui_locales() %}
+              <button type="submit" name="locale" value="{{ code }}"
+                      class="sb-menu-item is-sub{% if ui_locale(request) == code %} is-on{% endif %}">
+                <span class="sb-menu-tick">{% if ui_locale(request) == code %}{{ icon('check', size=13) }}{% endif %}</span>{{ name }}
               </button>
-              <button type="submit" name="locale" value="en"
-                      class="sb-menu-item is-sub{% if ui_locale(request) == 'en' %} is-on{% endif %}">
-                <span class="sb-menu-tick">{% if ui_locale(request) == 'en' %}{{ icon('check', size=13) }}{% endif %}</span>English
-              </button>
+              {% endfor %}
             </form>
             <div class="sb-menu-sep"></div>
             <form id="logoutForm" method="post" action="/logout">

@@ -18,6 +18,8 @@ import re
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from tools.repo_paths import public_root  # noqa: E402
 
@@ -58,24 +60,49 @@ def test_the_site_links_to_it():
         assert 'troubleshooting.html' in t, f"{name} 沒有連到疑難排解頁"
 
 
-def test_the_english_pages_link_to_the_english_one():
-    """英文頁要連英文頁（使用者 2026-09-14）。
+def _locales() -> list[str]:
+    """中文以外的語言 —— **唯一來源是 `ui_locale.SUPPORTED`**。
+
+    寫死 `en` 的話，加了日文之後這條會**安靜地只驗英文**。
+    """
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from app.core.ui_locale import DEFAULT_LOCALE, SUPPORTED
+    return [c for c in SUPPORTED if c != DEFAULT_LOCALE]
+
+
+#: 語言切換那一組。**`id` 在 `<span>` 上不是在 `<a>` 上** ——
+#: 三語之後它是一組連結不是一顆切換鈕，用 `<a[^>]*id="langSwitch"` 去配
+#: 會一條都配不到，於是那幾條回中文頁的連結被當成「連錯了」
+#: （2026-09-14 加日文時這條就是這樣紅的）。
+_LANG_GROUP = re.compile(r'<(a|span)[^>]*id="langSwitch"[^>]*>.*?</\1>', re.S)
+
+
+@pytest.mark.parametrize("lang", _locales())
+def test_the_translated_pages_link_to_the_same_language(lang: str):
+    """某語言的頁要連同語言的頁（使用者 2026-09-14）。
 
     原本英文版的導覽連的是 `api.html`（中文頁）—— 讀者一點就掉回中文。
     """
-    assert (PUB / "docs" / "troubleshooting-en.html").exists(), "缺英文版疑難排解頁"
-    for name in ("index-en.html", "api-en.html", "troubleshooting-en.html"):
+    assert (PUB / "docs" / f"troubleshooting-{lang}.html").exists(), \
+        f"缺 {lang} 版疑難排解頁"
+    for name in (f"index-{lang}.html", f"api-{lang}.html",
+                 f"troubleshooting-{lang}.html"):
         t = (PUB / "docs" / name).read_text(encoding="utf-8")
-        # 語言切換那條**本來就要**指回中文頁，把它排除再看
-        without_switch = re.sub(r'<a[^>]*id="langSwitch"[^>]*>.*?</a>', "", t, flags=re.S)
-        bad = re.findall(r'href="(?:index|api|troubleshooting)\.html[^"]*"', without_switch)
-        assert not bad, f"{name} 連到中文頁：{sorted(set(bad))}"
+        # 語言切換那一組**本來就要**指回別的語言，把它排除再看
+        without_switch = _LANG_GROUP.sub("", t)
+        bad = re.findall(r'href="(?:index|api|troubleshooting)'
+                         r'(?:-[a-zA-Z-]+)?\.html[^"]*"', without_switch)
+        wrong = [b for b in bad if f"-{lang}.html" not in b]
+        assert not wrong, f"{name} 連到別的語言：{sorted(set(wrong))}"
         assert 'id="langSwitch"' in t, f"{name} 少了語言切換連結"
 
 
 def test_the_chinese_page_has_a_language_switch():
     t = (PUB / "docs" / "troubleshooting.html").read_text(encoding="utf-8")
-    assert 'href="troubleshooting-en.html"' in t, "中文頁少了切到英文的連結"
+    for lang in _locales():
+        assert f'href="troubleshooting-{lang}.html"' in t, \
+            f"中文頁少了切到 {lang} 的連結"
 
 
 def test_the_installers_print_the_url_when_they_fail():

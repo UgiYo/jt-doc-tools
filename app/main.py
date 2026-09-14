@@ -21,7 +21,7 @@ from .core.job_manager import job_manager
 from .logging_setup import get_logger, setup_logging
 from .tool_registry import discover_tools, mount_tools
 
-VERSION = "1.15.45"
+VERSION = "1.15.46"
 
 setup_logging("DEBUG" if settings.debug else "INFO")
 logger = get_logger(__name__)
@@ -675,6 +675,21 @@ def _tpl_ui_locale(request=None) -> str:
 
 templates.env.globals["ui_locale"] = _tpl_ui_locale
 
+
+def _tpl_ui_locales() -> "list[tuple[str, str]]":
+    """語言選單的唯一來源：`[(代碼, 自稱), …]`。
+
+    **樣板不要自己寫死語言清單** —— 原本是
+    `{% if ui_locale(request) == 'en' %}English{% else %}繁體中文{% endif %}`，
+    每加一種語言就要改三處（側欄按鈕的目前值、側欄的子選單、登入頁的下拉），
+    而且**漏改不會有任何錯誤訊息**，只是選單少一項。
+    """
+    from .core import ui_locale as _loc
+    return [(code, _loc.LOCALE_NAMES.get(code, code)) for code in _loc.SUPPORTED]
+
+
+templates.env.globals["ui_locales"] = _tpl_ui_locales
+
 # Override the static globals with callables that re-evaluate per request.
 templates.env.globals["nav_settings"] = _nav_settings_visible
 templates.env.globals["nav_tool_groups"] = _nav_tool_groups_visible
@@ -1001,9 +1016,14 @@ async def set_ui_locale(request: Request):
     # 擋得住的實作（含百分比解碼、反斜線、CRLF），共用它就好。
     back = safe_next(str(form.get("next") or "/"))
     resp = RedirectResponse(back, status_code=303)
+    # **`secure` 一律走 `is_https_request`** —— `request.url.scheme` 在反向代理
+    # 後面永遠是 http（本專案關掉了 uvicorn 的 proxy_headers），於是 https 站台
+    # 上這個 cookie 沒有 Secure 旗標（2026-09-14 ZAP 抓到；加了日文之後語言
+    # 切換多一條路徑，爬蟲才第一次 POST 到這裡）。
+    from .web.auth_routes import is_https_request
     resp.set_cookie(_loc.COOKIE_NAME, lang, max_age=_loc.COOKIE_MAX_AGE,
                     httponly=True, samesite="lax",
-                    secure=(request.url.scheme == "https"))
+                    secure=is_https_request(request))
     return resp
 
 

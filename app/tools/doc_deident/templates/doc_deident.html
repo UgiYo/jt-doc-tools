@@ -197,7 +197,7 @@
     <div class="field">
     <select id="ddDocLang">
       {% for code, name in doc_langs %}
-      <option value="{{ code }}" {% if code == default_doc_lang %}selected{% endif %}>{{ name }}</option>
+      <option value="{{ code }}" {% if code == default_doc_lang %}selected{% endif %}>{{ tr(name) }}</option>
       {% endfor %}
     </select>
     <div class="muted">{{ tr('決定套用哪一組偵測規則（台灣專屬的身分證 / 統編 / 市話，或英美的 SSN / IBAN / 郵遞區號）。換語言後請重新偵測。') }}</div>

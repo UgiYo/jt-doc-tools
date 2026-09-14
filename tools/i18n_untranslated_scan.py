@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""用真的瀏覽器把每一頁切成英文，掃出**畫面上還是中文**的字。
+"""用真的瀏覽器把每一頁切成某個語言，掃出**畫面上還是中文**的字。
 
 為什麼不用靜態掃描：模板裡沒包 `tr()` 的字串靜態掃得到，但**畫面上的中文**還有
 另外三種來源 —— ①JS 動態產生的節點 ②`title` / `placeholder` / `aria-label`
@@ -11,8 +11,17 @@
 會被雜訊淹掉、真正沒翻的反而被忽略。
 
 用法：
-    python tools/i18n_untranslated_scan.py --base http://127.0.0.1:8799
+    python tools/i18n_untranslated_scan.py --locale en --base http://127.0.0.1:8799
+    python tools/i18n_untranslated_scan.py --locale ja --base http://127.0.0.1:8799
 輸出：`temp/i18n-scan/<run>/report.json` + 螢幕上的摘要。
+
+**日文的判準跟英文不一樣**：英文頁上「有漢字」就是沒翻，日文頁上漢字是正常的。
+日文改看兩個訊號：
+  ① 這串字**剛好是語系檔的鍵** —— 代表我們明明有譯文，畫面上卻顯示中文
+     （`tr()` 沒包到、或字典沒載到）。這是**確定的** bug。
+  ② 這串字含有現代日文不會用的中文詞（`NOT_JAPANESE`）—— 那是
+     「整段沒收進語系檔」的訊號。這是**啟發式**的，抓得到「整段是中文」，
+     抓不到「翻得不好」。
 """
 from __future__ import annotations
 
@@ -29,6 +38,18 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
 CJK = re.compile("[㐀-鿿]")
+
+#: 現代日文不會用的中文詞。日文譯文 100% 含漢字，所以「有沒有漢字」對日文
+#: 完全不是判準；改成抓這些字當作「整段忘了翻」的訊號。
+#:
+#: **`的` 不可以放進來** —— 「一般的」「自動的」「現代的」都是正確的日文
+#: （第一版放了它，當場三條誤報）。這是啟發式的判準，只抓得到「整段留著
+#: 中文」，抓不到「翻得不好」。
+#:
+#: 只留這一份 —— `tests/test_i18n_catalog.py` 直接 import 它
+#: （本專案「同一份清單寫兩個地方一定會漂」）。
+NOT_JAPANESE = ("這", "那個", "嗎", "們", "什麼", "沒有", "可以",
+                "這樣", "一下", "請按", "喔", "很")
 
 # 出現在英文介面上仍然正確的中文（不是漏翻）。
 ALLOW_SUBSTR = (
@@ -113,15 +134,44 @@ def _is_html(base: str, path: str) -> bool:
         return False
 
 
-def _keep(t: str) -> bool:
+def _catalog_keys(locale: str) -> set[str]:
+    """該語言語系檔裡**譯文跟原文不一樣、而且本身不是某條譯文**的鍵。
+
+    畫面上出現這些字就是「有譯文卻沒用到」。兩種誤報都要排掉，
+    **誤報一多這份檢查就會被當雜訊忽略**（用詞守門那次的教訓）：
+
+    * **譯文跟原文一樣**：日文有大量詞跟中文寫法完全相同（通知 / 設定 /
+      項目 / 標準 / 位置 / 容量 / 科目…）。第一版只看「是不是鍵」，
+      82 頁全部中標、617 條裡幾乎都是這一類。
+    * **它本身就是另一條的譯文**：`字元` 的日文譯文剛好是 `文字`，而 `文字`
+      自己也是一個鍵（譯成「テキスト」）—— 於是正確翻好的欄位標題被判成
+      「沒翻」。同類的還有 `小時`→`時間`、`必填`→`必須`。
+    """
+    f = REPO / "app" / "i18n" / f"{locale}.json"
+    if not f.is_file():
+        return set()
+    data = json.loads(f.read_text(encoding="utf-8"))
+    values = {v.strip() for v in data.values()}
+    return {k for k, v in data.items()
+            if v.strip() != k.strip() and k.strip() not in values}
+
+
+def _keep(t: str, locale: str, keys: set[str]) -> bool:
     if t in ALLOW_EXACT:
         return False
+    raw = t
     for a in ALLOW_SUBSTR:
         t = t.replace(a, "")
-    return bool(CJK.search(t))
+    if not CJK.search(t):
+        return False
+    if locale == "ja":
+        # 日文頁上漢字是正常的 —— 見模組開頭那兩個訊號。
+        return raw.strip() in keys or any(w in t for w in NOT_JAPANESE)
+    return True
 
 
-async def _scan(base: str, cdp_port: int, paths: list[str]) -> dict:
+async def _scan(base: str, cdp_port: int, paths: list[str],
+                locale: str) -> dict:
     import httpx
     import websockets
 
@@ -164,8 +214,9 @@ async def _scan(base: str, cdp_port: int, paths: list[str]) -> dict:
             await cmd("Runtime.enable")
             await cmd("Network.enable")
             host = base.split("//", 1)[-1].split(":")[0].split("/")[0]
-            await cmd("Network.setCookie", {"name": "jtdt_locale", "value": "en",
+            await cmd("Network.setCookie", {"name": "jtdt_locale", "value": locale,
                                             "domain": host, "path": "/"})
+            keys = _catalog_keys(locale)
             report: dict = {}
             for path in paths:
                 await cmd("Page.navigate", {"url": base + path})
@@ -178,7 +229,7 @@ async def _scan(base: str, cdp_port: int, paths: list[str]) -> dict:
                     items = []
                 skip = ALLOW_BY_PAGE.get(path, ())
                 hits = [i for i in items
-                        if _keep(i["text"]) and i["where"] not in skip]
+                        if _keep(i["text"], locale, keys) and i["where"] not in skip]
                 if hits:
                     report[path] = hits
             return report
@@ -187,14 +238,18 @@ async def _scan(base: str, cdp_port: int, paths: list[str]) -> dict:
 
 
 def main() -> int:
+    from app.core import ui_locale
+
+    langs = [c for c in ui_locale.SUPPORTED if c != ui_locale.DEFAULT_LOCALE]
     ap = argparse.ArgumentParser()
+    ap.add_argument("--locale", default="en", choices=langs)
     ap.add_argument("--base", default="http://127.0.0.1:8799")
     ap.add_argument("--cdp-port", type=int, default=9412)
     args = ap.parse_args()
 
     paths = [p for p in _pages(args.base) if _is_html(args.base, p)]
-    print(f"掃 {len(paths)} 頁…")
-    report = asyncio.run(_scan(args.base, args.cdp_port, paths))
+    print(f"掃 {len(paths)} 頁（語言 {args.locale}）…")
+    report = asyncio.run(_scan(args.base, args.cdp_port, paths, args.locale))
     out = REPO / "temp" / "i18n-scan" / time.strftime("%Y%m%d-%H%M%S")
     out.mkdir(parents=True, exist_ok=True)
     (out / "report.json").write_text(

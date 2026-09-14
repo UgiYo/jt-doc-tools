@@ -54,11 +54,89 @@ def test_catalog_entries_are_all_traditional_chinese_keys():
     """
     # 中文標點也算 —— `<b>A</b>，<b>B</b>` 中間那個逗號本身就是要翻的片段
     cjk = re.compile(r"[㐀-鿿、。，：；！？（）「」《》…—]")
-    for k, v in catalog("en").items():
-        assert cjk.search(k), f"key 不是中文原文：{k!r}"
-        # 譯文只擋**漢字**：`…` 這類標點在英文裡也用得到（"Search tools…"），
-        # 用同一個寬鬆的字元集去擋會誤報。
-        assert not re.search(r"[㐀-鿿]", v), f"英文譯文裡不該有中文：{k!r} -> {v!r}"
+    for locale in SUPPORTED:
+        if locale == DEFAULT_LOCALE:
+            continue
+        for k, v in catalog(locale).items():
+            assert cjk.search(k), f"[{locale}] key 不是中文原文：{k!r}"
+            if locale == "en":
+                # 譯文只擋**漢字**：`…` 這類標點在英文裡也用得到
+                # （"Search tools…"），用同一個寬鬆的字元集去擋會誤報。
+                assert not re.search(r"[㐀-鿿]", v), \
+                    f"英文譯文裡不該有中文：{k!r} -> {v!r}"
+
+
+#: 現代日文散文幾乎不用的中文字。**這是啟發式，不是正確性檢查** ——
+#: 它抓得到「整段忘了翻、原樣留著中文」，抓不到「翻得爛」。後者只有母語者
+#: 看得出來，不要假裝測試涵蓋得到。
+#:
+#: 收的都是**日文不會用**的：`這/那個/嗎`、`們`、`什麼`、`沒有`、`可以`、
+#: `這樣`、`一下`、`很`。像 `設定`、`管理`、`文書` 這種中日同形的詞
+#: **不可以收** —— 那是正確的日文。
+#:
+#: **`的` 一定不可以收**（我第一版收了，第一批就誤報三條）：日文的
+#: `一般的` / `自動的` / `現代的` 是形容動詞語尾，是**正確的日文**。
+#: 誤報一多，這份檢查就會被當雜訊忽略 —— 那比沒有檢查更糟
+#:（用詞守門那次的教訓）。
+#: **唯一來源在掃描器裡** —— 瀏覽器逐頁掃也用同一份判準，
+#: 兩邊各寫一份一定會漂（本專案反覆踩過）。
+from tools.i18n_untranslated_scan import NOT_JAPANESE as _NOT_JAPANESE
+
+
+def test_the_japanese_catalog_is_not_just_chinese_left_in_place():
+    """日文語系檔裡不可以留著沒翻的中文。
+
+    **英文那條判準（譯文不可以有漢字）對日文完全不成立** —— 日文譯文
+    100% 會有漢字。改成抓「現代日文不會用的中文字」，那是
+    「這一條整段忘了翻」的訊號。
+    """
+    bad = []
+    for k, v in catalog("ja").items():
+        hit = [w for w in _NOT_JAPANESE if w in v]
+        if hit:
+            bad.append((k, v, hit))
+    assert bad == [], (
+        "日文譯文裡有中文沒翻掉（前 3 條）：" + repr(bad[:3])
+        + "　—— 這是啟發式判準，只抓得到「整段留著中文」")
+
+
+def test_no_translation_slipped_into_a_wrong_script():
+    """譯文裡不可以混進**西里爾 / 希臘 / 諺文**。
+
+    翻 4,883 條的時候手滑打成別的字集是真的會發生的（第一批就有一條把
+    「省略」打成西里爾字母的 `скип`）。這種錯**看起來只是一個詞怪怪的**，
+    而且沒有任何測試會紅 —— 日文譯文本來就不是拉丁字母，字集檢查是唯一
+    抓得到的方式。
+    """
+    import re as _re
+
+    wrong = _re.compile(r"[\u0400-\u04FF\u0370-\u03FF\uAC00-\uD7AF]")
+    bad = []
+    for locale in SUPPORTED:
+        if locale == DEFAULT_LOCALE:
+            continue
+        for k, v in catalog(locale).items():
+            hit = wrong.findall(v)
+            if hit:
+                bad.append((locale, k, "".join(sorted(set(hit)))))
+    assert bad == [], f"譯文混進了別的字集：{bad[:3]}"
+
+
+def test_the_japanese_catalog_covers_what_it_claims_to():
+    """**已收錄的條目不可以是空的或原樣照抄。**
+
+    `catalog()` 會把空值濾掉，所以「翻了一半」在畫面上只是回退中文 ——
+    不會壞，但也看不出來。這條釘住「檔案裡出現過的條目都真的翻了」。
+    """
+    import json
+    from pathlib import Path as _P
+
+    path = _P(__file__).resolve().parent.parent / "app" / "i18n" / "ja.json"
+    if not path.exists():
+        pytest.skip("還沒有日文語系檔")
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    empty = [k for k, v in raw.items() if not str(v).strip()]
+    assert empty == [], f"日文語系檔有空值（前 3 條）：{empty[:3]}"
 
 
 def test_domain_data_modules_never_use_the_translation_helper():
@@ -149,11 +227,19 @@ def _keys_in_scripts() -> set[str]:
 
     這些是**執行期**才求值的（按鈕文字、錯誤訊息），走 `static/js/i18n.js`
     的 `window.tr`，跟樣板端的 `{{ tr() }}` 是兩條路，要分開收。
+
+    **註解要先去掉**：解釋這條規則的註解裡常會寫 `tr('…')` 當例子，
+    不去註解的話那個例子會被當成一條真的鍵，然後這支守門就報「有一條沒翻」
+    —— 這正是本專案反覆記過的「掃描器被它要檢查的那個名字騙到」
+    （2026-09-14 又踩一次，被自己新寫的註解報出來）。
     """
+    from tools.source_text import strip_js_comments
+
     out: set[str] = set()
     for p in TEMPLATES:
         for m in _JS_BLOCK.finditer(p.read_text(encoding="utf-8")):
-            out |= {k.group(2) for k in _JS_CALL.finditer(m.group(1))}
+            out |= {k.group(2)
+                    for k in _JS_CALL.finditer(strip_js_comments(m.group(1)))}
     return out
 
 

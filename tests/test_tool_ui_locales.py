@@ -45,16 +45,27 @@ def test_traditional_chinese_still_shows_every_tool(tools):
     assert hidden == [], f"繁體中文底下不應該有工具被藏起來：{hidden}"
 
 
-def test_english_locks_exactly_the_chinese_only_tools(tools):
-    """英文底下這七支**反灰點不下去**（不是藏起來 —— 使用者要求）。
+def _non_chinese_locales() -> list[str]:
+    """中文以外的介面語言 —— **唯一來源是 `ui_locale.SUPPORTED`**。
+
+    寫死 `en` 的話，加了日文之後這條會**安靜地只驗英文**
+    （加日文那一輪就發現整支測試只認 `en`）。
+    """
+    from app.core.ui_locale import SUPPORTED
+    return [c for c in SUPPORTED if not c.startswith("zh")]
+
+
+@pytest.mark.parametrize("locale", _non_chinese_locales())
+def test_other_languages_lock_exactly_the_chinese_only_tools(tools, locale: str):
+    """中文以外的介面底下這七支**反灰點不下去**（不是藏起來 —— 使用者要求）。
 
     印章那兩支曾經也在裡面，2026-09-05 解除 —— **限制要有理由**：
-    這七支是「英文文件丟進去會執行成功但什麼都沒抓到」，
-    蓋章不是（英文 PDF 一樣蓋得上去）。
+    這七支是「非中文文件丟進去會執行成功但什麼都沒抓到」，
+    蓋章不是（英文 / 日文 PDF 一樣蓋得上去）。
     """
     locked = {t.metadata.id for t in tools
-              if not tool_visible(t.metadata.locales, "en")}
-    assert locked == _TAIWAN_ONLY | _CHINESE, locked
+              if not tool_visible(t.metadata.locales, locale)}
+    assert locked == _TAIWAN_ONLY | _CHINESE, (locale, locked)
 
 
 def test_simplified_chinese_keeps_the_seal_tools(tools):
@@ -69,17 +80,18 @@ def test_simplified_chinese_keeps_the_seal_tools(tools):
     assert _CHINESE & locked == set()
 
 
-def test_locked_tools_are_still_listed(tools):
+@pytest.mark.parametrize("locale", _non_chinese_locales())
+def test_locked_tools_are_still_listed(tools, locale: str):
     """**反灰不等於消失** —— 側欄仍然列得出全部工具，只是有幾支點不下去。"""
     import app.main as app_main
 
     class _En:
-        cookies = {"jtdt_locale": "en"}
+        cookies = {"jtdt_locale": locale}
         headers: dict = {}
 
     groups = app_main._nav_groups_for_locale(_En())
     listed = {t["id"] for g in groups for t in g["tools"]}
-    assert listed == {t.metadata.id for t in tools}, "英文底下不可以少列任何一支"
+    assert listed == {t.metadata.id for t in tools}, f"{locale} 底下不可以少列任何一支"
     locked = {t["id"] for g in groups for t in g["tools"] if t.get("locked")}
     assert locked == _TAIWAN_ONLY | _CHINESE, locked
 

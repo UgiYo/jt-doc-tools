@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Jason Tools ドキュメントツールボックス：統合型の PDF / Office 文書処理プラットフォーム。48 個のツールで一括処理：フォーム入力、押印と署名、透かし、OCR 文字認識、送付前チェック、機微情報の匿名化、PDF 暗号化、隠れた内容のスキャン、差分比較、一文ずつ翻訳、電子請求書の処理、統一番号の照会など。LDAP / AD 認証、SSO シングルサインオン（OIDC / SAML / Kerberos）、ロール権限、監査、ログ転送も選べます。クラウドに出さず、データは自分の手元に残ります。">
+<title>Jason Tools ドキュメントツールボックス — PDF / Office 統合型文書処理プラットフォーム</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ======== Top nav ======== -->
+<header class="topbar">
+  <div class="container topbar-inner">
+    <a class="brand" href="#top">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-name">Jason Tools ドキュメントツールボックス</div>
+        <div class="brand-sub">jt-doc-tools</div>
+      </div>
+    </a>
+    <!-- 導覽只放最常用的幾項 —— 項目太多反而找不到東西。
+         工作區 / 背景作業 / 企業管理 / 免責 這幾段**內容仍然在頁面上**，
+         各自的 id 也保留著（#workspace / #jobs / #enterprise / #disclaimer），
+         所以既有的直接連結、書籤、外部引用都還到得了，只是不佔導覽版面。 -->
+    <nav class="topnav" id="topnav">
+      <a href="#why" class="nav-link">なぜ自前で建てるのか</a>
+      <a href="#features" class="nav-link">機能</a>
+      <a href="#llm" class="nav-link">AI 付加機能</a>
+      <a href="#screenshots" class="nav-link">画面</a>
+      <a href="#directory" class="nav-link">AD / LDAP</a>
+      <a href="#install" class="nav-link">インストール</a>
+      <a href="api-ja.html" class="nav-link">API</a>
+      <a href="troubleshooting-ja.html" class="nav-link">トラブルシューティング</a>
+      <span id="langSwitch" class="nav-lang-group"><a href="index.html" class="nav-link nav-lang" hreflang="zh-Hant" lang="zh-Hant">繁體中文</a><a href="index-en.html" class="nav-link nav-lang" hreflang="en" lang="en">English</a></span>
+      <a class="btn btn-outline nav-github" href="https://github.com/jasoncheng7115/jt-doc-tools" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.2 1.9 1.2 1.1 1.9 2.9 1.4 3.6 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg>
+        GitHub
+      </a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" type="button" aria-label="メニューを展開" aria-controls="topnav" aria-expanded="false">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+  </div>
+</header>
+<script>
+(function () {
+  var toggle = document.getElementById('navToggle');
+  var nav = document.getElementById('topnav');
+  if (!toggle || !nav) return;
+  toggle.addEventListener('click', function () {
+    var open = nav.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  // Click a link closes the menu (on mobile)
+  nav.addEventListener('click', function (e) {
+    if (e.target.closest('a') && nav.classList.contains('open')) {
+      nav.classList.remove('open');
+      toggle.setAttribute('aria-expanded', 'false');
+    }
+  });
+  // Click outside closes
+  document.addEventListener('click', function (e) {
+    if (!nav.contains(e.target) && !toggle.contains(e.target) && nav.classList.contains('open')) {
+      nav.classList.remove('open');
+      toggle.setAttribute('aria-expanded', 'false');
+    }
+  });
+})();
+</script>
+
+<!-- ======== Hero ======== -->
+<section id="top" class="hero">
+  <div class="hero-bg"></div>
+  <div class="container hero-inner">
+    <div class="hero-eyebrow">オープンソース · クラウドに出さない · 自社のサーバールームで動く</div>
+    <h1 class="hero-title">
+      社内の文書をオンラインの PDF ツールに預けるのはもうやめませんか<br>
+      <span class="hero-title-accent">48 個のツールを、自前で、オープンソースで、管理下に</span>
+    </h1>
+    <p class="hero-lead">
+      フォームの自動入力、押印と署名、透かし、機微情報の匿名化、PDF 暗号化、メタデータの消去、隠れた内容のスキャン、差分比較、ページ編集…
+      LDAP / AD 認証、SSO シングルサインオン（OIDC / SAML / Kerberos）、ロール権限、監査、ログ転送も選べます。<br>
+      <b>ファイルの処理はすべてあなたのサーバー上だけで行われ、ソースコードは完全に公開されています。</b>
+    </p>
+    <div class="hero-cta">
+      <a class="btn btn-primary btn-lg" href="#install">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+        ワンライナーでインストール
+      </a>
+      <a class="btn btn-ghost btn-lg" href="https://github.com/jasoncheng7115/jt-doc-tools" target="_blank" rel="noopener">
+        GitHub で見る
+      </a>
+    </div>
+    <div class="hero-shot">
+      <img src="screenshots/ja/index.png" alt="Jason Tools ドキュメントツールボックスのメイン画面 — 48 個のツール一覧" loading="lazy">
+    </div>
+  </div>
+</section>
+
+<!-- ======== Why self-host ======== -->
+<section id="why" class="section section-why">
+  <div class="container">
+    <div class="section-eyebrow">なぜ自前で建てるのか？</div>
+    <h2 class="section-title">PDF の処理をオンラインツールに投げますか？その時点でデータは外に出ています。</h2>
+    <p class="section-lead">
+      ネット上には「無料」の PDF / 画像 / Office 処理ツールがたくさんあります：フォーム入力、押印、結合、圧縮、署名、暗号化…<br>
+      数クリックで手軽ですが、<b>あなたのファイルは他人のサーバーにアップロードされます</b>。契約書、人事、財務、顧客情報、身分証、銀行口座 —— 本当に安心できますか？
+    </p>
+
+    <div class="why-grid">
+      <div class="why-col why-col-bad">
+        <div class="why-h">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          オンライン PDF ツールの不安
+        </div>
+        <ul>
+          <li>ファイルが第三者のサーバーにアップロードされ、<b>いつ本当に削除されたのか確認できません</b></li>
+          <li>多くはソースコードが公開されておらず、<b>サーバー側でデータがどう扱われているかわかりません</b></li>
+          <li>無料版には<b>プライバシーポリシーの変更</b>や、<b>あなたのファイルで AI を学習させる</b>条項がよくあります</li>
+          <li>身分証 / 銀行口座 / 顧客リスト / 契約書のアップロード = <b>個人情報保護法 / GDPR のリスク</b></li>
+          <li>社内ネットワークの監査から見えず、SIEM も受け取れないため、<b>コンプライアンスを追跡できません</b></li>
+          <li>国や拠点をまたぐ転送がデータの越境という懸念を招きます</li>
+        </ul>
+      </div>
+
+      <div class="why-col why-col-good">
+        <div class="why-h">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          ローカルでの自前構築 + オープンソースなら安心できます
+        </div>
+        <ul>
+          <li><b>ファイルは決してあなたのサーバーから出ません</b> —— 第三者 API も telemetry もありません</li>
+          <li><b>ソースコードが公開されています</b>（AGPL-3.0）—— 監査したいものはすべて確認できます</li>
+          <li><b>監査記録はあなたの SQLite に書き込まれ</b>、社内の SIEM へリアルタイムに転送できます（syslog / CEF / GELF）</li>
+          <li><b>ロールと権限マトリクス</b>：誰がどのツールを使えるかを会社が管理できます</li>
+          <li><b>個人情報保護法 / GDPR への対応</b>：データは自社のサーバールーム / 社内ネットワークに残ります</li>
+          <li><b>ワンライナーでインストール</b>でき、既存の Linux / macOS / Windows で動くため、ライセンス費用を節約できます</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== Features ======== -->
+<section id="features" class="section section-light">
+  <div class="container">
+    <div class="section-eyebrow">中核機能</div>
+    <h2 class="section-title">48 個のツール、5 つの分類</h2>
+    <p class="section-lead">どのツールにも専用のページがあり、左のサイドバーからワンクリックで切り替えられます。処理結果はすべて PDF または画像でダウンロードできます。</p>
+    <div class="ofc-callout">
+      <span class="ofc-callout-ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+      </span>
+      <div class="ofc-callout-body">
+        <b>用語について</b>：本サイトでいう<b>文書ファイル</b>は .docx / .odt、<b>表計算</b>は .xlsx / .ods、<b>プレゼンテーション</b>は .pptx / .odp、<b>PDF</b> は .pdf を指します。<b>オフィス文書</b>はこの 4 分類の<b>総称</b> —— ツールが複数の形式を同時に受け付けられるときにこう呼びます。
+      </div>
+    </div>
+
+    <div class="ofc-callout">
+      <span class="ofc-callout-ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      </span>
+      <div class="ofc-callout-body">
+        <b>Office エンジンが必要なツール</b>にはレンチのアイコンが付きます。これらのツールは <b>Word / Excel / PowerPoint / ODF</b> を扱うときに <b>OxOffice</b> または <b>LibreOffice</b>を使います（OxOffice を優先します。OSSII が維持する台湾ローカライズ版の fork で、CJK のサポートがより充実しています）。残りの 28 個のツールは PDF / プレーンテキスト / 画像のみを扱うため、Office エンジンは<b>不要</b>です。インストールスクリプトが OxOffice を自動で検出 / 追加インストールします。
+      </div>
+    </div>
+
+    <div class="feat-grid">
+      <article class="feat-card">
+        <div class="feat-ic feat-ic-1">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+        </div>
+        <h3>フォーム入力と押印</h3>
+        <ul class="feat-list">
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><path d="m9 14 2 2 4-4"/></svg></span>
+            <div class="fl-text"><span class="fn">フォームの自動入力<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">取引先のフォームをアップロードすると、項目を自動認識して会社情報を入力します（Office 形式の入力にはエンジンが必要です）</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7v6c0 4.4 3.4 7.6 8 8 4.6-.4 8-3.6 8-8V7l-8-4z"/><path d="m9 12 2 2 4-4"/></svg></span>
+            <div class="fl-text"><span class="fn">押印と署名</span><span class="fd">印章 / 署名 / ロゴを適用します。一括処理と位置の微調整にも対応します</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7s6 5.6 6 10.3a6 6 0 0 1-12 0c0-4.7 6-10.3 6-10.3z"/></svg></span>
+            <div class="fl-text"><span class="fn">透かし</span><span class="fd">不透明度、角度、敷き詰めまたは位置指定</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 4v16"/></svg></span>
+            <div class="fl-text"><span class="fn">割印<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">1 つの印章を数片に切って連続したページにまたがって押すことで、差し替えやページ抜けが一目でわかります。またがるページ数、位置、角度をすべて設定できます（文書ファイルの入力にはエンジンが必要です）</span></div>
+          </li>
+        </ul>
+      </article>
+
+      <article class="feat-card">
+        <div class="feat-ic feat-ic-2">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16z"/><path d="M14 6l4 4"/></svg>
+        </div>
+        <h3>ファイル編集</h3>
+        <ul class="feat-list">
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4z"/></svg></span>
+            <div class="fl-text"><span class="fn">PDF エディタ</span><span class="fd">テキスト / 画像 / 図形 / 白地マスク / 注釈を重ねます</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V5a1 1 0 0 1 1-1h4"/><path d="M20 9V5a1 1 0 0 0-1-1h-4"/><path d="M4 15v4a1 1 0 0 0 1 1h4"/><path d="M20 15v4a1 1 0 0 1-1 1h-4"/><path d="m9 9 6 6"/><path d="m15 9-6 6"/></svg></span>
+            <div class="fl-text"><span class="fn">PDF の圧縮</span><span class="fd">3 段階のプリセット、または詳細設定で DPI やフォントのサブセット化を指定</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+            <div class="fl-text"><span class="fn">複数ページの結合 （N-up）<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">2/4/6/8/9/16 ページを 1 枚にまとめます</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v4a1 1 0 0 1-1 1H3"/><path d="M16 3v4a1 1 0 0 0 1 1h4"/><path d="M8 21v-4a1 1 0 0 0-1-1H3"/><path d="M16 21v-4a1 1 0 0 1 1-1h4"/><path d="M12 8v8"/><path d="M9 12h6"/></svg></span>
+            <div class="fl-text"><span class="fn">ファイルの結合 / ページの分割</span><span class="fd">基本的な PDF 操作</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></span>
+            <div class="fl-text"><span class="fn">ページの回転 / ページの整理 / ページ番号</span><span class="fd">レイアウトと編集の調整</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg></span>
+            <div class="fl-text"><span class="fn">ページへの枠線追加<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">各ページに枠線を追加します。太さ / 色 / 線種 / 角丸 / 二重枠 / 影を設定でき、スライドへの枠線追加が主な用途です（文書ファイルの入力にはエンジンが必要です）</span></div>
+          </li>
+            <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg></span>
+            <div class="fl-text"><span class="fn">文書のまっすぐ補正<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">傾いて撮影・傾いてスキャンされた文書をまっすぐにし、黒い縁を切り取り、むらのある下地を除きます。スマートフォンでの撮影では紙の四隅を検出して透視補正し、ページごとに補正角度と残りの傾きを報告します。PDF、画像、文書ファイルを受け付けます（文書ファイルの入力にはエンジンが必要です）</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h13"/><path d="M3 12h13"/><path d="M3 18h13"/><path d="M19 4v16l3-3"/></svg></span>
+            <div class="fl-text"><span class="fn">しおりと目次<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">しおり（ビューア左側のナビゲーション）とクリックできる目次ページを追加します。複数ファイルを一緒にアップロードすると自動で連結し、ファイル名で第 1 階層のしおりを作成します。子文書のしおりは 1 階層下げて保持します —— 入札案件 / 年次報告書で特に効果があります（文書ファイルの入力にはエンジンが必要です）</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="12" height="16" rx="1"/><rect x="9" y="3" width="12" height="12" rx="1"/></svg></span>
+            <div class="fl-text"><span class="fn">ページサイズの統一<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">サイズが混在したページを 1 種類の用紙（A4 / A3 / 任意）にそろえます。縮小して余白 / 縮小せず中央 / 切り取って埋める から選べ、縦横の混在も自動で向きを合わせます。内容はベクターのまま保たれ、テキストも選択できます（文書ファイルの入力にはエンジンが必要です）</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></span>
+            <div class="fl-text"><span class="fn">注釈のフラット化</span><span class="fd">注釈をページの内容に焼き込み、受取側が削除できないようにします。フォーム項目は入力可能なまま残します</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg></span>
+            <div class="fl-text"><span class="fn">スキャンの合成</span><span class="fd">証明書類の表裏など複数のスキャンから、内容のあるブロックを自動で切り出し、元の色を保ったまま元の位置どおりに 1 枚の A4 白地に合成します。ドラッグで微調整でき、薄い灰色の下地は自動で白くします</span></div>
+          </li>
+        </ul>
+      </article>
+
+      <article class="feat-card">
+        <div class="feat-ic feat-ic-3">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </div>
+        <h3>内容の処理</h3>
+        <ul class="feat-list">
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></span>
+            <div class="fl-text"><span class="fn">テキストを抽出<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">TXT / Markdown / Word / ODT として出力します（Word/ODT の出力にはエンジンが必要です）。LLM による段落の再構成も選べます</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></span>
+            <div class="fl-text"><span class="fn">画像を抽出</span><span class="fd">埋め込み画像を自動で重複除去し、選んで ZIP でダウンロードできます</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21 12-9.5 9.5a5 5 0 0 1-7-7l9.5-9.5a3.5 3.5 0 0 1 5 5L9.5 19.5a2 2 0 0 1-3-3L15 8"/></svg></span>
+            <div class="fl-text"><span class="fn">PDF 添付ファイル抽出</span><span class="fd">PDF に埋め込まれたファイルを取り出します （EmbeddedFiles）</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></svg></span>
+            <div class="fl-text"><span class="fn">文字数の集計<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">総文字数 / 文字 / 段落 / 文 + 4 種類のインタラクティブなグラフ + CSV/JSON/Markdown のエクスポート。PDF / オフィス文書 / プレーンテキストを受け付けます（オフィス文書は先に PDF に変換してから集計します）</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11l5-5V5a2 2 0 0 0-2-2h-3.5"/><path d="M15 3v6h6"/><path d="M9 12h4M9 16h2"/></svg></span>
+            <div class="fl-text"><span class="fn">注釈の整理</span><span class="fd">PDF の注釈を抽出し、完全な一覧 / レビューレポート / やることリストとして出力します（CSV / JSON / Markdown）。種類 / 作成者で絞り込めます</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg></span>
+            <div class="fl-text"><span class="fn">一文ずつ翻訳<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">ローカルの LLM に接続して一文ずつ翻訳し、左に原文、右に訳文を並べて表示します。テキストの貼り付けでも PDF / DOCX / TXT のアップロードでも可能で、翻訳先の言語は既定の繁体字中国語から変更できます</span></div>
+          </li>
+<li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg></span>
+            <div class="fl-text"><span class="fn">文書の翻訳<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">オフィス文書全体を別の言語に翻訳し、同じ形式・同じレイアウトのファイルを出力します。テキストだけを置き換えてレイアウトは組み直さず、Word / Excel / PowerPoint と ODF に対応し、翻訳後は先頭 6 ページのプレビューが付きます</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h13l5 5v11a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M16 4v5h5"/><path d="m7 14 3 3 5-5"/></svg></span>
+            <div class="fl-text"><span class="fn">OCR 文字認識</span><span class="fd">スキャンした PDF / 画像を選択可能なテキストにします。2 つのエンジン（既定は EasyOCR、予備は Tesseract）を備え、日中韓の認識精度が高く、LLM による typo の補正も選べます。<b>外部 GPU 認識サーバーに対応</b>（DGX Spark / H100 / 4090 など）、<b>速度 10 倍以上</b></span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span>
+            <div class="fl-text"><span class="fn">リスト処理</span><span class="fd">テキストを貼り付けるかファイル（txt / csv / xlsx / docx / pdf など）をアップロードし、1 行 1 件として並べ替え / 重複除去 / 絞り込み / 先頭末尾の抽出 / 大文字小文字の変換を行います。複数の操作を組み合わせられ、結果はワンクリックでコピーするか txt / csv / xlsx でダウンロードできます</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="14" y1="14" x2="14" y2="14.01"/><line x1="17" y1="14" x2="17" y2="14.01"/><line x1="20" y1="14" x2="20" y2="14.01"/><line x1="14" y1="17" x2="17" y2="17"/><line x1="20" y1="17" x2="20" y2="17.01"/><line x1="14" y1="20" x2="14" y2="20.01"/><line x1="17" y1="20" x2="20" y2="20"/></svg></span>
+            <div class="fl-text"><span class="fn">電子請求書の処理</span><span class="fd">台湾の電子請求書の QR を読み取って請求書番号 / 日付 / 金額 / 統一番号を取り出し、売り手名 + 業種 + 勘定科目を自動で入力します（ルール + 任意で LLM）。経費精算チェックと当期チェックに対応し、7 種類の形式でエクスポートできます</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><line x1="4" y1="10" x2="20" y2="10"/><circle cx="8" cy="15" r="1.2"/><circle cx="16" cy="15" r="1.2"/></svg></span>
+            <div class="fl-text"><span class="fn">乗車証明の整理</span><span class="fd">台鉄 / 台湾高鉄 / Uber の乗車証明 PDF を読み込ませると、日付 / 交通手段 / 出発-到着 / 費用を自動で表に整理します。項目はカスタマイズでき、7 種類の形式で経費精算用にエクスポートできます</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+            <div class="fl-text"><span class="fn">統一番号の照会</span><span class="fd">8 桁の統一番号を逆引きするほか、会社 / 官公庁 / 学校の名称、住所、業種であいまい検索できます。分類での絞り込み、一括照会、CSV エクスポート付き</span></div>
+          </li>
+        </ul>
+      </article>
+
+      <article class="feat-card">
+        <div class="feat-ic feat-ic-4">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        </div>
+        <h3>形式の変換</h3>
+        <ul class="feat-list">
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg></span>
+            <div class="fl-text"><span class="fn">オフィス文書 → PDF<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">Word / Excel / PowerPoint / ODF を一括で PDF に変換します</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4 3 8l4 4"/><path d="M3 8h14"/><path d="m17 12 4 4-4 4"/><path d="M21 16H7"/></svg></span>
+            <div class="fl-text"><span class="fn">オフィス文書の形式変換<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">同じ種類の文書どうしの相互変換：文書ファイル、表計算、プレゼンテーションがそれぞれ相互変換でき、.docx / .xlsx / .pptx ではバージョンも指定できます</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="14" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 13-5-5L5 17"/><path d="M12 21v-4"/><path d="m9 18 3 3 3-3"/></svg></span>
+            <div class="fl-text"><span class="fn">オフィス文書 → 画像<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">各ページを PNG に変換します。DPI は 5 段階から選べます （100 の下書き → 400 の印刷）</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="14" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 13-5-5L5 17"/><path d="M14 22h8"/><path d="M18 18v8"/><path d="m15 25 3 3 3-3"/></svg></span>
+            <div class="fl-text"><span class="fn">画像 → PDF</span><span class="fd">複数の画像をドラッグし、各ページの並べ替え / 回転 / 削除をしてから 1 つの PDF として出力します。ページサイズも選べます</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 15V9l3 3 3-3v6"/><path d="M16 9v4"/><path d="m14.5 11.5 1.5 1.5 1.5-1.5"/></svg></span>
+            <div class="fl-text"><span class="fn">PDF → Markdown</span><span class="fd">PDF を構造化された Markdown に変換し、見出し / 表 / 太字を保持します。LLM や RAG の前処理に向いています</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></span>
+            <div class="fl-text"><span class="fn">Markdown → オフィス文書<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">Markdown を貼り付けるかドラッグし、テーマを適用して PDF / DOCX / ODT として出力します。全ページのプレビュー付きです</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 18 3-3 3 3"/><path d="M12 15v6"/></svg></span>
+            <div class="fl-text"><span class="fn">PDF → 文書ファイル（Beta）<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">PDF を Word (.docx) / OpenDocument (.odt) に逆変換します。3 つのエンジンから選べます：pdf2docx、自社の jtdt-reform、jtdt-layout のレイアウト再現（レイアウトはほぼ 1:1）。レイアウト、表、画像を復元します</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="m8 11 2.5 2.5L16 8"/></svg></span>
+            <div class="fl-text"><span class="fn">PDF → プレゼンテーション<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">PDF を PowerPoint (.pptx) / OpenDocument プレゼンテーション (.odp) に逆変換します。1 ページが 1 枚のスライドに対応し、スライドサイズは原本のままです</span></div>
+          </li>
+        </ul>
+      </article>
+
+      <article class="feat-card">
+        <div class="feat-ic feat-ic-5">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3>セキュリティ処理</h3>
+        <ul class="feat-list">
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+            <div class="fl-text"><span class="fn">送付前チェック<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">送付前の自動チェック：ページサイズ、フォントの埋め込み、項目の欠落、機微情報の残留、隠れた内容（Office 形式の入力にはエンジンが必要です）</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.5 13.5 0 0 0 2 12s3 8 10 8a9.7 9.7 0 0 0 5.39-1.61"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="m2 2 20 20"/></svg></span>
+            <div class="fl-text"><span class="fn">文書の匿名化<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">マイナンバー / 携帯電話 / Email / 統一番号 / アカウントなどの機微な項目を検出し、墨消しまたはマスキングができます。</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg></span>
+            <div class="fl-text"><span class="fn">テキストの匿名化<span class="ofc-mark" title="OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">プレーンテキスト版：テキストを貼り付けるか .txt / .md / .docx をアップロードします。IT 情報（IP / hostname / AD DN / API token など）も追加で検出するため、logs を AI に渡す前に整理できます。</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+            <div class="fl-text"><span class="fn">PDF のパスワード保護 / 解除</span><span class="fd">AES-256 暗号化、権限の制御</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
+            <div class="fl-text"><span class="fn">メタデータの消去</span><span class="fd">作成者 / タイトル / XMP / 変更履歴をワンクリックで消去</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/></svg></span>
+            <div class="fl-text"><span class="fn">隠れた内容のスキャン</span><span class="fd">JavaScript / 埋め込みファイル / 隠しテキスト / 外部リンクなどのリスクをワンクリックで消去</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="18" rx="1"/><rect x="13" y="3" width="8" height="18" rx="1"/></svg></span>
+            <div class="fl-text"><span class="fn">文書の差分比較<span class="ofc-mark" title="Office 形式の入力には OxOffice / LibreOffice が必要"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span></span><span class="fd">2 つの文書を並べて比較 —— PDF / Word / Excel / PowerPoint / ODF（Office は自動で先に PDF に変換します）</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="18" rx="1"/><rect x="13" y="3" width="8" height="18" rx="1"/><path d="M5 8h4M5 12h4M15 8h4M15 14h4"/></svg></span>
+            <div class="fl-text"><span class="fn">テキストの差分比較</span><span class="fd">2 組のテキストをそのまま貼り付けてその場で比較 —— アップロード不要で、log / code / 段落の推敲の差分をすばやく確認できます</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></span>
+            <div class="fl-text"><span class="fn">注釈の消去</span><span class="fd">PDF の注釈を削除します。すべて / 作成者別 / 種類別に絞り込めます</span></div>
+          </li>
+        </ul>
+      </article>
+
+      <article class="feat-card feat-card-accent">
+        <div class="feat-ic feat-ic-6">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <h3>チーム / 企業</h3>
+        <ul class="feat-list">
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-2 2"/><path d="M15.5 7.5 19 4"/><circle cx="11" cy="13" r="6"/><path d="m12.5 11.5 2.5 2.5"/></svg></span>
+            <div class="fl-text"><span class="fn">複数レルムの認証</span><span class="fd">ローカル / LDAP / AD。同名のアカウントが別のレルムに所属できます （<code>username@realm</code>）</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span>
+            <div class="fl-text"><span class="fn">ロールと権限マトリクス （RBAC）</span><span class="fd">6 つの組み込みロール + カスタム。ユーザー / グループ / OU に対応</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+            <div class="fl-text"><span class="fn">監査記録 + ログ転送</span><span class="fd">syslog / CEF / GELF。SIEM に接続できます</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.5-3.5L12 17"/></svg></span>
+            <div class="fl-text"><span class="fn">企業ロゴ · タイトルのカスタマイズ</span><span class="fd">貴社のロゴとブランドのタイトルに差し替え、ログインページ / サイドバーをまとめて置き換えます</span></div>
+          </li>
+          <li>
+            <span class="fl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15 1.65 1.65 0 0 0 3.09 14H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+            <div class="fl-text"><span class="fn">API tokens · フォント管理 · ファイルの保持</span><span class="fd">完全な管理画面</span></div>
+          </li>
+        </ul>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ======== User Workspace (v1.11) ======== -->
+<section id="workspace" class="section section-light">
+  <div class="container">
+    <div class="section-eyebrow">v1.11 の新機能</div>
+    <h2 class="section-title">マイワークスペース：ツールをまたいでファイルを一時保存し、いつでも取り出せます</h2>
+    <p class="section-lead">どのツールで生成した PDF / PNG もワンクリックでサーバーに保存でき、本人のアカウントからだけ見えます。どのツールのアップロード欄からもワンクリックで取り出して再利用できるため、ファイルを探し直したりアップロードし直したりする必要がありません。管理者は機能のオン/オフと、容量・保持期間の一元管理ができます。</p>
+
+    <div class="ent-grid">
+      <div class="ent-card">
+        <div style="width:44px;height:44px;border-radius:12px;background:#eef2ff;color:#4338ca;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>
+        </div>
+        <h3>ワークスペースに保存</h3>
+        <p>各ツールが出力した <b>PDF / PNG</b> をワンクリックでサーバーに残し、<b>アカウント単位で分離</b>して本人だけが見られます。「マイワークスペース」ページで直接ドラッグしてアップロードしたり、トップページでサムネイルを確認したり、一括削除したりもできます。</p>
+      </div>
+
+      <div class="ent-card">
+        <div style="width:44px;height:44px;border-radius:12px;background:#ecfdf5;color:#047857;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+        </div>
+        <h3>ワークスペースから読み込む</h3>
+        <p>どのツールのアップロード欄からもワンクリックで取り出せるため、<b>ツールをまたいだ受け渡し</b>（OCR → 押印 → 匿名化 …）で、同じファイルをツール間でダウンロードし直してアップロードし直す必要がありません。</p>
+      </div>
+
+      <div class="ent-card">
+        <div style="width:44px;height:44px;border-radius:12px;background:#fff7ed;color:#c2410c;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1l2.1-2.1M17 7l2.1-2.1"/></svg>
+        </div>
+        <h3>管理者による制御</h3>
+        <p><b>機能全体のオン/オフ</b>（無効にすると完全に非表示）、<b>1 人あたりの容量</b>、1 ファイルの上限、保持時間を一元的に設定でき、ユーザーの使用分を空にすることもできます。認証が無効のときは、スタンドアロンの共用ワークスペースになります。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="jobs" class="section section-light">
+  <div class="container">
+    <div class="section-eyebrow">v1.14 の新機能</div>
+    <h2 class="section-title">バックグラウンドジョブと完了通知：送信したらタブを閉じてかまいません</h2>
+    <p class="section-lead">変換、OCR、一文ずつ翻訳のような時間のかかる作業はサーバーに任せられるため、進捗バーを見張る必要がありません。完了するとこちらから通知し、結果は自動的に「マイワークスペース」に残ります。管理者側からはサイト全体のキューとリソース使用量が見え、すべての並列上限も変更できます。</p>
+
+    <div class="ent-grid">
+      <div class="ent-card">
+        <div style="width:44px;height:44px;border-radius:12px;background:#eef2ff;color:#4338ca;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        </div>
+        <h3>27 個のツールがバックグラウンドジョブに対応</h3>
+        <p>PDF → 文書ファイル / プレゼンテーション、OCR 文字認識、一文ずつ翻訳、圧縮、結合、透かし、押印…<b>送信後はそのままタブを閉じてかまいません</b>。「マイジョブ」ページで進捗、キューの順番、経過時間を確認でき、途中でキャンセルもできます。出力が単一ファイルでないツール（一文ずつ翻訳など）では、戻ると<b>元のページに復帰</b>して続きを確認できます。</p>
+      </div>
+
+      <div class="ent-card">
+        <div style="width:44px;height:44px;border-radius:12px;background:#ecfdf5;color:#047857;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        </div>
+        <h3>完了したらこちらから通知</h3>
+        <p>サイト内通知に未読数を表示します。<b>Email</b> では、サイトのロゴとツールのアイコンを含む通知メールを送ります。ほかに Telegram / Slack / Teams / Discord / LINE / Webhook など 8 種類のチャネルにも接続できます（現時点では<b>開発段階</b>で、実際のサービスでの検証はまだ行っていません）。メッセージにはツール名、ファイル名、状態のみを含み、<b>ファイルの内容は含みません</b>。</p>
+      </div>
+
+      <div class="ent-card">
+        <div style="width:44px;height:44px;border-radius:12px;background:#fff7ed;color:#c2410c;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2 6 4-14 2 8h6"/></svg>
+        </div>
+        <h3>web の応答が常に優先</h3>
+        <p>変換プロセスは優先度を下げ、<b>使えるコア数も制限します</b>（既定で web 用に 1 つ確保）。そのため大きなファイルの変換中でも画面は固まりません —— 変換自体が少し遅くなるだけです。ディスパッチの前にメモリを見積もり、足りなければ<b>キューで順番待ち</b>させ、無理に開始してマシンを落とすことはありません。ジョブの状態はデータベースに保存されるため、サービスを再起動しても消えません。</p>
+      </div>
+
+      <div class="ent-card">
+        <div style="width:44px;height:44px;border-radius:12px;background:#fef3c7;color:#b45309;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3L4 14h6l-1 7 9-11h-6z"/></svg>
+        </div>
+        <h3>優先的な処理（割り込み）</h3>
+        <p>管理者は<b>少数のユーザー</b>を指定できます —— 経営層や、期限のある重要な作業です。その人たちが送信したジョブは<b>キューの先頭に入り</b>、次にディスパッチされるのはそのジョブになります。<b>実行中のジョブは中断しません</b>（変換の途中で強制終了しても中途半端な成果物しか残りません）。効果は「今すぐ交代」ではなく「次はあなた」です。リストの中では互いに先着順のままで、メモリが足りないときは同じく順番待ちになります。</p>
+      </div>
+
+      <div class="ent-card">
+        <div style="width:44px;height:44px;border-radius:12px;background:#e0e7ff;color:#3730a3;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18"/><path d="M3 12h18"/><path d="M3 19h18"/><circle cx="7" cy="5" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="10" cy="19" r="1.6"/></svg>
+        </div>
+        <h3>管理者にはすべてが見えます</h3>
+        <p>サイト全体のジョブ一覧：<b>誰が送信したか、どのツールか、どのファイルか、何番目か、何分動いているか</b>を確認でき、進行中のみの表示や、1 件ずつの<b>キャンセル</b>もできます。メンテナンス前には<b>ディスパッチを一時停止</b>して、実行中のものは終わらせつつ新しいものは開始しないようにできます（実行中の変換は独立した子プロセスのため凍結できません —— 画面にはそのとおり説明し、押せば止まると誤解させません）。</p>
+      </div>
+
+      <div class="ent-card">
+        <div style="width:44px;height:44px;border-radius:12px;background:#dcfce7;color:#15803d;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
+        </div>
+        <h3>性能が見え、上限も変更できます</h3>
+        <p>実行中 / 順番待ちの件数、Office 変換の占有、CPU とメモリの使用量が同じページにまとまっており、<b>クリックすると履歴の推移グラフ</b>を表示します。メモリは<b>子プロセスを実測した</b>数字です（実際にメモリを使うのは soffice です）。5 つの並列上限はすべて変更でき、しかも<b>大きく入力しても実際に使えるメモリで頭打ちになります</b>。</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ======== AD / LDAP directory management (v1.14.16) ======== -->
+<section id="directory" class="section">
+  <div class="container">
+    <div class="section-eyebrow">v1.14 の新機能</div>
+    <h2 class="section-title">AD / LDAP：企業ディレクトリに安定して接続し、運用もできます</h2>
+    <p class="section-lead">接続できるのは出発点にすぎません。実際に問題になるのは次のような点です：主要 DC の再起動、権限を主要グループに付けたのに反映されない、退職した人がシステムに残っている、アカウントが他人に使われる。今回はこれらをすべて手当てしました。</p>
+
+    <div class="ent-grid">
+      <div class="ent-card">
+        <div style="width:44px;height:44px;border-radius:12px;background:#eef2ff;color:#4338ca;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v6H4z"/><path d="M4 14h16v6H4z"/><path d="M8 7h.01"/><path d="M8 17h.01"/></svg>
+        </div>
+        <h3>複数のドメインコントローラーによる冗長化</h3>
+        <p>サーバーのアドレスは<b>複数台</b>入力でき（カンマまたは改行区切り）、順に試します —— 主要 DC のメンテナンスや再起動のときは自動で次の 1 台に切り替わるため、全社員がログインできなくなることはありません。接続にも照会にもタイムアウトがあり、DC につながらないときは<b>数秒以内に明確なメッセージを返す</b>ので、ユーザーがシステム障害と思い込むまで待たされることもありません。停止していた DC は復旧すると自動的にローテーションに戻ります。</p>
+      </div>
+
+      <div class="ent-card">
+        <div style="width:44px;height:44px;border-radius:12px;background:#ecfdf5;color:#047857;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 11h5"/><path d="M18.5 8.5 21 11l-2.5 2.5"/></svg>
+        </div>
+        <h3>AD の主要グループも有効</h3>
+        <p>AD の<b>主要グループ（primaryGroupID）は memberOf に現れません</b> —— これは AD 連携で最も踏みやすい落とし穴です。ある部署を主要グループに設定して権限を付けると、メンバーが誰も権限を受け取れず、しかも AD ユーザーの「所属するグループ」タブでも<b>まったく原因がわかりません</b>。現在は主要グループも自動的に権限の解決に含めます。OpenLDAP にはこの概念がないため、動作はまったく変わりません。</p>
+      </div>
+
+      <div class="ent-card">
+        <div style="width:44px;height:44px;border-radius:12px;background:#fef2f2;color:#b91c1c;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6"/><path d="M9 9l6 6"/></svg>
+        </div>
+        <h3>退職 / 無効化されたアカウントが見えます</h3>
+        <p>ディレクトリ同期はもともと<b>増えるだけ</b>でした：AD 側で人を無効化したり削除したりしても、本サイトのアカウント、ロールの割り当て、グループ所属はすべて残り、「このシステムに今誰がいるのか」に答えられませんでした。現在はユーザー一覧に<b>「ディレクトリに存在しません」</b>と<b>「AD 側で無効」</b>の 2 つのビューとバッジがあります。判定は<b>完全スキャンのみ</b>を根拠とします —— 名称の絞り込み付きの同期ではディレクトリの一部しか見えず、それを基準にすると組織全体を退職扱いにしてしまうためです。</p>
+      </div>
+
+      <div class="ent-card">
+        <div style="width:44px;height:44px;border-radius:12px;background:#fff7ed;color:#c2410c;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9"/><path d="M8 7l4-4 4 4"/><path d="M4 15h16v6H4z"/></svg>
+        </div>
+        <h3>一括での無効化と、その安全弁</h3>
+        <p>「ディレクトリに存在しません」は数百人、十数ページに及ぶこともあります —— ワンクリックで<b>すべて無効化</b>でき、押す前に試算して<b>実際に何人に影響するか</b>を表示します。同期後に<b>自動で無効化</b>する設定もできます（<b>既定は無効</b>）。重要なのは安全弁です：一度に変更する人数がディレクトリのアカウント総数の 20% を超えると、<b>バッチ全体を中止し、1 人も変更しません</b> —— サービスアカウントのパスワード期限切れや検索範囲の変更で「全社員が消えた」ように見えることがあり、そのときは何もしないのが正解だからです。しかも<b>無効化するだけで削除はしません</b>。アカウントも権限の割り当ても残るため、本人が戻ってきたらワンクリックで復元できます。</p>
+      </div>
+
+      <div class="ent-card">
+        <div style="width:44px;height:44px;border-radius:12px;background:#e0e7ff;color:#3730a3;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/></svg>
+        </div>
+        <h3>今、誰がログインしているか</h3>
+        <p>ユーザー一覧に<b>オンライン人数</b>をそのまま表示します（同じ人がブラウザーを 3 つ開いていても 1 人と数えます）。アカウントごとに現在の<b>ログイン端末</b>（ブラウザーと OS、送信元アドレス、最終アクティビティ時刻）を確認でき、<b>個別または一括で強制ログアウト</b>できます。操作は監査記録に残ります。アカウント漏えいが疑われるときは、パスワードを変更しなくてもまずすべての端末を切断できます。</p>
+      </div>
+
+      <div class="ent-card">
+        <div style="width:44px;height:44px;border-radius:12px;background:#f5f3ff;color:#6d28d9;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/></svg>
+        </div>
+        <h3>権限の割り当てに、相手のログインを待つ必要はありません</h3>
+        <p>ディレクトリの参照からどのユーザーをクリックしても<b>そのままロールを割り当てられます</b>。一度ログインしてもらう必要はないため、新入社員は初日から使えます。「所属グループ」の各行からも、その場でグループ権限を設定できます。従来は OU 全体にしか割り当てられませんでしたが、「この OU の中で財務はこの 2 人だけ」というのが実務では最もよくある要件です。</p>
+      </div>
+
+      <div class="ent-card">
+        <div style="width:44px;height:44px;border-radius:12px;background:#dcfce7;color:#15803d;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/><path d="M11 8v3l2 1"/></svg>
+        </div>
+        <h3>「結局この人は何が使えるのか」が一目でわかります</h3>
+        <p>権限の出どころは 4 か所に散らばっており（直接割り当てたロール、<b>入れ子の上位グループ</b>を含むグループ、OU、ツールの直接付与）、何かあったときに説明が困難でした。ユーザーの編集時に<b>実効権限</b>パネルを開くと、その人が最終的にどのツールを使えるのか、<b>どの項目がどのルール由来か</b>まで表示します。監査への回答や引き継ぎの説明にそのまま使えます。</p>
+      </div>
+
+      <div class="ent-card">
+        <div style="width:44px;height:44px;border-radius:12px;background:#fef3c7;color:#b45309;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        </div>
+        <h3>パスワードの期限切れを先に把握できます</h3>
+        <p>パスワードの期限切れは、ユーザーから見ると「<b>急にログインできなくなった</b>」という症状で、そのあとで管理者に問い合わせが来ます。現在は一覧に<b>あと何日で期限切れか</b>を表示します（期限切れは別途表示）ので、事前に知らせられます。日付は<b>AD 自身が計算した値を読んでいる</b>ため、細かなパスワードポリシー（PSO）が適用されている人や「パスワードを無期限にする」を設定している人でも正確です —— ドメインの全体設定から自分で推定すると誤った値になります。</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ======== Screenshots showcase ======== -->
+<section id="screenshots" class="section section-dark">
+  <div class="container">
+    <div class="section-eyebrow eyebrow-light">実際の画面</div>
+    <h2 class="section-title section-title-light">見たままが結果になります</h2>
+    <p class="section-lead section-lead-light">どのツールも独立したページで、左のサイドバーからいつでも切り替えられます。以下は主なツールの実際のスクリーンショットです。</p>
+
+    <div class="ss-grid">
+
+      <figure class="ss-row">
+        <div class="ss-text">
+          <div class="ss-num">01</div>
+          <h3>フォームの自動入力</h3>
+          <p>取引先情報シート / 申請書（PDF / Word / Excel / ODF）をアップロードすると、システムが項目を自動認識して会社の基本情報で入力します。1 つの profile が 1 社に対応し、複数の会社の切り替えも手間がかかりません。</p>
+          <div class="ss-tags">
+            <span class="tag">PDF</span>
+            <span class="tag">Word</span>
+            <span class="tag">Excel</span>
+            <span class="tag">ODF</span>
+            <span class="tag">複数の会社</span>
+          </div>
+        </div>
+        <div class="ss-img">
+          <img src="screenshots/ja/fill.png" alt="フォームの自動入力 —— 項目を自動認識して会社情報を入力" loading="lazy">
+        </div>
+      </figure>
+
+      <figure class="ss-row reverse">
+        <div class="ss-text">
+          <div class="ss-num">02</div>
+          <h3>押印と署名</h3>
+          <p>印章 / 署名 / ロゴ画像を PDF にドラッグして配置でき、見たままが結果になります。編集モードではその場でドラッグでき、合成モードではページごとにプレビューできます（ページの切り替え + 前後ページのボタン + キーボードの左右キー）。一括処理にも対応します。</p>
+          <div class="ss-tags">
+            <span class="tag">ドラッグで配置</span>
+            <span class="tag">ページごとのプレビュー</span>
+            <span class="tag">一括</span>
+            <span class="tag">アセット管理</span>
+          </div>
+        </div>
+        <div class="ss-img">
+          <img src="screenshots/ja/stamp.png" alt="押印と署名 —— 印章をドラッグして配置し、その場でプレビュー" loading="lazy">
+        </div>
+      </figure>
+
+      <figure class="ss-row">
+        <div class="ss-text">
+          <div class="ss-num">03</div>
+          <h3>透かし</h3>
+          <p>画像またはテキストの透かし。不透明度、角度、サイズをすべて調整でき、敷き詰めることも指定した位置に置くこともできます。ページの content stream に直接書き込むため、受け取った側が PDF から簡単に取り除くことはできません。</p>
+          <div class="ss-tags">
+            <span class="tag">画像の透かし</span>
+            <span class="tag">テキストの透かし</span>
+            <span class="tag">敷き詰め</span>
+            <span class="tag">透明度</span>
+          </div>
+        </div>
+        <div class="ss-img">
+          <img src="screenshots/ja/watermark.png" alt="透かし —— 不透明度、角度、敷き詰め" loading="lazy">
+        </div>
+      </figure>
+
+      <figure class="ss-row reverse">
+        <div class="ss-text">
+          <div class="ss-num">04</div>
+          <h3>文書の匿名化</h3>
+          <p>マイナンバー / 携帯電話 / Email / 統一番号 / クレジットカード / 銀行口座 / 会社名 / 人名などの個人情報を自動で検出します。処理は 2 種類です：<b>墨消し （Redaction）</b> —— PDF の内容ストリームから本当に除去し、元に戻せません。<b>データマスキング （Masking）</b> —— 形式は保ったまま内容を伏せるため、外部に出しやすくなります。</p>
+          <div class="ss-tags">
+            <span class="tag tag-danger">個人情報保護法</span>
+            <span class="tag">Redaction</span>
+            <span class="tag">Masking</span>
+            <span class="tag">8 分類以上</span>
+          </div>
+        </div>
+        <div class="ss-img">
+          <img src="screenshots/ja/deident-1.png" alt="文書の匿名化 —— 8 分類の機微情報を検出" loading="lazy">
+        </div>
+      </figure>
+
+      <figure class="ss-row">
+        <div class="ss-text">
+          <div class="ss-num">05</div>
+          <h3>文書の匿名化：墨消し結果のプレビュー</h3>
+          <p>上記の<b>文書の匿名化</b>で検出したあと、機微な項目ごとに残す / 除去をチェックで選び、墨消し後の効果をその場でプレビューできます。出力は元の PDF（<b>内容ストリームから本当に除去</b>し、元に戻せません）か、マスク版（レイアウトを保ち、外部に出す文書に向いています）から選べます。処理は<b>すべてサーバーのローカル</b>で行われ、機微情報がクラウドに出ることはありません。</p>
+          <div class="ss-tags">
+            <span class="tag tag-danger">個人情報保護法</span>
+            <span class="tag">1 件ずつ制御</span>
+            <span class="tag">リアルタイムプレビュー</span>
+            <span class="tag">ローカルから出ません</span>
+          </div>
+        </div>
+        <div class="ss-img">
+          <img src="screenshots/ja/deident-2.png" alt="文書の匿名化 —— 処理結果のプレビュー" loading="lazy">
+        </div>
+      </figure>
+
+      <figure class="ss-row reverse">
+        <div class="ss-text">
+          <div class="ss-num">06</div>
+          <h3>PDF エディタ（軽量で十分）</h3>
+          <p><b>位置づけ：軽量で必要十分。Acrobat 級の本格的なエディタではありません。</b>Scribus に着想を得た frame-based のモデルで、元の PDF を背景として、テキスト / 画像 / 図形 / 白地マスク / 注釈を重ねたり、<b>元の PDF 上の文字や画像を直接削除</b>したりできます。フォント管理も内蔵しています（標準 14 + 源ノ書体の繁体字中国語 + システムフォント + カスタムのアップロード）。日常の押印、文字の追加、塗りつぶし、注記には十分です。複雑なレイアウトの組み直しや、ページをまたぐテキストの自動改行・再配置は対象外です。</p>
+          <div class="ss-tags">
+            <span class="tag">軽量で十分</span>
+            <span class="tag">重ねる</span>
+            <span class="tag">元の内容を削除</span>
+            <span class="tag">フォント管理</span>
+          </div>
+        </div>
+        <div class="ss-img">
+          <img src="screenshots/ja/pdf-editor.png" alt="PDF エディタ —— 重ねる / 編集 / フォント" loading="lazy">
+        </div>
+      </figure>
+
+      <figure class="ss-row">
+        <div class="ss-text">
+          <div class="ss-num">07</div>
+          <h3>オフィス文書 → 画像</h3>
+          <p>PDF またはオフィス文書の各ページを PNG 画像に変換します。<b>DPI は 5 段階</b>から選べ（100 の下書き → 400 の印刷）、アップロード中は実際のバイト数で進捗を表示し、変換後はページごとにサイズとファイルサイズを表示します。ZIP のおおよその合計容量も一目でわかります。複数ページは自動でまとめます。</p>
+          <div class="ss-tags">
+            <span class="tag">DPI 5 段階</span>
+            <span class="tag">実際の % 進捗</span>
+            <span class="tag">ページごとのサイズ</span>
+            <span class="tag">ZIP でまとめる</span>
+          </div>
+        </div>
+        <div class="ss-img">
+          <img src="screenshots/ja/pdf-to-image.png" alt="オフィス文書 → 画像 —— DPI の選択と複数ページのサムネイル一覧" loading="lazy">
+        </div>
+      </figure>
+
+      <figure class="ss-row reverse">
+        <div class="ss-text">
+          <div class="ss-num">08</div>
+          <h3>OCR 文字認識（スキャン文書を選択可能に）</h3>
+          <p><b>スキャンした PDF / 画像を、選択でき検索できるテキスト PDF にします</b> —— macOS の Live Text と同じ考え方ですが、あなた自身のサーバールームで動きます。2 つのエンジン（既定は <b>EasyOCR</b> / 予備は <b>Tesseract</b>）を備え、日中韓の精度が高く、ページ内でそのままプレビューしてドラッグ選択で確認できます。<br><br><b>外部 GPU 認識サーバー</b>：管理画面から install.sh をダウンロードし、GPU ホスト（DGX Spark / H100 / 4090 など）にワンクリックで配置できます。1 ページあたり CPU の <b>8-15 秒</b>が GPU では <b>0.3-0.8 秒</b>になります（<b>10 倍以上</b>）。接続できない場合は自動でローカルに戻ります。</p>
+          <div class="ss-tags">
+            <span class="tag">スキャン文書が選択可能に</span>
+            <span class="tag">EasyOCR + Tesseract の 2 エンジン</span>
+            <span class="tag">日中韓の精度が高い</span>
+            <span class="tag">外部 GPU で 10 倍以上</span>
+            <span class="tag">ページ内での PDF プレビュー</span>
+            <span class="tag">LLM による補正も選べます</span>
+          </div>
+        </div>
+        <div class="ss-img">
+          <img src="screenshots/ja/pdf-ocr.png" alt="OCR 文字認識 —— スキャンした PDF / 画像を選択可能なテキストに。ページ内で PDF.js プレビュー" loading="lazy">
+        </div>
+      </figure>
+
+      <figure class="ss-row">
+        <div class="ss-text">
+          <div class="ss-num">09</div>
+          <h3>複数レルムのアカウントの併存</h3>
+          <p>同名のアカウントを別々の認証元に併存させられます —— 例：<code>jason@local</code>（復旧用）+ <code>jason@ldap</code>（日常のログイン）で、それぞれ独立したロールと権限を持ちます。<b>提供元のバッジを色で区別</b>し（local は灰、ldap は青、ad は紫）、管理者が一目で見分けられます。表の項目は並べ替えでき、検索や提供元での絞り込みもそろっています。</p>
+          <div class="ss-tags">
+            <span class="tag">同名でも別のレルムに所属</span>
+            <span class="tag">提供元のバッジ</span>
+            <span class="tag">並べ替え / 絞り込み</span>
+          </div>
+        </div>
+        <div class="ss-img">
+          <img src="screenshots/ja/users-multi-realm.png" alt="ユーザー管理 —— 同名の jason が local + ldap の 2 レルムに併存" loading="lazy">
+        </div>
+      </figure>
+
+      <figure class="ss-row reverse">
+        <div class="ss-text">
+          <div class="ss-num">10</div>
+          <h3>権限マトリクス （RBAC）</h3>
+          <p>左に subject の一覧（検索 + すべて / ユーザー / グループのタブ）、右でロールとツール権限をその場で編集します。6 つの組み込みロール（管理者 / 一般ユーザー / 文書管理 / 財務 / 営業 / 法務セキュリティ）+ カスタムロールがあり、ユーザー / グループ / OU への割り当てに対応します。</p>
+          <div class="ss-tags">
+            <span class="tag">RBAC</span>
+            <span class="tag">6 つの組み込みロール</span>
+            <span class="tag">ユーザー / グループ / OU</span>
+          </div>
+        </div>
+        <div class="ss-img">
+          <img src="screenshots/ja/premissions.png" alt="権限マトリクス —— RBAC のロールとツール権限" loading="lazy">
+        </div>
+      </figure>
+
+      <figure class="ss-row">
+        <div class="ss-text">
+          <div class="ss-num">11</div>
+          <h3>フォント管理</h3>
+          <p>3 層のフォント提供元を 1 か所で管理します：<b>標準 14 フォント</b>（PDF で汎用的に互換）+ <b>内蔵の CJK フォント</b>（源ノ角ゴシック / 源ノ明朝の繁体字中国語）+ <b>システムフォント</b>（実行時にスキャン）+ <b>カスタムのアップロード</b>（社内専用の .ttf / .otf）。既定のフォントは PDF エディタ / フォーム入力 / 透かしの各ツールに対して個別に指定できます。</p>
+          <div class="ss-tags">
+            <span class="tag">標準 14</span>
+            <span class="tag">源ノ書体の繁体字中国語</span>
+            <span class="tag">システムフォントのスキャン</span>
+            <span class="tag">カスタムのアップロード</span>
+          </div>
+        </div>
+        <div class="ss-img">
+          <img src="screenshots/ja/fonts.png" alt="フォント管理 —— 標準 / 内蔵 / システム / カスタムのアップロード" loading="lazy">
+        </div>
+      </figure>
+
+      <figure class="ss-row reverse">
+        <div class="ss-text">
+          <div class="ss-num">12</div>
+          <h3>一文ずつ翻訳（ローカルの LLM に接続）</h3>
+          <p>長い文章 / PDF / DOCX / TXT を文に分けて、社内ネットワークに構築した LLM サーバー（Ollama / vLLM / LM Studio…）へ送り、左に原文・右に訳文を並べて表示します。文ごとに個別で翻訳し直せます。<b>クラウドに出さず、文書の内容は決して外部に送信しません</b>ので、個人情報保護法、営業秘密、顧客との NDA の要件を満たせます。並列翻訳（既定は 4 並列）で一括処理が 4-8 倍速くなります。各セルには小さなコピーボタンがあり、行全体のホバー表示、ヘッダーでの提供元 / 翻訳先の言語と文字数の表示もあります。</p>
+          <div class="ss-tags">
+            <span class="tag">ローカルの LLM</span>
+            <span class="tag">原文 / 訳文を並べて表示</span>
+            <span class="tag">並列翻訳</span>
+            <span class="tag">文ごとの再翻訳</span>
+            <span class="tag">PDF / DOCX / TXT</span>
+          </div>
+        </div>
+        <div class="ss-img">
+          <img src="screenshots/ja/translate-doc.png" alt="一文ずつ翻訳 —— ローカルの LLM に接続して並べて比較。文書の内容は外部に出しません" loading="lazy">
+        </div>
+      </figure>
+
+      <figure class="ss-row">
+        <div class="ss-text">
+          <div class="ss-num">13</div>
+          <h3>電子請求書の処理（パソコン + スマートフォン）</h3>
+          <p>スマートフォンのカメラで請求書左側の QR コードを読み取ると、<b>パソコンの画面にその場で 1 件増えます</b>。パソコンで「スマートフォンでスキャン」を押すと使い捨てのペアリング QR が表示され、スマートフォンで読み取るとそのままブラウザーでカメラが開き、読み取った請求書が自動で同期します —— ケーブルも USB もアプリも不要で、同じ LAN なら使えます。売り手の統一番号の逆引き（名称 / 住所 / 業種を自動入力）、勘定科目の自動分類（組み込みルール + カスタムルール + 任意の LLM 一括判定）、当期の請求書チェック（今日の日付から「今申告している期」を自動計算し、期をまたぐ請求書は赤で表示）を内蔵し、7 種類のエクスポート形式に対応。項目名は自社の会計システムの取り込み項目に合わせてカスタマイズできます。</p>
+          <div class="ss-tags">
+            <span class="tag">スマートフォンのカメラからパソコンへリアルタイムに反映</span>
+            <span class="tag">統一番号の逆引き</span>
+            <span class="tag">勘定科目の自動分類</span>
+            <span class="tag">当期の請求書チェック</span>
+            <span class="tag">7 種類のエクスポート形式</span>
+            <span class="tag">任意で LLM 判定</span>
+          </div>
+        </div>
+        <div class="ss-img">
+          <img src="screenshots/ja/einvoice-scan.png" alt="電子請求書の処理 —— スマートフォンで QR を読み取ってパソコンの表にリアルタイム反映。統一番号の逆引き / 勘定科目 / 当期チェック付き" loading="lazy">
+        </div>
+      </figure>
+
+      <figure class="ss-row reverse">
+        <div class="ss-text">
+          <div class="ss-num">14</div>
+          <h3>PDF → 文書ファイル（Beta）</h3>
+          <p>PDF を <b>Word (.docx)</b> または <b>OpenDocument (.odt)</b> に逆変換します。フォント / 段落 / 表のスマート補正を内蔵しています。3 つのエンジンから選べます：<b>pdf2docx</b>（定番で安定。クロスプラットフォームの互換性が高く高速）、自社の <b>jtdt-reform</b>（PDF の実際のレイアウト座標をもとに幾何的なルールで、フロー型で編集しやすい本文へ再構成）、自社の <b>jtdt-layout</b>（レイアウトが原本に最も忠実：各ページの内容を元の座標のままページ固定のテキストボックスに配置し、位置 / 画像 / 枠線をほぼ 1:1 で保持します。フォーム / 多段組 / 枠線のある表で最も元の PDF に近くなります。本質はフローティングのテキストボックスで、フロー型のテキストではありません）。変換後はそのまま前後を並べてページごとに品質を比較し、ダウンロードできます。</p>
+          <div class="ss-tags">
+            <span class="tag">Word / ODT</span>
+            <span class="tag">3 つのエンジン</span>
+            <span class="tag">レイアウトの復元</span>
+            <span class="tag">前後の比較</span>
+          </div>
+        </div>
+        <div class="ss-img">
+          <img src="screenshots/ja/pdf-to-office.png" alt="PDF → 文書ファイル —— 3 つのエンジン pdf2docx / jtdt-reform / jtdt-layout、前後を並べてページごとに比較" loading="lazy">
+        </div>
+      </figure>
+
+    </div>
+  </div>
+</section>
+
+<!-- ======== LLM AI 加值 ======== -->
+<section id="llm" class="section section-light">
+  <div class="container">
+    <div class="section-eyebrow">AI 付加機能（任意）</div>
+    <h2 class="section-title">12 個のツールが LLM AI に対応し、効率と品質をさらに引き上げます</h2>
+    <p class="section-lede">
+      自分の LLM（ローカルの Ollama / vLLM / LM Studio / DGX Spark のいずれでも可）を接続すれば、
+      これら 12 個のツールでスマートな選択肢を有効にできます。<b>中核のツールは LLM にまったく依存しません</b>ので、設定しなくても 100% 使えます。
+    </p>
+
+    <div class="llm-grid">
+
+      <article class="llm-card">
+        <div class="llm-card-head">
+          <span class="llm-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg></span>
+          <div class="llm-tag">text</div>
+        </div>
+        <h3>一文ずつ翻訳</h3>
+        <p>文に分けて LLM に送って翻訳し、左に原文・右に訳文を並べて表示します。文ごとに個別で翻訳し直せます。台湾繁体字の IT 用語表を内蔵し、「文書の分野」ヒント（法律 / 医療 / 技術）を任意で指定すると専門用語がより正確になります。</p>
+        <p class="llm-effect"><b>効果</b>：契約書 / 論文のような長文でも、一文ずつ並列で翻訳するため手作業より速くなります</p>
+      </article>
+
+      <article class="llm-card">
+        <div class="llm-card-head">
+          <span class="llm-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h9"/><path d="M8.5 5v2c0 3-1.8 5.5-4.5 7"/><path d="M6 11c1.6 2.4 3.7 4 6 5"/><path d="M13.5 20l4-9 4 9"/><path d="M15 17h5"/></svg></span>
+          <div class="llm-tag">text</div>
+        </div>
+        <h3>文書の翻訳（オフィス文書全体）</h3>
+        <p>Word / Excel / PowerPoint 全体を別の言語に翻訳し、<b>同じ形式・同じレイアウトのファイルを出力します</b> —— テキストだけを置き換え、枠線 / 表 / ヘッダーフッター / 画像はそのままの位置に残ります。段落を単位として LLM に送り、翻訳後は先頭 6 ページの「左が原文、右が訳文」の並列プレビューが付きます。</p>
+        <p class="llm-effect"><b>効果</b>：契約書 / 規程の文書をそのまま訳済みのファイルとして出力でき、レイアウトを組み直す必要がありません</p>
+      </article>
+
+      <article class="llm-card">
+        <div class="llm-card-head">
+          <span class="llm-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 14H3"/><path d="M21 18H3"/><path d="M21 6H3"/><path d="M21 10H3"/></svg></span>
+          <div class="llm-tag">text</div>
+        </div>
+        <h3>テキスト抽出（段落の再構成）</h3>
+        <p>PyMuPDF で抽出したあと、段落ごとに LLM へ送り、改行で分断された文を自然な段落へつなぎ直します。TXT / Markdown / DOCX / ODT として出力します。</p>
+        <p class="llm-effect"><b>効果</b>：PDF のレイアウトで分断された本文が、読んでいて引っかからなくなります</p>
+      </article>
+
+      <article class="llm-card llm-card-vision">
+        <div class="llm-card-head">
+          <span class="llm-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m9 12 2 2 4-4"/></svg></span>
+          <div class="llm-tag">vision</div>
+        </div>
+        <h3>フォームの自動入力（検証）</h3>
+        <p>入力後、LLM が各項目のレンダリング結果（PNG）を自動でレビューし、項目のずれ / 見切れ / チェックボックスの付け間違いを検出します。</p>
+        <p class="llm-effect"><b>効果</b>：30 項目の取引先フォームでも、1 項目ずつ目視する必要がなく、LLM が指摘した数項目だけを確認すれば済みます</p>
+      </article>
+
+      <article class="llm-card">
+        <div class="llm-card-head">
+          <span class="llm-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg></span>
+          <div class="llm-tag">text</div>
+        </div>
+        <h3>文書の匿名化（追加検出）</h3>
+        <p>正規表現は形式の決まったもの（マイナンバー / 電話番号 / 銀行口座 / 統一番号）を拾い、LLM が「顧客コード A-2024-0815」「上司の王課長」のような文脈依存のケースを追加で拾います。</p>
+        <p class="llm-effect"><b>効果</b>：正規表現では拾えない非標準の形式や、文脈に依存する項目を LLM が補います</p>
+      </article>
+
+      <article class="llm-card">
+        <div class="llm-card-head">
+          <span class="llm-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11h6"/><path d="M9 7h6"/><path d="M9 15h4"/><path d="M3 5v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2Z"/></svg></span>
+          <div class="llm-tag">text</div>
+        </div>
+        <h3>テキストの匿名化（追加検出）</h3>
+        <p>上と同じですが、プレーンテキストの入力を受け付けます。カスタマーサポートの会話 / log / Email の内容に向いています。貼り付けても .txt / .md をアップロードしても構いません。</p>
+        <p class="llm-effect"><b>効果</b>：プレーンテキストの場面でも、同じ正規表現 + LLM の二重検出を使えます</p>
+      </article>
+
+      <article class="llm-card">
+        <div class="llm-card-head">
+          <span class="llm-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span>
+          <div class="llm-tag">text</div>
+        </div>
+        <h3>文字数の集計（要約 / キーワード）</h3>
+        <p>文字数を集計したあと、LLM に内容の要約と重要概念の一覧を生成させます（任意の機能で、既定は無効です）。</p>
+        <p class="llm-effect"><b>効果</b>：初めて読む長文でも、まず LLM の要約で主旨をつかんでから精読するか決められます</p>
+      </article>
+
+      <article class="llm-card">
+        <div class="llm-card-head">
+          <span class="llm-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+          <div class="llm-tag">text</div>
+        </div>
+        <h3>注釈の整理（自動グループ分け）</h3>
+        <p>PDF 内のすべての annotation を抽出し、LLM が「注釈の内容のテーマ」で動的にグループ分けします（例：文章の修正が必要 / 書式の問題 / 疑問点の確認 / 確認済み など。LLM が自由に判断します）。</p>
+        <p class="llm-effect"><b>効果</b>：複数人でレビューした長い文書で、同じ性質の修正提案をワンクリックでまとめられます</p>
+      </article>
+
+      <article class="llm-card">
+        <div class="llm-card-head">
+          <span class="llm-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="3"/><path d="M5 9v6"/><circle cx="5" cy="18" r="3"/><path d="M12 3h3a2 2 0 0 1 2 2v6"/><polyline points="14 9 17 12 20 9"/><circle cx="19" cy="18" r="3"/></svg></span>
+          <div class="llm-tag">text</div>
+        </div>
+        <h3>文書の差分比較（変更点の要約）</h3>
+        <p>2 つの文書の行単位の diff のあとで、LLM が「全体として主に何が変わったか」を 3-5 文で説明します（任意で、既定は無効です）。</p>
+        <p class="llm-effect"><b>効果</b>：契約書 / 草案 / 仕様の改訂後、まず LLM の要約を見てから逐条で精読するか決められます</p>
+      </article>
+
+      <article class="llm-card">
+        <div class="llm-card-head">
+          <span class="llm-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h13l5 5v11a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M16 4v5h5"/><path d="m7 14 3 3 5-5"/></svg></span>
+          <div class="llm-tag">text</div>
+        </div>
+        <h3>OCR 文字認識（typo の補正）</h3>
+        <p>EasyOCR / Tesseract の実行後、LLM が前後の文脈と照らして OCR のよくある誤字を補正します（例：「己」を「巳」と誤認識）。ハルシネーション対策を内蔵し、前後の word count が完全に一致するときにのみ適用するため、LLM が自由に書き換えることはありません。</p>
+        <p class="llm-effect"><b>効果</b>：スキャン文書の OCR 結果がより整い、そのまま検索 / 編集に使えます</p>
+      </article>
+
+      <article class="llm-card llm-card-vision">
+        <div class="llm-card-head">
+          <span class="llm-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+          <div class="llm-tag">text + vision</div>
+        </div>
+        <h3>送付前チェック（意味 + ビジュアルの検証）</h3>
+        <p>構造チェック（ページサイズ / フォントの埋め込み）のあとで、LLM が内容の意味をチェックし（必須項目が実際に埋まっているか、記述に前後矛盾がないか）、vision モデルで PNG のビジュアル検証を行います（押印が文字にかぶっていないか、ページのレイアウトが崩れていないか）。</p>
+        <p class="llm-effect"><b>効果</b>：正規表現 / 構造チェックでは拾えない「字面は合っているが意味が誤り」「見た目に問題がある」ケースを補えます</p>
+      </article>
+
+      <article class="llm-card">
+        <div class="llm-card-head">
+          <span class="llm-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="14" y1="14" x2="14" y2="14.01"/><line x1="17" y1="14" x2="17" y2="14.01"/><line x1="20" y1="14" x2="20" y2="14.01"/><line x1="14" y1="17" x2="17" y2="17"/></svg></span>
+          <div class="llm-tag">text</div>
+        </div>
+        <h3>電子請求書の処理（勘定科目の判定）</h3>
+        <p>請求書を読み取ったあと、売り手の統一番号 + 会社名 + 業種にもとづき、まとめて LLM に送って勘定科目（燃料費 / 会議費 / 通信費 など）を判定します。まず組み込みルールを通し、ルールで拾えなかったものを LLM が補います。ユーザーのカスタムルールで上書きすることもできます。</p>
+        <p class="llm-effect"><b>効果</b>：経費精算の前に自動で分類でき、1 件ずつ科目を選ぶ手間がなくなります</p>
+      </article>
+
+    </div>
+
+    <div class="llm-deploy">
+      <h3 class="llm-deploy-title">導入の選択肢</h3>
+      <ul class="llm-deploy-list">
+        <li><b>ローカルの Ollama</b> · 個人 / 小規模チームのお試し。コンシューマー向け GPU で gemma3:4b が動きます</li>
+        <li><b>DGX Spark / ワークステーション</b> · 社内の単一 LLM サーバー。gemma4:26b を実行します（既定。ビジョンもテキストも可）</li>
+        <li><b>vLLM / LM Studio / jan.ai</b> · OpenAI 互換のバックエンドであれば何でも</li>
+      </ul>
+      <p class="llm-deploy-note">
+        既定は無効です。<code>/admin/llm-settings</code> で有効にすると SSRF 対策が働きます（URL の allowlist + クラウドの metadata ホストの blocklist）。社内 LAN の IP は許可されますが、クラウドの metadata IP は拒否されます。詳しくは次をご覧ください
+        <a href="https://github.com/jasoncheng7115/jt-doc-tools/blob/main/LLM.md">LLM.md</a>。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ======== Enterprise features ======== -->
+<section id="enterprise" class="section section-light">
+  <div class="container">
+    <div class="section-eyebrow">企業向けの管理機能</div>
+    <h2 class="section-title">単なるツールボックスではなく、管理できるプラットフォームです</h2>
+    <p class="section-lead">認証を有効にすると、企業環境に欠かせない管理機能が一通りそろいます（すべてオープンソースで、有料版との差はありません）。</p>
+
+    <div class="ent-grid">
+      <div class="ent-card">
+        <div class="ent-num">A</div>
+        <h3>複数レルムの認証</h3>
+        <p><b>ローカルアカウント</b> / <b>LDAP</b> / <b>Active Directory</b> に同時対応します。同名のアカウントを別のレルムに併存させられ（<code>jason@local</code> + <code>jason@ldap</code>）、ログイン時にプルダウンで提供元を選びます。LDAP 設定には「サーバー接続をテスト」+「アカウントのログインをテスト」ボタンがあり、設定が正しいかワンクリックで検証できます。</p>
+      </div>
+
+      <div class="ent-card">
+        <div class="ent-num">B</div>
+        <h3>SSO シングルサインオン</h3>
+        <p><b>OIDC</b> + <b>SAML</b> に対応し、Microsoft 365 / Entra ID、Google Workspace、Keycloak、Okta、Authentik などに接続できます。ローカル / LDAP / AD と<b>併存</b>し（ローカルの break-glass アカウントを残せます）、初回ログインでアカウントを自動作成し、IdP のグループをロールに対応付け、シングルログアウト（SLO）にも対応します。</p>
+      </div>
+
+      <div class="ent-card">
+        <div class="ent-num">C</div>
+        <h3>Reverse Proxy SSO</h3>
+        <p><b>Kerberos / SPNEGO</b>：AD ドメインに参加し Windows にログイン済みのユーザーは、フロントの Nginx で認証したうえで<b>自動ログイン</b>でき、アカウントとパスワードの再入力が不要です。ドメイン外のパソコンは引き続きログインページで別の方法を使います。既存の LDAP / AD 照会 + ロール / 監査 / 2FA をそのまま使い、「信頼するリバースプロキシ IP + ヘッダーの上書き」で偽造を防ぎます。<a href="https://github.com/jasoncheng7115/jt-doc-tools/blob/main/reverse_proxy_sso.md" target="_blank" rel="noopener">reverse_proxy_sso.md</a> をご覧ください。</p>
+      </div>
+
+      <div class="ent-card">
+        <div class="ent-num">D</div>
+        <h3>ロールと権限</h3>
+        <p>7 つの組み込みロール：<b>管理者</b>、<b>監査役</b>、<b>一般ユーザー</b>、<b>文書管理</b>、<b>財務</b>、<b>営業</b>、<b>法務セキュリティ</b>。新しいロールを自由に作成でき、ツールの利用権限をユーザー / グループ / OU に割り当てられます。in-memory cache により、権限の照会が性能に影響しません。</p>
+      </div>
+
+      <div class="ent-card">
+        <div class="ent-num">E</div>
+        <h3>監査記録</h3>
+        <p>ログイン / ログアウト / 失敗によるロック / 権限の変更 / 設定の変更 / <b>アップロードのファイル名を含むツールの呼び出し</b>をすべて記録します。SQLite （WAL） への非同期書き込みのため、サービスの性能には影響しません。絞り込みや CSV エクスポートができ、既定では 90 日保持したあと自動で削除します。</p>
+      </div>
+
+      <div class="ent-card">
+        <div class="ent-num">F</div>
+        <h3>ログ転送</h3>
+        <p>3 つの形式に対応します：<b>syslog</b> （RFC 5424 UDP/TCP）、<b>CEF</b> （ArcSight）、<b>GELF</b> （Graylog）。複数の宛先へ同時に送信でき、失敗した場合は 3 回再試行してからローカルの監査イベントへ降格します。Splunk / Graylog / ArcSight / SIEM に接続できます。</p>
+      </div>
+
+      <div class="ent-card">
+        <div class="ent-num">G</div>
+        <h3>アップロードしたファイルの記録</h3>
+        <p>独立した「アップロードしたファイルの記録」設定ページに、ツール経由でアップロードされたすべてのファイルを一覧表示します —— 誰が、いつ、どのツールで、どのファイル名を、どれだけの大きさで、HTTP の状態は何だったか。完全に追跡できます。</p>
+      </div>
+
+      <div class="ent-card">
+        <div class="ent-num">H</div>
+        <h3>ファイルの保持 / クリーンアップ</h3>
+        <p>フォーム入力 / 押印と署名 / 透かしの履歴 / 一時アップロード / Job の結果 / 監査について、分類ごとに保持日数を設定でき、スケジュールでクリーンアップします（起動時 + 6 時間ごと）。「無期限に保持」（-1）も設定できます。</p>
+      </div>
+
+      <div class="ent-card">
+        <div class="ent-num">I</div>
+        <h3>設定のバックアップ / インポート</h3>
+        <p>サイト全体の admin 設定（認証、ロール権限、通知、並列度、保持ポリシー、会社情報、同義語…）を<b>1 つの zip にまとめてエクスポート</b>でき、マシンの入れ替えや障害後の再構築でそのままインポートできます。<b>スケジュールバックアップ</b>（毎日 / 毎週）を指定ディレクトリへ書き出し、古いファイルを自動で入れ替えることもできます。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== Separation of Duties + 2FA (v1.5.0) ======== -->
+<section id="audit" class="section section-light">
+  <div class="container">
+    <div class="section-eyebrow">コンプライアンス / 職責分離（v1.5.0）</div>
+    <h2 class="section-title">監査役ロール + 2FA の必須化：メールアーカイブ方式のコンプライアンス分離</h2>
+    <p class="section-lead">認証を有効にすると、システムが <code>jtdt-admin</code> と <code>jtdt-auditor</code> の 2 つの組み込みアカウントを自動で作成します。それぞれ別のロールに属し、「システムを管理する人」と「記録を見る人」を完全に分離するため、ISO 27001 などのコンプライアンス要件に適合します。</p>
+
+    <div class="sod-table-wrap">
+      <table class="sod-table">
+        <thead>
+          <tr><th>権限</th><th><code>jtdt-admin</code><br><span class="muted">システム管理者</span></th><th><code>jtdt-auditor</code><br><span class="muted">コンプライアンス監査役</span></th></tr>
+        </thead>
+        <tbody>
+          <tr><td>任意のツールの使用</td><td><span class="ok">✓ すべて</span></td><td><span class="no">✗</span></td></tr>
+          <tr><td>設定の変更（ユーザー / ロール / 認証 / フォント / API token）</td><td><span class="ok">✓</span></td><td><span class="no">✗</span></td></tr>
+          <tr><td>監査記録、システム状態の閲覧</td><td><span class="ok">✓</span></td><td><span class="ok">✓ 読み取り専用</span></td></tr>
+          <tr><td>ユーザーのプライバシー 4 ページの閲覧<br><span class="muted">アップロード記録 / フォーム入力 / 押印と署名 / 透かしの履歴</span></td><td><span class="no"><b>✗（v1.5.0 で強化）</b></span></td><td><span class="ok">✓ 読み取り専用</span></td></tr>
+          <tr><td>2FA の必須化</td><td><span class="muted">任意</span></td><td><span class="ok"><b>必須（無効にできません）</b></span></td></tr>
+          <tr><td>削除できるか</td><td><span class="no">✗ <code>is_admin_seed</code> で保護</span></td><td><span class="no">✗ <code>is_audit_seed</code> で保護</span></td></tr>
+          <tr><td>権限マトリクスでロール / ツールを変更できるか</td><td><span class="no">✗ ロック</span></td><td><span class="no">✗ ロック</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="sod-grid">
+      <div class="sod-card">
+        <h3>なぜ 2 つに分けるのか</h3>
+        <p>コンプライアンス要件は「<b>システムを管理する人</b>」と「<b>記録を見る人</b>」の職責分離を求めます —— admin がユーザーの実際にアップロードしたファイルの内容をのぞくべきではなく、監査役がシステム設定を変更すべきでもありません。どちらの側も完全なアクセス権を持たない、これが separation of duties です。</p>
+      </div>
+      <div class="sod-card">
+        <h3>TOTP 2FA の必須化</h3>
+        <p>監査役ロールは初回ログイン時に <code>/2fa-verify</code> へ誘導され、自動でセットアップします（QR コードを表示）→ Google Authenticator / Microsoft Authenticator / Authy / 1Password のいずれかで読み取り → 6 桁を入力して完了します。監査役は自分で 2FA を無効にできず、admin も監査役ロールのユーザーの必須化を解除できません。</p>
+      </div>
+      <div class="sod-card">
+        <h3>複数の監査役に対応</h3>
+        <p>組み込みの <code>jtdt-auditor</code> のほかに、admin は <code>sudo jtdt audit-user create &lt;name&gt;</code> で監査役を何人でも追加できます（大企業で IT / 法務 / 内部監査が分担して確認する場合に向いています）。監査役ごとに独立した 2FA を持ちます。</p>
+      </div>
+      <div class="sod-card">
+        <h3>監査役自身の行動も記録されます</h3>
+        <p>監査役が閲覧するたびに <code>auditor_view</code> の audit event を 1 件記録します（path / method / IP）。admin は監査役が何を見たか確認できますが、監査役自身はそれを削除できません（UI に削除のエンドポイントがなく、そもそも読み取り専用です）。</p>
+      </div>
+      <div class="sod-card">
+        <h3>すべての user が 2FA を使えます</h3>
+        <p>監査役だけではありません —— どの user（LDAP / AD アカウントを含む）も「マイアカウント」のモーダルからセルフサービスで TOTP 2FA を有効にできます。有効にしたあとはいつでも無効にできます（auditor ロールを除く）。</p>
+      </div>
+      <div class="sod-card">
+        <h3>緊急復旧の CLI</h3>
+        <p>admin はオフラインで復旧できます：<code>jtdt auth show / disable / set-local</code>、<code>jtdt reset-password &lt;user&gt;</code>、<code>jtdt audit-user create</code>。パスワードを忘れた場合や LDAP の設定を誤った場合でも、再インストールは不要で、データも失われません。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== Privacy ======== -->
+<section class="section section-privacy">
+  <div class="container privacy-inner">
+    <div class="privacy-icon">
+      <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+    </div>
+    <h2 class="section-title">クラウドに出さず、データは自分の手元に残ります</h2>
+    <p class="privacy-lead">
+      ファイルの処理はすべてあなたのサーバー上だけで行われます。<br>
+      Linux にサイトを立てて社内ネットワークの複数人で使うことも、スタンドアロンでローカルに使うこともでき、<b>クラウドサービスには一切アップロードしません</b>。
+    </p>
+    <div style="max-width:760px;margin:0 auto 16px;padding:16px 20px;background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #b91c1c;border-radius:10px;text-align:left;color:#7f1d1d;line-height:1.7;">
+      <strong style="display:block;font-size:15px;margin-bottom:6px;">⚠ 「公衆インターネット」への直接公開はおすすめしません</strong>
+      社員はこのツールで会社の次のようなものを扱うことが多く<b>社内 / 機密文書</b>（契約書、見積書、個人情報、統一番号データなど）、そのまま外部に
+      公開すると、これらの文書と管理画面もあわせて露出することになり、<b>情報漏えいのリスク</b>。さらに本ツールはアップロードされた PDF /
+      Office / 画像を解析します（基盤は MuPDF / LibreOffice / Pillow などメモリ安全でないネイティブのプログラムで、<b>高リスクな
+      攻撃面</b>）。<b>まずは社内ネットワーク / VPN でのみ使用してください</b>。業務上どうしても外部公開が必要な場合は「リスクは自己責任」となります。少なくともリバース
+      プロキシ + HTTPS + 認証 + <b>2FA の必須化</b> + WAF / レート制限 + 依存パッケージの継続的な更新を行ってください。
+    </div>
+    <div style="max-width:760px;margin:0 auto 28px;padding:16px 20px;background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #dc2626;border-radius:10px;text-align:left;color:#7f1d1d;line-height:1.7;">
+      <strong style="display:block;font-size:15px;margin-bottom:6px;">⚠ ローカル以外からのアクセスは必ず nginx リバースプロキシ + HTTPS 経由で</strong>
+      「ローカルで 1 人だけ」以外の使い方 —— <b>ネットワーク経由 / 複数人 / 社内の他のパソコン / 外部</b> —— はすべて次の後ろに置いてください
+      <b>nginx（または Caddy）リバースプロキシ + HTTPS</b> の後ろに、<b>決して次をしないでください <code>:8765</code> ネットワークに直接公開する</b>。
+      アプリケーションは既定で次にのみバインドします <code>127.0.0.1:8765</code>（純粋な HTTP で TLS なし）。そのまま外部に公開すると、アカウントとパスワード、文書の内容が平文で流れます。リバースプロキシが TLS 終端、HSTS、証明書、バージョンの隠蔽、セキュリティヘッダーを担当します。完全な例（nginx / Caddy /
+      Apache / HAProxy / Traefik / IIS(ARR) / F5 BIG-IP）は次をご覧ください
+      <a href="https://github.com/jasoncheng7115/jt-doc-tools/blob/main/OPS.md" target="_blank" rel="noopener" style="color:#b91c1c;text-decoration:underline;">OPS.md のリバースプロキシの章</a>。
+    </div>
+    <div class="privacy-points">
+      <div class="privacy-point">
+        <strong>リバースプロキシ + TLS（ローカル以外では必須）</strong>
+        <span>バックエンドは次だけを待ち受け <code>127.0.0.1:8765</code>、外部へは nginx / Caddy が HTTPS を提供します。バックエンドは CSP / HSTS / X-Frame-Options などのセキュリティヘッダーを自動で設定します（次にもとづいて <code>X-Forwarded-Proto</code> で https を判定）。nginx には次を追加します <code>server_tokens off</code> バージョンを漏らさず、セキュリティヘッダーはどちらか一方の提供元だけで十分です</span>
+      </div>
+      <div class="privacy-point">
+        <strong>クラウドに出しません</strong>
+        <span>ファイルは決してあなたのサーバーから出ません。第三者 API も、外部の分析も、telemetry もありません</span>
+      </div>
+      <div class="privacy-point">
+        <strong>データディレクトリが独立しています</strong>
+        <span>すべてのデータはシステムの <code>data/</code> の領域にあり、ユーザーの個人ファイルと混ざらず、roam もしません （Windows）</span>
+      </div>
+      <div class="privacy-point">
+        <strong>監査を転送できます</strong>
+        <span>認証を有効にすると機微な操作をすべて記録し、社内の SIEM へリアルタイムに送ってコンプライアンス監査に使えます</span>
+      </div>
+      <div class="privacy-point">
+        <strong>LLM 連携 （継続的に拡充中）</strong>
+        <span>段落の再構成、フォーム項目の認識補助などで LLM （Ollama / ローカルモデル）に接続できます。既定は無効で、関連機能は継続的に拡充しています</span>
+      </div>
+      <div class="privacy-point">
+        <strong>オープンソースで透明、監査できます</strong>
+        <span>AGPL-3.0 ライセンスで、ソースコードは次に公開されています <a href="https://github.com/jasoncheng7115/jt-doc-tools" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">GitHub</a>。あなた / 顧客 / 内部監査 / 第三者のセキュリティコンサルタントの誰もが 1 行ずつ確認できます。obfuscated binary も closed-source のコンポーネントもありません</span>
+      </div>
+      <div class="privacy-point">
+        <strong>セキュリティガイドラインに沿った実装</strong>
+        <span>OWASP Top 10 (2025) の全 10 項目に対応する自動テストがあり（<a href="https://github.com/jasoncheng7115/jt-doc-tools/blob/main/SECURITY.md" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">SECURITY.md</a>）、CSP / scrypt によるパスワード / TOTP 2FA / 職責分離を備えています。GitHub Dependabot + CodeQL が毎週自動で CVE と SAST をスキャンします</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== Install ======== -->
+<section id="install" class="section section-light">
+  <div class="container">
+    <div class="section-eyebrow">導入</div>
+    <h2 class="section-title">3 つのプラットフォームでワンライナーのインストール</h2>
+    <p class="section-lead">管理者権限が必要です。インストール中に OxOffice または LibreOffice を自動で検出 / 追加インストールし、独立した Python 環境をダウンロードし、システムサービスを登録して、起動時に自動で立ち上がるようにします。</p>
+
+    <div class="mode-band">
+      <div class="mode-band-card">
+        <div class="mode-band-h">スタンドアロンモード（個人利用）</div>
+        <div class="mode-band-d">インストールしたらすぐ使えます —— <b>既定では認証は無効です</b>ので、誰でもブラウザーで次を開けば <code>127.0.0.1:8765</code> 使えます。1 人のデスクトップ作業に向いています。</div>
+      </div>
+      <div class="mode-band-card">
+        <div class="mode-band-h">サーバーモード（チーム / 企業）</div>
+        <div class="mode-band-d">Linux サーバーに配置し、「認証設定」で次を有効にします<b>ローカルアカウント / LDAP / AD</b>。ロールと権限マトリクス + 監査 + ログ転送と組み合わせます。社内ネットワークで複数人が共用でき、管理も可能です。<br><br><b style="color:#b91c1c;">⚠ 外部からのアクセスは必ず nginx リバースプロキシ + HTTPS 経由で</b>：おすすめは <code>:8765</code> 次だけを待ち受けたまま <code>127.0.0.1</code>にして、nginx / Caddy のリバースプロキシが外部へ HTTPS を提供する構成です（TLS 終端 + HSTS + 証明書）。<b>しないでください</b>直接 <code>bind 0.0.0.0</code> 純粋な HTTP をネットワークに公開すること（アカウントとパスワードが平文で流れます）。リバースプロキシの設定は次をご覧ください <a href="https://github.com/jasoncheng7115/jt-doc-tools/blob/main/OPS.md" target="_blank" rel="noopener">OPS.md</a>。<br><br>（社内ネットワークが信頼できる環境で、一時的に社内へ直接公開する場合、<code>jtdt bind 0.0.0.0</code> は systemd / launchd / Windows Service の設定を変更して再起動します。特定のポートにバインドする例： <code>jtdt bind 0.0.0.0:9999</code>。Linux / macOS では先頭に次を付け <code>sudo</code>、Windows では管理者として PowerShell を実行してください。）</div>
+      </div>
+    </div>
+
+    <div class="install-grid">
+      <div class="install-card">
+        <div class="install-os">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M12 1c-2 0-4 2-4 4v2c-.5.5-1 1.2-1 2.5 0 1 .3 1.7.7 2.3l-.4.7c-.6 1.1-1.3 2.4-1.3 4 0 1.5.5 2.4 1.2 3-.4.4-.7.9-.7 1.5 0 .8.7 1.5 1.5 1.5.5 0 .9-.1 1.3-.3.5-.2.9-.1 1.2.2.6.6 1.4 1 2.3 1h2.4c.9 0 1.7-.4 2.3-1 .3-.3.7-.4 1.2-.2.4.2.8.3 1.3.3.8 0 1.5-.7 1.5-1.5 0-.6-.3-1.1-.7-1.5.7-.6 1.2-1.5 1.2-3 0-1.6-.7-2.9-1.3-4l-.4-.7c.4-.6.7-1.3.7-2.3 0-1.3-.5-2-1-2.5V5c0-2-2-4-4-4zm-1.5 4c.6 0 1 .4 1 1s-.4 1-1 1-1-.4-1-1 .4-1 1-1zm3 0c.6 0 1 .4 1 1s-.4 1-1 1-1-.4-1-1 .4-1 1-1zm-1.5 4.5c.8 0 1.5.5 1.5 1l-1 .5 1 .5c0 .5-.7 1-1.5 1s-1.5-.5-1.5-1l1-.5-1-.5c0-.5.7-1 1.5-1z"/></svg>
+          Linux
+          <span class="install-os-sub">Ubuntu / Debian / Fedora など</span>
+        </div>
+        <div class="install-cmd-wrap">
+          <pre><code id="cmd-linux">curl -fsSL https://raw.githubusercontent.com/jasoncheng7115/jt-doc-tools/main/install.sh | sudo bash</code></pre>
+          <button type="button" class="copy-btn" data-target="cmd-linux" aria-label="コマンドをコピー">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span class="copy-label">コピー</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="install-card">
+        <div class="install-os">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          macOS
+          <span class="install-os-sub">12+（Apple Silicon）</span>
+        </div>
+        <div class="install-cmd-wrap">
+          <pre><code id="cmd-mac">curl -fsSL https://raw.githubusercontent.com/jasoncheng7115/jt-doc-tools/main/install.sh | sudo bash</code></pre>
+          <button type="button" class="copy-btn" data-target="cmd-mac" aria-label="コマンドをコピー">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span class="copy-label">コピー</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="install-card">
+        <div class="install-os">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M0 3.45L9.75 2.1v9.45H0M10.95 1.95L24 0v11.55H10.95M0 12.6h9.75v9.45L0 20.7M10.95 12.6H24V24l-12.95-1.85"/></svg>
+          Windows
+          <span class="install-os-sub">10 / 11（x64・ARM64）</span>
+        </div>
+        <!-- 一鍵安裝檔：按兩下即可,不必開 PowerShell 貼指令（給非技術使用者） -->
+        <div class="install-dl">
+          <a class="install-dl-btn"
+             href="https://github.com/jasoncheng7115/jt-doc-tools/releases/latest"
+             rel="noopener">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+            インストーラーをダウンロード
+          </a>
+          <span class="install-dl-txt">
+            GitHub Releases からダウンロード <b>jt-doc-tools-x.y.z-setup.exe</b>，<b>ダブルクリックでインストール</b>、
+            PowerShell を開いてコマンドを貼り付ける必要はありません。インストールウィザードは繁体字中国語で、アンインストール機能も含みます。
+            <br>
+            <b>ファイル名のバージョンが古くても問題ありません</b> —— このインストーラーはブートストラップにすぎず、
+            実際のプログラムは<b>インストール時に GitHub からダウンロードされます</b>ので、必ず最新版がインストールされます。
+          </span>
+        </div>
+        <p class="install-or">または PowerShell のワンライナーでインストールします（管理者として実行してください）：</p>
+        <div class="install-cmd-wrap">
+          <pre><code id="cmd-win">$f="$env:TEMP\jtdt-install.ps1"; try { Invoke-WebRequest 'https://cdn.jsdelivr.net/gh/jasoncheng7115/jt-doc-tools@main/install.ps1' -OutFile $f -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop; powershell -NoProfile -ExecutionPolicy Bypass -File $f } catch { Write-Host "[X] インストールスクリプトをダウンロードできませんでした: $($_.Exception.Message)" -ForegroundColor Red; Write-Host "ネットワーク（VPN / ファイアウォール / DNS）を確認してからやり直してください。" -ForegroundColor Yellow }; Read-Host 'Enter キーで閉じる'</code></pre>
+          <button type="button" class="copy-btn" data-target="cmd-win" aria-label="コマンドをコピー">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span class="copy-label">コピー</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <p class="install-after">インストールが完了したら、ブラウザーで <code>http://127.0.0.1:8765/</code> を開けば使えます。</p>
+
+    <div class="offline-note">
+      <b>社内ネットワークから GitHub / PyPI につながりませんか？</b>
+      どちらの方法でも構いません：①ネットワークのあるマシンで次を作り <b>Docker イメージ</b>，
+      <code>docker save</code> を 1 つのファイル（約 940 MB）にまとめて社内へ持ち込み
+      <code>docker load</code> で実行できます。②<b>社内の PyPI プロキシ</b>がある場合はそのまま通常どおりインストールでき、
+      をプロキシに向けるだけです（そのあとも通常どおり <code>jtdt update</code>）。
+      手順は次をご覧ください <a href="https://github.com/jasoncheng7115/jt-doc-tools/blob/main/OFFLINE.md" target="_blank" rel="noopener">OFFLINE.md</a>。
+    </div>
+
+    <div class="install-meta">
+      <div>
+        <strong>システム要件</strong>
+        Ubuntu 20.04+ / Debian 11+ / macOS 12+ / Windows 10 1809+ /
+        <b>ディスク 12 GB</b> 実機/VM/LXC の容量(最低。20 GB 以上を推奨。OS のベース 約 2 GB + インストールのピーク 約 8 GB + 余裕。完了後の常駐は 約 3 GB)/
+        <b>RAM 2 GB</b>（4 GB 以上を推奨）/
+        x86_64 または arm64（Apple Silicon、Win11 ARM のどちらにも対応）。
+        <b>Python の事前インストールは不要です</b>（uv が独立した 3.12 を自動でダウンロードします）。
+        インストール時間は 5-15 分です（PyTorch の 700 MB が大半で、回線速度によります）。
+      </div>
+      <div>
+        <strong>アップグレード / 削除</strong>
+        <p class="upg-warn"><b>⚠ 2026-09-13 より前に git でインストールした場合、このバージョンにアップグレードする前に 1 行実行してください。</b>
+        本プロジェクトは git の履歴を書き換えており（誤って版管理に入ったデータを除去するため）、古いバージョンの <code>jtdt update</code>
+        は <code>git fetch --tags</code> で失敗します（<code>would clobber existing tag</code>）。
+        メッセージには <code>git fetch failed</code> としか表示されません。まず
+        <code>git -C &lt;インストール先&gt; fetch --tags --force origin</code> を 1 回実行すれば恒久的に解決します。
+        tarball でのインストールと Windows インストーラーは影響を受けません。v1.15.41 以降は修正済みです。</p>
+        <div class="cmd-block">
+          <div class="cmd-os">Linux / macOS</div>
+          <div><code>sudo jtdt update</code></div>
+          <div><code>sudo jtdt uninstall</code></div>
+          <div class="cmd-os">Windows<span class="cmd-note">（管理者として PowerShell を実行）</span></div>
+          <div><code>jtdt update</code></div>
+          <div><code>jtdt uninstall</code></div>
+        </div>
+        に次を付けると <code>--purge</code> データもあわせて削除します。
+      </div>
+      <div>
+        <strong>リバースプロキシ</strong>
+        nginx / Caddy / Apache / HAProxy / Traefik / IIS / F5 の例は次をご覧ください <a href="https://github.com/jasoncheng7115/jt-doc-tools/blob/main/OPS.md" target="_blank" rel="noopener">OPS.md</a>。よくある落とし穴 3 つに印を付けています。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== Disclaimer ======== -->
+<section id="disclaimer" class="section section-light">
+  <div class="container">
+    <div class="section-eyebrow">免責事項</div>
+    <h2 class="section-title">利用規約</h2>
+    <div class="disclaimer-box">
+      <p><b>本ソフトウェアは「現状のまま」（AS IS）提供され、明示・黙示を問わずいかなる保証も伴いません</b>。商品性、特定目的への適合性、非侵害の保証を含みますが、これらに限りません。</p>
+      <ul>
+        <li>利用者は本ソフトウェアの利用に伴うすべてのリスクを<b>自ら負うもの</b>とします</li>
+        <li>本ソフトウェアに起因する<b>直接的、間接的、付随的、派生的または懲罰的な損害</b>（データの破損、業務の中断、収益の逸失、信用の毀損などを含みます）について、作者および貢献者は<b>一切の責任を負いません</b></li>
+        <li>個人情報や機微な商業文書を扱う場合、利用者は所在地の個人情報保護法、社内のセキュリティポリシー、および関連法令（台湾の個人資料保護法、営業秘密法を含みます）への適合を<b>自ら確保する</b>ものとします</li>
+        <li>本ソフトウェアの LLM / AI 検証などの機能は<b>任意であり、既定では無効</b>です。有効にして外部のモデルプロバイダーに接続した場合、それに伴うデータ送信のリスクは利用者が負うものとします</li>
+        <li>本ソフトウェアの出力（フォームの自動入力、匿名化、OCR、LLM による校正など）は<b>補助的な参考</b>にすぎず、最終的な正確性は利用者が確認する必要があります。重要な文書では必ず元のファイルと照合してください</li>
+        <li>本ソフトウェアは Adobe、Microsoft、OSSII、TheDocumentFoundation などいかなる第三者企業とも<b>提携、後援、推奨の関係にありません</b></li>
+      </ul>
+      <p class="disclaimer-foot">引き続き利用された場合、上記の条項に同意したものとみなします。完全なライセンスは <a href="https://github.com/jasoncheng7115/jt-doc-tools/blob/main/LICENSE" target="_blank" rel="noopener">GNU Affero General Public License v3.0</a> をご覧ください。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======== Footer ======== -->
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-col">
+      <div class="footer-brand">Jason Tools ドキュメントツールボックス</div>
+      <p class="footer-tag">PDF / Office の統合型文書処理プラットフォーム：クラウドに出さず、データは自分の手元に残ります。</p>
+    </div>
+    <div class="footer-col">
+      <div class="footer-h">リンク</div>
+      <a href="api-ja.html">API ガイド</a>
+      <a href="https://github.com/jasoncheng7115/jt-doc-tools" target="_blank" rel="noopener">ソースコードリポジトリ</a>
+      <a href="https://github.com/jasoncheng7115/jt-doc-tools/blob/main/OFFLINE.md" target="_blank" rel="noopener">オフラインインストール</a>
+      <a href="https://github.com/jasoncheng7115/jt-doc-tools/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a>
+      <a href="troubleshooting-ja.html">インストールとアップグレードのトラブルシューティング</a>
+      <a href="https://github.com/jasoncheng7115/jt-doc-tools/issues" target="_blank" rel="noopener">問題を報告</a>
+    </div>
+    <div class="footer-col">
+      <div class="footer-h">作成者</div>
+      <p>
+        <strong>Jason Cheng</strong><br>
+        <a href="https://[網址]" target="_blank" rel="noopener">Jason Tools</a>
+      </p>
+    </div>
+    <div class="footer-col">
+      <div class="footer-h">ライセンス</div>
+      <p>GNU Affero General Public License v3.0</p>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="container">
+      © 2026 Jason Tools · Built with HTML & CSS, hosted on GitHub Pages
+      <div style="margin-top:6px;font-size:12px;opacity:.85;">Free code signing on Windows provided by <span style="white-space:nowrap"><a href="https://signpath.io" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">SignPath.io</a>,</span> certificate by <span style="white-space:nowrap"><a href="https://signpath.org" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">SignPath Foundation</a>.</span></div>
+    </div>
+  </div>
+</footer>
+
+<script>
+// Copy install command on click; brief "已複製" feedback.
+document.querySelectorAll('.copy-btn').forEach(function (btn) {
+  btn.addEventListener('click', async function () {
+    var target = document.getElementById(btn.dataset.target);
+    if (!target) return;
+    var text = target.textContent.trim();
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      // Fallback: legacy execCommand
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch (_) {}
+      ta.remove();
+    }
+    var label = btn.querySelector('.copy-label');
+    var orig = label.textContent;
+    label.textContent = '已複製 ✓';
+    btn.classList.add('copied');
+    setTimeout(function () {
+      label.textContent = orig;
+      btn.classList.remove('copied');
+    }, 1500);
+  });
+});
+</script>
+
+<!-- 截圖放大 lightbox -->
+<div class="lightbox" id="lightbox" aria-hidden="true">
+  <button class="lightbox-close" id="lightboxClose" type="button" aria-label="閉じる">&times;</button>
+  <img class="lightbox-img" id="lightboxImg" src="" alt="">
+</div>
+<script>
+(function () {
+  var box = document.getElementById('lightbox');
+  var boxImg = document.getElementById('lightboxImg');
+  var closeBtn = document.getElementById('lightboxClose');
+  if (!box || !boxImg) return;
+  // 可放大的圖：截圖牆 + hero 主圖
+  var imgs = document.querySelectorAll('.ss-img img, .hero-shot img');
+  imgs.forEach(function (im) {
+    im.classList.add('zoomable');
+    im.addEventListener('click', function () {
+      boxImg.src = im.currentSrc || im.src;
+      boxImg.alt = im.alt || '';
+      box.classList.add('open');
+      box.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    });
+  });
+  function closeBox() {
+    box.classList.remove('open');
+    box.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    boxImg.src = '';
+  }
+  box.addEventListener('click', function (e) {
+    if (e.target === box || e.target === boxImg || e.target === closeBtn) closeBox();
+  });
+  closeBtn.addEventListener('click', closeBox);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && box.classList.contains('open')) closeBox();
+  });
+})();
+</script>
+
+</body>
+</html>

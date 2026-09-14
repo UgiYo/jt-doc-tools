@@ -186,7 +186,6 @@
  "- **介紹網站**：<https://jasoncheng7115.github.io/jt-doc-tools/>": "- **Introduction site**: <https://jasoncheng7115.github.io/jt-doc-tools/index-en.html>",
  "- **原始碼庫**：<https://github.com/jasoncheng7115/jt-doc-tools>": "- **Source repository**: <https://github.com/jasoncheng7115/jt-doc-tools>",
  "- **回報問題**：<https://github.com/jasoncheng7115/jt-doc-tools/issues>": "- **Report an issue**: <https://github.com/jasoncheng7115/jt-doc-tools/issues>",
- "**繁體中文** ｜ [English](README_en.md)": "[繁體中文](README.md) ｜ **English**",
  "# Jason Tools 文件工具箱 vX.Y.Z": "# Jason Tools Document Toolbox vX.Y.Z",
  "- **現在有誰登入著** — 使用者清單顯示線上人數（同一人開多個瀏覽器算一位），每個帳號可看目前的登入裝置（瀏覽器 / 作業系統、來源位址、最後活動）並個別或全部強制登出，動作留在稽核記錄。帳號可能外洩時不必改密碼就能先把所有裝置踢掉。": "- **Who is signed in right now**: the user list shows how many people are online (one person with several browsers counts once); each account shows its current devices (browser / OS, source address, last activity) and can be signed out individually or entirely, with the action recorded in the audit log. If an account may have leaked, you can kick every device without changing the password first.",
  "> 整合式 PDF / Office 文件處理平台，48 個工具整合解決：**填單用印**、**浮水印**、**多頁合併 / 拆分 / 旋轉 / 整理**、**轉檔**、**掃描拼合**、**去識別化**、**字數統計**、**註解整理**、**差異比對**、**逐句翻譯**、**清單處理**、**電子發票處理**、**統編查詢**、**頁面編輯器**、**加密 / 解密**等。": "> An integrated PDF / Office document platform: 48 tools covering **form filling and stamping**, **watermarks**, **merge / split / rotate / reorder**, **format conversion**, **scan assembly**, **de-identification**, **word counts**, **annotation reports**, **diffs**, **sentence-by-sentence translation**, **list processing**, **e-invoice handling**, **VAT number lookup**, **a page editor**, **encryption and decryption**, and more.",
@@ -201,5 +200,6 @@
  "> 看不出原因是標籤。跑一次下面這行就永久解決：": "> nothing points at the tags as the cause. Run this once and it is fixed for good:",
  "> # Windows（以系統管理員身分執行 PowerShell）": "> # Windows (run PowerShell as Administrator)",
  "> 之後 `jtdt update` 恢復正常。**不受影響**：tarball 安裝、Windows 安裝程式、": "> `jtdt update` then works as usual. **Unaffected**: tarball installs, the Windows installer,",
- "> 或 2026-09-13 之後才安裝的。vX.Y.Z 起已修正，不會再發生。": "> and anything installed after 2026-09-13. Fixed from vX.Y.Z onwards."
+ "> 或 2026-09-13 之後才安裝的。vX.Y.Z 起已修正，不會再發生。": "> and anything installed after 2026-09-13. Fixed from vX.Y.Z onwards.",
+ "**繁體中文** ｜ [English](README_en.md) ｜ [日本語](README_ja.md)": "[繁體中文](README.md) ｜ **English** ｜ [日本語](README_ja.md)"
 }

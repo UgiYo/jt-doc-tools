@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
-"""替介紹站的**英文版**抓一組英文介面的截圖。
+"""替介紹站的**各語言版**抓一組該語言介面的截圖。
 
-英文版頁面原本引用的是中文介面的截圖 —— 讀者看到的介面跟他實際會看到的不一樣，
-而這正是「有沒有真的支援英文」最直接的證據。
+各語言版頁面原本引用的是中文介面的截圖 —— 讀者看到的介面跟他實際會看到的
+不一樣，而這正是「有沒有真的支援那個語言」最直接的證據。
 
 抓的是一個 auth-off 的拋棄式實例（跟 `scripts/page_screenshots.py` 同一套做法），
-把 `jtdt_locale` cookie 設成 en 再截。**視窗高度固定**，不抓整頁 —— 介紹站的
+把 `jtdt_locale` cookie 設成該語言再截。**視窗高度固定**，不抓整頁 —— 介紹站的
 截圖是要放在卡片裡的示意圖，整頁長圖縮下去什麼都看不清楚。
 
 用法：
     # 先起實例：JTDT_DATA_DIR=$(mktemp -d) uvicorn app.main:app --port 8799
-    python tools/capture_en_screenshots.py --base http://127.0.0.1:8799
-輸出：`github/docs/screenshots/en/<名字>.png`
+    python tools/capture_locale_screenshots.py --locale en --base http://127.0.0.1:8799
+    python tools/capture_locale_screenshots.py --locale ja --base http://127.0.0.1:8799
+輸出：`github/docs/screenshots/<語言>/<名字>.png`
+
+**語言清單一律從 `app/core/ui_locale.SUPPORTED` 取**，不要在這裡再寫一份 ——
+加第四個語言時不必回頭改這支工具（本專案「同一份清單寫兩個地方一定會漂」）。
 """
 from __future__ import annotations
 
@@ -27,9 +31,13 @@ _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parent.parent))
 from tools.repo_paths import public_root as _public_root
 
 REPO = Path(__file__).resolve().parent.parent
-OUT = _public_root(REPO) / "docs" / "screenshots" / "en"
+_sys.path.insert(0, str(REPO))
 
-#: 檔名 → 頁面路徑。名字**跟中文版那組對齊**，index-en.html 只要改資料夾就好。
+
+def _out_dir(locale: str) -> Path:
+    return _public_root(REPO) / "docs" / "screenshots" / locale
+
+#: 檔名 → 頁面路徑。名字**跟中文版那組對齊**，各語言版只要改資料夾就好。
 SHOTS: dict[str, str] = {
     "index": "/",
     "fill": "/tools/pdf-fill/",
@@ -64,7 +72,7 @@ NEEDS_FILE = {
 SAMPLE = REPO / "temp" / "en-shots" / "sample-quotation.pdf"
 
 
-async def _capture(base: str, cdp_port: int) -> list[str]:
+async def _capture(base: str, cdp_port: int, locale: str) -> list[str]:
     import httpx
     import websockets
 
@@ -108,12 +116,13 @@ async def _capture(base: str, cdp_port: int) -> list[str]:
             await cmd("Runtime.enable")
             await cmd("Network.enable")
             host = base.split("//", 1)[-1].split(":")[0].split("/")[0]
-            await cmd("Network.setCookie", {"name": "jtdt_locale", "value": "en",
+            await cmd("Network.setCookie", {"name": "jtdt_locale", "value": locale,
                                             "domain": host, "path": "/"})
             await cmd("Emulation.setDeviceMetricsOverride",
                       {"width": WIDTH, "height": HEIGHT,
                        "deviceScaleFactor": 1, "mobile": False})
-            OUT.mkdir(parents=True, exist_ok=True)
+            out = _out_dir(locale)
+            out.mkdir(parents=True, exist_ok=True)
             await cmd("DOM.enable")
             for name, path in SHOTS.items():
                 await cmd("Page.navigate", {"url": base + path})
@@ -150,7 +159,7 @@ async def _capture(base: str, cdp_port: int) -> list[str]:
                     except Exception:
                         pass
                 shot = await cmd("Page.captureScreenshot", {})
-                (OUT / f"{name}.png").write_bytes(base64.b64decode(shot["data"]))
+                (out / f"{name}.png").write_bytes(base64.b64decode(shot["data"]))
                 done.append(name)
         return done
     finally:
@@ -158,12 +167,17 @@ async def _capture(base: str, cdp_port: int) -> list[str]:
 
 
 def main() -> int:
+    from app.core import ui_locale
+
+    # 中文是原文，不需要另外抓一組（介紹站的中文版用 `screenshots/` 那一層）。
+    langs = [c for c in ui_locale.SUPPORTED if c != "zh-Hant"]
     ap = argparse.ArgumentParser()
+    ap.add_argument("--locale", default="en", choices=langs)
     ap.add_argument("--base", default="http://127.0.0.1:8799")
     ap.add_argument("--cdp-port", type=int, default=9421)
     args = ap.parse_args()
-    done = asyncio.run(_capture(args.base, args.cdp_port))
-    print(f"抓了 {len(done)} 張 -> {OUT}")
+    done = asyncio.run(_capture(args.base, args.cdp_port, args.locale))
+    print(f"抓了 {len(done)} 張 -> {_out_dir(args.locale)}")
     return 0
 
 

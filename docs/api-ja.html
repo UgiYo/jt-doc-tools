@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Jason Tools ドキュメントツールボックス API ガイド：すべてのツールの REST API エンドポイント、認証方式、リクエスト／レスポンス形式、連携例（cURL / Python / Node.js / CI）。">
+<title>API ガイド — Jason Tools ドキュメントツールボックス</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="container topbar-inner">
+    <a class="brand" href="index-ja.html#top">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-name">Jason Tools ドキュメントツールボックス</div>
+        <div class="brand-sub">jt-doc-tools</div>
+      </div>
+    </a>
+    <nav class="topnav" id="topnav">
+      <a href="index-ja.html#features" class="nav-link">機能</a>
+      <a href="index-ja.html#install" class="nav-link">インストール</a>
+      <a href="api-ja.html" class="nav-link">API</a>
+      <a href="troubleshooting-ja.html" class="nav-link">トラブルシューティング</a>
+      <span id="langSwitch" class="nav-lang-group"><a href="api.html" class="nav-link nav-lang" hreflang="zh-Hant" lang="zh-Hant">繁體中文</a><a href="api-en.html" class="nav-link nav-lang" hreflang="en" lang="en">English</a></span>
+      <a class="btn btn-outline nav-github" href="https://github.com/jasoncheng7115/jt-doc-tools" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.2 1.9 1.2 1.1 1.9 2.9 1.4 3.6 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg>
+        GitHub
+      </a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" type="button" aria-label="メニューを展開" aria-controls="topnav" aria-expanded="false">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+  </div>
+</header>
+<script>
+(function () {
+  var toggle = document.getElementById('navToggle');
+  var nav = document.getElementById('topnav');
+  if (!toggle || !nav) return;
+  toggle.addEventListener('click', function () {
+    var open = nav.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  nav.addEventListener('click', function (e) {
+    if (e.target.closest('a') && nav.classList.contains('open')) {
+      nav.classList.remove('open');
+      toggle.setAttribute('aria-expanded', 'false');
+    }
+  });
+})();
+</script>
+
+<main class="doc-page">
+  <div class="doc-shell">
+    <aside class="doc-nav" id="docNav">
+      <div class="doc-nav-h">API ガイド</div>
+      <div class="doc-search">
+        <input type="search" id="docSearch" placeholder="ツール / エンドポイントを検索…"
+               autocomplete="off" aria-label="API エンドポイントを検索">
+        <button type="button" id="docSearchClear" class="doc-search-clear"
+                aria-label="消去" hidden>&times;</button>
+      </div>
+      <div class="doc-search-empty" id="docSearchEmpty" hidden>一致する項目が見つかりません</div>
+      <nav class="doc-nav-list">
+        <div class="nav-group nav-group-flat">
+          <a class="nav-ch" href="#intro">はじめに</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-head" role="button" tabindex="0" aria-expanded="true">
+            <button class="toc-toggle" type="button" tabindex="-1" aria-hidden="true"></button>
+            <span class="nav-ch nav-ch-toggle">1. 認証</span>
+          </div>
+          <div class="nav-children">
+            <a class="nav-ep" href="#不啟用認證預設">認証を有効にしない（既定）</a>
+            <a class="nav-ep" href="#啟用-api-token">API token を有効にする</a>
+          </div>
+        </div>
+        <div class="nav-group nav-group-flat">
+          <a class="nav-ch" href="#2-通用約定">2. 共通の規約</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-head" role="button" tabindex="0" aria-expanded="true">
+            <button class="toc-toggle" type="button" tabindex="-1" aria-hidden="true"></button>
+            <span class="nav-ch nav-ch-toggle">3. 文書変換 API</span>
+          </div>
+          <div class="nav-children">
+            <a class="nav-ep" href="#辦公文件轉-pdf">オフィス文書 → PDF</a>
+            <a class="nav-ep" href="#辦公文件格式互轉">オフィス文書の形式変換</a>
+            <a class="nav-ep" href="#圖片轉-pdf">画像 → PDF</a>
+            <a class="nav-ep" href="#pdf-轉圖片">PDF → 画像</a>
+            <a class="nav-ep" href="#pdf-轉-office">PDF → Office</a>
+            <a class="nav-ep" href="#pdf-轉-markdown">PDF → Markdown</a>
+            <a class="nav-ep" href="#markdown-轉辦公文件">Markdown → オフィス文書</a>
+          </div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-head" role="button" tabindex="0" aria-expanded="true">
+            <button class="toc-toggle" type="button" tabindex="-1" aria-hidden="true"></button>
+            <span class="nav-ch nav-ch-toggle">4. PDF 編集 API</span>
+          </div>
+          <div class="nav-children">
+            <a class="nav-ep" href="#pdf-轉簡報">PDF → プレゼンテーション</a>
+            <a class="nav-ep" href="#pdf-合併">PDF の結合</a>
+            <a class="nav-ep" href="#pdf-分割">PDF の分割</a>
+            <a class="nav-ep" href="#pdf-頁面處理">PDF のページ処理</a>
+            <a class="nav-ep" href="#pdf-旋轉">PDF の回転</a>
+            <a class="nav-ep" href="#pdf-加頁碼">PDF へのページ番号追加</a>
+            <a class="nav-ep" href="#pdf-頁面加框">PDF のページへの枠線追加</a>
+            <a class="nav-ep" href="#pdf-書籤與目錄">PDF のしおりと目次</a>
+            <a class="nav-ep" href="#pdf-騎縫章">PDF の割印</a>
+            <a class="nav-ep" href="#文件拉正">文書のまっすぐ補正</a>
+            <a class="nav-ep" href="#pdf-頁面尺寸統一">PDF のページサイズの統一</a>
+            <a class="nav-ep" href="#pdf-多頁合一n-up">PDF の複数ページ結合（N-up）</a>
+            <a class="nav-ep" href="#pdf-壓縮">PDF の圧縮</a>
+            <a class="nav-ep" href="#掃描拼合">スキャンの合成</a>
+          </div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-head" role="button" tabindex="0" aria-expanded="true">
+            <button class="toc-toggle" type="button" tabindex="-1" aria-hidden="true"></button>
+            <span class="nav-ch nav-ch-toggle">5. PDF 抽出・解析 API</span>
+          </div>
+          <div class="nav-children">
+            <a class="nav-ep" href="#pdf-文字擷取">PDF のテキスト抽出</a>
+            <a class="nav-ep" href="#pdf-圖片擷取">PDF の画像抽出</a>
+            <a class="nav-ep" href="#pdf-附件擷取">PDF の添付ファイル抽出</a>
+            <a class="nav-ep" href="#pdf-中繼資料">PDF のメタデータ</a>
+            <a class="nav-ep" href="#pdf-字數統計">PDF の文字数集計</a>
+            <a class="nav-ep" href="#pdf-ocr">PDF OCR</a>
+            <a class="nav-ep" href="#pdf-註解整理">PDF の注釈の整理</a>
+            <a class="nav-ep" href="#pdf-註解清除">PDF の注釈の消去</a>
+            <a class="nav-ep" href="#pdf-註解平面化">PDF の注釈のフラット化</a>
+            <a class="nav-ep" href="#pdf-隱藏內容掃描">PDF の隠れた内容のスキャン</a>
+          </div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-head" role="button" tabindex="0" aria-expanded="true">
+            <button class="toc-toggle" type="button" tabindex="-1" aria-hidden="true"></button>
+            <span class="nav-ch nav-ch-toggle">6. フォームと署名 API</span>
+          </div>
+          <div class="nav-children">
+            <a class="nav-ep" href="#pdf-表單填寫">PDF のフォーム入力</a>
+            <a class="nav-ep" href="#pdf-用印--簽名">PDF の押印 / 署名</a>
+            <a class="nav-ep" href="#pdf-浮水印">PDF 透かし</a>
+            <a class="nav-ep" href="#pdf-編輯器">PDF エディタ</a>
+          </div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-head" role="button" tabindex="0" aria-expanded="true">
+            <button class="toc-toggle" type="button" tabindex="-1" aria-hidden="true"></button>
+            <span class="nav-ch nav-ch-toggle">7. セキュリティとプライバシー API</span>
+          </div>
+          <div class="nav-children">
+            <a class="nav-ep" href="#pdf-加密">PDF の暗号化</a>
+            <a class="nav-ep" href="#pdf-解密">PDF の復号</a>
+            <a class="nav-ep" href="#文件去識別化">文書の匿名化</a>
+            <a class="nav-ep" href="#文字去識別化">テキストの匿名化</a>
+          </div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-head" role="button" tabindex="0" aria-expanded="true">
+            <button class="toc-toggle" type="button" tabindex="-1" aria-hidden="true"></button>
+            <span class="nav-ch nav-ch-toggle">8. テキストと比較 API</span>
+          </div>
+          <div class="nav-children">
+            <a class="nav-ep" href="#文字差異比對">テキストの差分比較</a>
+            <a class="nav-ep" href="#文件差異比對">文書の差分比較</a>
+            <a class="nav-ep" href="#清單處理">リスト処理</a>
+            <a class="nav-ep" href="#文件翻譯">文書の翻訳</a>
+            <a class="nav-ep" href="#逐句翻譯">一文ずつ翻訳</a>
+          </div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-head" role="button" tabindex="0" aria-expanded="true">
+            <button class="toc-toggle" type="button" tabindex="-1" aria-hidden="true"></button>
+            <span class="nav-ch nav-ch-toggle">9. ビジネス照会 API</span>
+          </div>
+          <div class="nav-children">
+            <a class="nav-ep" href="#統編查詢單筆">統一番号の照会（単件）</a>
+            <a class="nav-ep" href="#統編查詢path-style">統一番号の照会（path style）</a>
+            <a class="nav-ep" href="#統編查詢批次">統一番号の照会（一括）</a>
+            <a class="nav-ep" href="#電子發票掃描">電子請求書のスキャン</a>
+            <a class="nav-ep" href="#電子發票後端狀態">電子請求書のバックエンド状態</a>
+            <a class="nav-ep" href="#送件前檢核--自家公司主檔">送付前チェック —— 自社のマスター</a>
+            <a class="nav-ep" href="#乘車證明整理">乗車証明の整理</a>
+          </div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-head" role="button" tabindex="0" aria-expanded="true">
+            <button class="toc-toggle" type="button" tabindex="-1" aria-hidden="true"></button>
+            <span class="nav-ch nav-ch-toggle">10. Job モード API</span>
+          </div>
+          <div class="nav-children">
+            <a class="nav-ep" href="#llm-校驗pdf-fill">LLM 検証（pdf-fill）</a>
+            <a class="nav-ep" href="#查-job-狀態">job の状態を照会</a>
+            <a class="nav-ep" href="#下載-job-結果">job の結果をダウンロード</a>
+            <a class="nav-ep" href="#下載-job-結果為-png">job の結果を PNG でダウンロード</a>
+          </div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-head" role="button" tabindex="0" aria-expanded="true">
+            <button class="toc-toggle" type="button" tabindex="-1" aria-hidden="true"></button>
+            <span class="nav-ch nav-ch-toggle">11. 管理側 API</span>
+          </div>
+          <div class="nav-children">
+            <a class="nav-ep" href="#列出資產">アセットの一覧</a>
+            <a class="nav-ep" href="#讀取--更新-llm-設定">LLM 設定の読み取り / 更新</a>
+            <a class="nav-ep" href="#測試-llm-連線">LLM 接続のテスト</a>
+            <a class="nav-ep" href="#抓-llm-模型清單">LLM モデル一覧の取得</a>
+            <a class="nav-ep" href="#系統相依套件狀態">システムの依存パッケージの状態</a>
+            <a class="nav-ep" href="#企業-logo-狀態">企業ロゴの状態</a>
+            <a class="nav-ep" href="#設定匯出清單">設定エクスポートの一覧</a>
+            <a class="nav-ep" href="#token-管理">Token の管理</a>
+            <a class="nav-ep" href="#管理介面自己用的-xhr-端點">管理画面自身が使う XHR エンドポイント</a>
+          </div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-head" role="button" tabindex="0" aria-expanded="true">
+            <button class="toc-toggle" type="button" tabindex="-1" aria-hidden="true"></button>
+            <span class="nav-ch nav-ch-toggle">12. 連携の例</span>
+          </div>
+          <div class="nav-children">
+            <a class="nav-ep" href="#gitlab-ci--github-actions把-word-文件自動轉-pdf">GitLab CI / GitHub Actions：Word 文書を自動で PDF に変換</a>
+            <a class="nav-ep" href="#python-客戶端批次清掉-pdf-註解">Python クライアント：PDF の注釈を一括で消去</a>
+            <a class="nav-ep" href="#shell監看-job-完成後下載">Shell：job の完了を監視してダウンロード</a>
+            <a class="nav-ep" href="#nodejs逐句翻譯">Node.js：一文ずつ翻訳</a>
+          </div>
+        </div>
+        <div class="nav-group nav-group-flat">
+          <a class="nav-ch" href="#13-cli-管理-token">13. CLI での token 管理</a>
+        </div>
+        <div class="nav-group nav-group-flat">
+          <a class="nav-ch" href="#14-速率限制--大檔上限">14. レート制限 / 大きなファイルの上限</a>
+        </div>
+        <div class="nav-group nav-group-flat">
+          <a class="nav-ch" href="#14b-使用者工作區session-認證非-bearer-api">14b. ユーザーのワークスペース（session 認証。Bearer API ではありません）</a>
+        </div>
+        <div class="nav-group nav-group-flat">
+          <a class="nav-ch" href="#14c-使用者通知與收件匣session-認證非-bearer-api">14c. ユーザーの通知と受信トレイ（session 認証。Bearer API ではありません）</a>
+        </div>
+        <div class="nav-group nav-group-flat">
+          <a class="nav-ch" href="#15-變更歷史">15. 変更履歴</a>
+        </div>
+      </nav>
+    </aside>
+    <article class="doc-content">
+      <section class="doc-section" data-sec="intro" data-title="はじめに">
+<h2 id="api-使用手冊">API 利用ガイド</h2>
+<p>Jason Tools ドキュメントツールボックスは外部に RESTful API を提供しており、すべてのツールに対応するエンドポイントがあります。自動化のフロー、自社システム、スケジュール処理に組み込めます。</p>
+<blockquote><p><strong>基本方針</strong>：API は既定では認証なしで使えます（web UI と同じ公開範囲です）。制限が必要なときは、管理者が admin の「API Token」ページで enforce モードを有効にし、bearer token を発行します。</p></blockquote>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="不啟用認證預設" data-title="認証を有効にしない（既定）" hidden>
+<div class="doc-crumb">1. 認証</div>
+<h4 id="不啟用認證預設">認証を有効にしない（既定）</h4>
+<p>新規インストールでは既定で認証が無効なため、すべての <code>/api/*</code> をそのまま利用でき、token は不要です。</p>
+      </section>
+      <section class="doc-section" data-sec="啟用-api-token" data-title="API token を有効にする" hidden>
+<div class="doc-crumb">1. 認証</div>
+<h4 id="啟用-api-token">API token を有効にする</h4>
+<p>管理者は <code>admin → API Token</code> へ移動します：</p>
+<ol>
+<li>「新しい token を発行」をクリック → 用途の名称を入力（例 <code>gitlab-ci</code>）→ 64 文字の hex token を受け取ります（<strong>一度しか表示されないので保存してください</strong>）</li>
+<li>「Enforce —— token を持たないものはすべて拒否」にチェックを入れて保存します</li>
+</ol>
+<p>以降、すべての <code>/api/*</code> には次のいずれかの形式が必要です：</p>
+<pre><code class="lang-http">Authorization: Bearer 64char-hex-token-here</code></pre>
+<p>または query string：</p>
+<pre><code class="lang-http"><span class="hl-method">GET</span> /api/jobs/abc123?token=64char-hex-token-here</code></pre>
+<p>token がない、または無効な場合 → <code>401 Unauthorized</code> の JSON：</p>
+<pre><code class="lang-json">{<span class="hl-key">&quot;ok&quot;</span>: <span class="hl-bool">false</span>, <span class="hl-key">&quot;detail&quot;</span>: <span class="hl-str">&quot;需要有效的 API token（Authorization: Bearer ...）&quot;</span>}</code></pre>
+<blockquote><p>Token は admin / <code>jtdt</code> CLI で管理し、web 認証 (<code>jtdt-admin</code> / LDAP / AD) とは完全に独立しています。</p></blockquote>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="2-通用約定" data-title="2. 共通の規約" hidden>
+<h3 id="2-通用約定">2. 共通の規約</h3>
+<div class="table-wrap"><table><thead><tr><th>項目</th><th>説明</th></tr></thead><tbody><tr><td>Base URL</td><td><code>http://your-server:8765</code>（次に従います <code>JTDT_HOST</code> / <code>JTDT_PORT</code> によって決まります。以下の例では次を使います <code>localhost:8765</code>）</td></tr><tr><td>Content-Type</td><td>ファイルのアップロード：<code>multipart/form-data</code>、JSON：<code>application/json</code></td></tr><tr><td>認証ヘッダー</td><td><code>-H &quot;Authorization: Bearer YOUR_TOKEN&quot;</code>（enforce が無効なときは省略できます）</td></tr><tr><td>レスポンス形式</td><td>JSON（PDF / PNG / ZIP のバイナリデータを明示的に返す場合を除きます）</td></tr><tr><td>エラー形式</td><td><code>{&quot;detail&quot;: &quot;錯誤訊息&quot;}</code> + 対応する HTTP 4xx/5xx</td></tr><tr><td>大きなファイルの扱い</td><td>大きい / 時間のかかる操作は <strong>job モード</strong>で行います：まず <code>{&quot;job_id&quot;: &quot;...&quot;}</code> を返し、<code>/api/jobs/{job_id}</code> でポーリングして、完了後に <code>/api/jobs/{job_id}/download</code> で結果を取得します</td></tr></tbody></table></div>
+<blockquote><p>以下の各エンドポイントには次が付いています <code>curl</code> の例です。ファイルを返すエンドポイントでは次を使い <code>--output 檔名</code>で保存します。JSON を返すエンドポイントでは次を使うと <code>| jq</code> 整形できます。</p></blockquote>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="辦公文件轉-pdf" data-title="オフィス文書 → PDF" hidden>
+<div class="doc-crumb">3. 文書変換 API</div>
+<h4 id="辦公文件轉-pdf">オフィス文書 → PDF</h4>
+<p>オフィス文書を PDF に変換します（OxOffice / LibreOffice エンジンを使います）。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /api/convert-to-pdf</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>オフィス文書 の文書</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/api/convert-to-pdf</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@報告.docx&quot;</span> \
+  <span class="hl-flag">--output</span> 報告.pdf</code></pre>
+<p>レスポンス：PDF のバイナリ（<code>application/pdf</code>）。失敗時は 4xx + JSON <code>{&quot;detail&quot;: &quot;...&quot;}</code>。</p>
+      </section>
+      <section class="doc-section" data-sec="辦公文件格式互轉" data-title="オフィス文書の形式変換" hidden>
+<div class="doc-crumb">3. 文書変換 API</div>
+<h4 id="辦公文件格式互轉">オフィス文書の形式変換</h4>
+<p>同じ種類の文書どうしの形式変換：文書ファイル↔文書ファイル、表計算↔表計算、プレゼンテーション↔プレゼンテーション。job モードで <code>job_id</code> を返します。</p>
+<p><strong>先に利用できる変換先の形式を問い合わせてから変換を送信してください。</strong> <code>target</code> の値はインストール環境によって異なるため（Impress モジュールがなければプレゼンテーションの組は現れません）、id を自分のプログラムに固定で書かないでください：</p>
+<pre><code class="lang-text"><span class="hl-method">GET</span> /tools/office-convert/formats</code></pre>
+<pre><code class="lang-bash">curl <span class="hl-flag">-s</span> <span class="hl-url">http://localhost:8765/tools/office-convert/formats</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> | jq
+<span class="hl-cmt"># → {&quot;families&quot;: [{&quot;id&quot;: &quot;text&quot;, &quot;name&quot;: &quot;文書檔&quot;,</span>
+<span class="hl-cmt">#                  &quot;sources&quot;: [&quot;odt&quot;, &quot;docx&quot;, ...],</span>
+<span class="hl-cmt">#                  &quot;targets&quot;: [{&quot;id&quot;: &quot;docx-2007&quot;, &quot;ext&quot;: &quot;docx&quot;,</span>
+<span class="hl-cmt">#                               &quot;label&quot;: &quot;Word 2007&quot;, &quot;note&quot;: &quot;...&quot;,</span>
+<span class="hl-cmt">#                               &quot;common&quot;: true}, ...]}, ...]}</span></code></pre>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/office-convert/convert</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>オフィス文書。複数回指定できます（複数の場合は ZIP にまとめます）</td></tr><tr><td><code>target</code></td><td>str</td><td>✓</td><td>変換先の形式 id。上の <code>formats</code> から取得します</td></tr></tbody></table></div>
+<p>同じリクエストの中のファイルは<strong>同じ種類でなければなりません</strong>（表計算と文書ファイルを混ぜて送ることはできません）。また <code>target</code> の属する種類とも一致している必要があり、そうでない場合は 400 を返します。</p>
+<pre><code class="lang-bash"><span class="hl-cmt"># 文書檔：.odt 轉成 Word 97–2003</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/office-convert/convert</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@報告.odt&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;target=doc&quot;</span> | jq
+<span class="hl-cmt"># → {&quot;job_id&quot;: &quot;...&quot;, &quot;download_url&quot;: &quot;/api/jobs/.../download&quot;}</span>
+
+<span class="hl-cmt"># 簡報：.pptx 轉成 ODF 簡報</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/office-convert/convert</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@簡報.pptx&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;target=odp&quot;</span> | jq</code></pre>
+<p><code>.docx</code> / <code>.xlsx</code> / <code>.pptx</code> にはそれぞれ 2 つの変換先があり、違いは次のとおりです<strong>互換モード</strong>名称だけの違いではありません：</p>
+<div class="table-wrap"><table><thead><tr><th>変換先の id</th><th>出力</th><th>互換モード</th></tr></thead><tbody><tr><td><code>docx-2007</code></td><td>Word 2007 の書き方</td><td>12</td></tr><tr><td><code>docx-365</code></td><td>Word 2010–365 の書き方</td><td>15</td></tr><tr><td><code>xlsx-2007</code> / <code>xlsx-ooxml</code></td><td>Excel 2007–365 / Office Open XML</td><td>—</td></tr><tr><td><code>pptx-2007</code> / <code>pptx-ooxml</code></td><td>PowerPoint 2007–365 / Office Open XML</td><td>—</td></tr></tbody></table></div>
+<p>レスポンス：<code>{&quot;job_id&quot;: &quot;...&quot;, &quot;download_url&quot;: &quot;...&quot;}</code>。1 ファイルなら元の形式、複数なら ZIP を返します。 失敗時は 4xx + JSON <code>{&quot;detail&quot;: &quot;...&quot;}</code>。</p>
+      </section>
+      <section class="doc-section" data-sec="圖片轉-pdf" data-title="画像 → PDF" hidden>
+<div class="doc-crumb">3. 文書変換 API</div>
+<h4 id="圖片轉-pdf">画像 → PDF</h4>
+<p>1 枚または複数の画像を 1 つの PDF に結合します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/image-to-pdf/api/image-to-pdf</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>files</code></td><td>file（複数可）</td><td>✓</td><td>PNG / JPG / GIF / TIFF / WebP / HEIC</td></tr><tr><td><code>page_size</code></td><td>str</td><td></td><td><code>A4</code>（既定）/ <code>A3</code> / <code>A5</code> / <code>B5</code> / <code>Letter</code> / <code>Legal</code> / <code>Tabloid</code> / <code>original</code></td></tr><tr><td><code>margin_mm</code></td><td>float</td><td></td><td>余白（mm）。既定は <code>0</code></td></tr><tr><td><code>rotations</code></td><td>str</td><td></td><td>各画像の回転角度の CSV（アップロード順に対応）。例 <code>0,90,0</code></td></tr><tr><td><code>filename</code></td><td>str</td><td></td><td>出力ファイル名</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/image-to-pdf/api/image-to-pdf</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;files=@p1.jpg&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;files=@p2.png&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;page_size=A4&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;margin_mm=5&quot;</span> \
+  <span class="hl-flag">--output</span> album.pdf</code></pre>
+<p>レスポンス：PDF のバイナリ。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-轉圖片" data-title="PDF → 画像" hidden>
+<div class="doc-crumb">3. 文書変換 API</div>
+<h4 id="pdf-轉圖片">PDF → 画像</h4>
+<p>PDF の各ページを PNG に変換します（複数ページは自動で ZIP にまとめます）。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-to-image/convert</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr><tr><td><code>dpi</code></td><td>int</td><td></td><td>解像度。既定は <code>150</code></td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-to-image/convert</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@document.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;dpi=200&quot;</span> \
+  <span class="hl-flag">--output</span> pages.zip</code></pre>
+<p>レスポンス：1 ページなら PNG、複数ページなら ZIP を返します。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-轉-office" data-title="PDF → Office" hidden>
+<div class="doc-crumb">3. 文書変換 API</div>
+<h4 id="pdf-轉-office">PDF → Office</h4>
+<p>PDF を Word（.docx）または OpenDocument（.odt）に逆変換します。job モードで <code>job_id</code> を返します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-to-office/convert</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr><tr><td><code>output_format</code></td><td>str</td><td></td><td><code>docx</code>（既定）/ <code>odt</code></td></tr><tr><td><code>engine</code></td><td>str</td><td></td><td>変換エンジン：<code>pdf2docx-refine</code>（既定、安定）/ <code>jtdt-reform</code>（自社のレイアウト再構成）/ <code>jtdt-layout</code>（レイアウト再現：LibreOffice/OxOffice Draw で正確にインポートし、自社の変換エンジンで docx/odt に再構成します。レイアウトがほぼ 1:1 のページ固定テキストボックスで、画像 / 枠線を含みます。本質はフロー型のテキストではなく、本物の表もありません）</td></tr><tr><td><code>enable_postprocess</code></td><td>bool</td><td></td><td><code>pdf2docx-refine</code> のみ有効：jtdt-refine の後処理（25 の fixer）を適用するか。既定は <code>false</code></td></tr></tbody></table></div>
+<pre><code class="lang-bash"><span class="hl-cmt"># 預設引擎 pdf2docx-refine</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-to-office/convert</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@form.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;output_format=docx&quot;</span> \
+  | jq
+<span class="hl-cmt"># → {&quot;job_id&quot;: &quot;...&quot;, &quot;download_url&quot;: &quot;/api/jobs/.../download&quot;}</span>
+
+<span class="hl-cmt"># 改用自家 jtdt-reform 引擎</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-to-office/convert</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@form.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;output_format=odt&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;engine=jtdt-reform&quot;</span> \
+  | jq
+
+<span class="hl-cmt"># 改用 jtdt-layout 版面重現引擎（表單 / 多欄 / 含框線表格版面最接近原 PDF）</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-to-office/convert</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@form.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;output_format=odt&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;engine=jtdt-layout&quot;</span> \
+  | jq</code></pre>
+<p>レスポンス：<code>{&quot;job_id&quot;: &quot;...&quot;, &quot;download_url&quot;: &quot;...&quot;}</code>。その後は第 10 章の job API でポーリングして結果を取得します。</p>
+<p><strong>変換の前後を比較するサムネイルの取得</strong>：job の完了後、<code>GET /api/jobs/{job_id}</code> の <code>meta.preview</code> に <code>page_indices</code>（プレビュー対象の 0 始まりのページ番号の一覧。6 ページ以下なら全部、7 ページ以上なら先頭 2 + 中央 2 + 末尾 2）、 <code>orig_pages</code>、<code>result_pages</code>、<code>orig_chars</code>、<code>result_chars</code> が含まれます。ページごとのサムネイルは次で取得します：</p>
+<pre><code class="lang-text"><span class="hl-method">GET</span> /tools/pdf-to-office/preview/{job_id}/orig/{page}     <span class="hl-cmt"># 轉換前（原 PDF）</span>
+<span class="hl-method">GET</span> /tools/pdf-to-office/preview/{job_id}/result/{page}   <span class="hl-cmt"># 轉換後（docx/odt 渲染）</span></code></pre>
+<p><code>page</code> は 1 始まりのページ番号です（次に対応します <code>page_indices</code> の要素 +1）。次を返します <code>image/png</code>。</p>
+<pre><code class="lang-bash"><span class="hl-cmt"># 完成後讀 preview 頁碼清單</span>
+curl <span class="hl-flag">-s</span> <span class="hl-url">http://localhost:8765/api/jobs/$JOB</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> | jq <span class="hl-str">&#x27;.meta.preview&#x27;</span>
+<span class="hl-cmt"># 取第 1 頁的前 / 後對照縮圖</span>
+curl <span class="hl-flag">-s</span> <span class="hl-url">http://localhost:8765/tools/pdf-to-office/preview/$JOB/orig/1</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> <span class="hl-flag">--output</span> before_p1.png
+curl <span class="hl-flag">-s</span> <span class="hl-url">http://localhost:8765/tools/pdf-to-office/preview/$JOB/result/1</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> <span class="hl-flag">--output</span> after_p1.png</code></pre>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="pdf-轉-markdown" data-title="PDF → Markdown" hidden>
+<div class="doc-crumb">3. 文書変換 API</div>
+<h4 id="pdf-轉-markdown">PDF → Markdown</h4>
+<p>PDF を Markdown として抽出します。1 回の呼び出しでそのまま内容を返し、job モードは使いません。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-to-markdown/api/pdf-to-markdown</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr><tr><td><code>include_images</code></td><td>bool</td><td></td><td>埋め込み画像もあわせて出力するか。既定は <code>false</code></td></tr><tr><td><code>page_separator</code></td><td>bool</td><td></td><td>ページとページの間に区切り線を挿入するか。既定は <code>true</code></td></tr><tr><td><code>image_format</code></td><td>str</td><td></td><td>画像の形式 <code>png</code>（既定）/ <code>jpg</code>。<code>include_images=true</code> のときのみ有効です</td></tr></tbody></table></div>
+<pre><code class="lang-bash"><span class="hl-cmt"># 只要文字：回 text/markdown</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-to-markdown/api/pdf-to-markdown</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@report.pdf&quot;</span> <span class="hl-flag">--output</span> report.md
+
+<span class="hl-cmt"># 連圖片一起：回 ZIP（.md + 圖片檔）</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-to-markdown/api/pdf-to-markdown</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@report.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;include_images=true&quot;</span> <span class="hl-flag">--output</span> report.zip</code></pre>
+<p><strong>レスポンスの型は <code>include_images</code> によって変わります</strong>：<code>false</code> なら <code>text/markdown</code>、<code>true</code> なら <code>application/zip</code> を返します。</p>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="markdown-轉辦公文件" data-title="Markdown → オフィス文書" hidden>
+<div class="doc-crumb">3. 文書変換 API</div>
+<h4 id="markdown-轉辦公文件">Markdown → オフィス文書</h4>
+<p>Markdown を PDF / Word / OpenDocument に変換します。内容は <code>file</code> でアップロードしても、<code>text</code> で直接渡してもかまいません。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/markdown-to-doc/api/markdown-to-doc</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>△</td><td>Markdown ファイル。<code>text</code> とはどちらか一方</td></tr><tr><td><code>text</code></td><td>str</td><td>△</td><td>Markdown の内容を直接渡します。<code>file</code> とはどちらか一方</td></tr><tr><td><code>format</code></td><td>str</td><td></td><td><code>pdf</code>（既定）/ <code>docx</code> / <code>odt</code>。それ以外の値は 400 を返します</td></tr><tr><td><code>theme</code></td><td>str</td><td></td><td>レイアウトのテーマ。既定は <code>classic</code></td></tr><tr><td><code>font</code></td><td>str</td><td></td><td>フォント。既定は <code>default</code></td></tr><tr><td><code>title</code></td><td>str</td><td></td><td>文書のタイトル</td></tr></tbody></table></div>
+<pre><code class="lang-bash"><span class="hl-cmt"># 檔案轉 PDF</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/markdown-to-doc/api/markdown-to-doc</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@notes.md&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;format=pdf&quot;</span> <span class="hl-flag">--output</span> notes.pdf
+
+<span class="hl-cmt"># 直接帶內容轉 Word</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/markdown-to-doc/api/markdown-to-doc</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">--form-string</span> <span class="hl-str">&quot;text=# 標題
+
+內文。&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;format=docx&quot;</span> <span class="hl-flag">--output</span> notes.docx</code></pre>
+<p>ファイルそのものを返します（JSON ではありません）。<code>format</code> に <code>pdf</code> / <code>docx</code> / <code>odt</code> 以外の値を渡すと <code>400</code> を返します。</p>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="pdf-轉簡報" data-title="PDF → プレゼンテーション" hidden>
+<div class="doc-crumb">4. PDF 編集 API</div>
+<h4 id="pdf-轉簡報">PDF → プレゼンテーション</h4>
+<p>PDF を PowerPoint（.pptx）または OpenDocument プレゼンテーション（.odp）に逆変換します。<strong>1 ページが 1 枚のスライドに対応</strong>し、 スライドサイズは原本のままです（縦向きの PDF もそのまま再現します）。job モードで <code>job_id</code> を返します。</p>
+<p>エンジンは 1 つだけ（jtdt-layout のレイアウト再現）のため、<code>engine</code> パラメータは<strong>ありません</strong>。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-to-slides/convert</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr><tr><td><code>output_format</code></td><td>str</td><td></td><td><code>pptx</code>（既定）/ <code>odp</code></td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-to-slides/convert</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@deck.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;output_format=pptx&quot;</span> \
+  | jq
+<span class="hl-cmt"># → {&quot;job_id&quot;: &quot;...&quot;, &quot;download_url&quot;: &quot;/api/jobs/.../download&quot;}</span>
+
+<span class="hl-cmt"># 輸出 OpenDocument 簡報（物件多時比 .pptx 快）</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-to-slides/convert</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@deck.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;output_format=odp&quot;</span> \
+  | jq</code></pre>
+<p>前後比較のサムネイルは pdf-to-office と同じです：</p>
+<pre><code class="lang-text"><span class="hl-method">GET</span> /tools/pdf-to-slides/preview/{job_id}/orig/{page}     <span class="hl-cmt"># 轉換前（原 PDF）</span>
+<span class="hl-method">GET</span> /tools/pdf-to-slides/preview/{job_id}/result/{page}   <span class="hl-cmt"># 轉換後（簡報渲染）</span></code></pre>
+<p>job の完了後、<code>GET /api/jobs/{job_id}</code> の <code>meta.stats</code> に <code>pages</code>（スライド枚数）、 <code>images</code>、<code>objects</code>（オブジェクトの総数）が含まれます。</p>
+<blockquote><p><strong>環境の要件</strong>：office スイートの次が必要です <strong>Impress モジュール</strong>（<code>oxoffice-impress</code> / <code>libreoffice-impress</code>）。モジュールがないと「変換は成功したのに出力が見つからない」という状態になります。 「設定 → 依存パッケージの確認」で確認できます。</p></blockquote>
+      </section>
+      <section class="doc-section" data-sec="pdf-合併" data-title="PDF の結合" hidden>
+<div class="doc-crumb">4. PDF 編集 API</div>
+<h4 id="pdf-合併">PDF の結合</h4>
+<p>複数の PDF をアップロード順に 1 つへ結合します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-merge/api/pdf-merge</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>files</code></td><td>file（複数可）</td><td>✓</td><td>2 つ以上の PDF</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-merge/api/pdf-merge</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;files=@a.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;files=@b.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;files=@c.pdf&quot;</span> \
+  <span class="hl-flag">--output</span> merged.pdf</code></pre>
+<p>レスポンス：結合後の PDF。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-分割" data-title="PDF の分割" hidden>
+<div class="doc-crumb">4. PDF 編集 API</div>
+<h4 id="pdf-分割">PDF の分割</h4>
+<p>ページ数 / 範囲で PDF を分割します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-split/api/pdf-split</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr><tr><td><code>mode</code></td><td>str</td><td>✓</td><td><code>ranges</code>（範囲で）/ <code>every</code>（N ページごとに 1 ファイル）/ <code>single</code>（1 ページ 1 ファイル）</td></tr><tr><td><code>ranges</code></td><td>str</td><td></td><td>mode=ranges のときの範囲。例 <code>1-3,5,7-9</code>。mode=every のときは数値 N を入力します</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-split/api/pdf-split</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@big.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;mode=ranges&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;ranges=1-3,8-10&quot;</span> \
+  <span class="hl-flag">--output</span> parts.zip</code></pre>
+<p>レスポンス：分割した PDF（複数の場合は ZIP にまとめます）。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-頁面處理" data-title="PDF のページ処理" hidden>
+<div class="doc-crumb">4. PDF 編集 API</div>
+<h4 id="pdf-頁面處理">PDF のページ処理</h4>
+<p>ページの削除 / 抽出 / 並べ替えを行います。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-pages/api/pdf-pages</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr><tr><td><code>mode</code></td><td>str</td><td>✓</td><td><code>keep</code>（残すだけ）/ <code>delete</code>（削除）/ <code>reorder</code>（並べ替え）</td></tr><tr><td><code>spec</code></td><td>str</td><td>✓</td><td>ページの指定。例 <code>1,3,5-8</code></td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-pages/api/pdf-pages</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@document.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;mode=keep&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;spec=1,3,5-8&quot;</span> \
+  <span class="hl-flag">--output</span> picked.pdf</code></pre>
+<p>レスポンス：処理後の PDF。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-旋轉" data-title="PDF の回転" hidden>
+<div class="doc-crumb">4. PDF 編集 API</div>
+<h4 id="pdf-旋轉">PDF の回転</h4>
+<p>指定したページを回転します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-rotate/api/pdf-rotate</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr><tr><td><code>angle</code></td><td>int</td><td>✓</td><td><code>90</code> / <code>180</code> / <code>270</code></td></tr><tr><td><code>pages</code></td><td>str</td><td></td><td>適用するページ番号。例 <code>1,3-5</code>。空欄 = すべて</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-rotate/api/pdf-rotate</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@scan.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;angle=90&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;pages=1-4&quot;</span> \
+  <span class="hl-flag">--output</span> rotated.pdf</code></pre>
+<p>レスポンス：回転後の PDF。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-加頁碼" data-title="PDF へのページ番号追加" hidden>
+<div class="doc-crumb">4. PDF 編集 API</div>
+<h4 id="pdf-加頁碼">PDF へのページ番号追加</h4>
+<p>ページの指定した位置にページ番号を追加します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-pageno/api/pdf-pageno</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr><tr><td><code>position</code></td><td>str</td><td></td><td><code>bottom-center</code>（既定）/ <code>bottom-right</code> / <code>bottom-left</code> / <code>top-*</code></td></tr><tr><td><code>fmt</code></td><td>str</td><td></td><td>形式のテンプレート。例<code>第 {n} ページ</code> / <code>{n} / {total}</code></td></tr><tr><td><code>start</code></td><td>int</td><td></td><td>開始ページ番号。既定は <code>1</code></td></tr><tr><td><code>font_size</code></td><td>float</td><td></td><td>文字サイズ。既定は <code>10</code></td></tr><tr><td><code>margin_mm</code></td><td>float</td><td></td><td>余白（mm）</td></tr><tr><td><code>color</code></td><td>str</td><td></td><td>文字色の hex。例 <code>#000000</code></td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-pageno/api/pdf-pageno</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@report.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;position=bottom-center&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;fmt=第 {n} / {total} 頁&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;start=1&quot;</span> \
+  <span class="hl-flag">--output</span> numbered.pdf</code></pre>
+<p>レスポンス：ページ番号を追加した PDF。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-頁面加框" data-title="PDF のページへの枠線追加" hidden>
+<div class="doc-crumb">4. PDF 編集 API</div>
+<h4 id="pdf-頁面加框">PDF のページへの枠線追加</h4>
+<p>各ページに枠線を追加します。PDF と文書ファイル（オフィス文書。文書ファイルは先に自動で PDF に変換します）を受け付け、出力は常に PDF です。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-border/api/pdf-border</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF または文書ファイル</td></tr><tr><td><code>mode</code></td><td>str</td><td></td><td><code>page</code>（ページの端から内側へ。既定）/ <code>content</code>（そのページの内容に合わせる）</td></tr><tr><td><code>margin_mm</code></td><td>float</td><td></td><td>余白（mm）。既定は <code>5</code></td></tr><tr><td><code>width_pt</code></td><td>float</td><td></td><td>線幅（pt）。既定は <code>1.5</code></td></tr><tr><td><code>color</code></td><td>str</td><td></td><td>枠線の色の hex。既定は <code>#333333</code></td></tr><tr><td><code>style</code></td><td>str</td><td></td><td><code>solid</code>（既定）/ <code>dashed</code> / <code>dotted</code></td></tr><tr><td><code>radius_mm</code></td><td>float</td><td></td><td>角丸の半径（mm）。既定は <code>0</code>（直角）</td></tr><tr><td><code>opacity</code></td><td>float</td><td></td><td>不透明度 <code>0</code>〜<code>1</code>。既定は <code>1</code></td></tr><tr><td><code>double</code></td><td>bool</td><td></td><td>内外の二重枠（賞状 / 証書風）。既定は <code>false</code></td></tr><tr><td><code>double_gap_mm</code></td><td>float</td><td></td><td>二重枠の 2 本の線の間隔（mm）。既定は <code>1.5</code></td></tr><tr><td><code>shadow</code></td><td>bool</td><td></td><td>外側の影。既定は <code>false</code></td></tr><tr><td><code>shadow_color</code></td><td>str</td><td></td><td>影の色の hex。既定は <code>#000000</code></td></tr><tr><td><code>shadow_blur_mm</code></td><td>float</td><td></td><td>影の広がり（mm）。既定は <code>1.2</code></td></tr><tr><td><code>shadow_offset_mm</code></td><td>float</td><td></td><td>影のオフセット（mm）。既定は <code>0.6</code></td></tr><tr><td><code>shadow_opacity</code></td><td>float</td><td></td><td>影の濃さ <code>0</code>〜<code>1</code>。既定は <code>0.25</code></td></tr><tr><td><code>pages</code></td><td>str</td><td></td><td>ページの指定。例 <code>1,3,5-8</code>。空欄 = すべて</td></tr><tr><td><code>skip_first</code></td><td>bool</td><td></td><td>最初のページには枠線を付けない（スライドの表紙は全面デザインであることが多いため）。既定は <code>false</code></td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-border/api/pdf-border</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@slides.pptx&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;mode=page&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;margin_mm=4&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;width_pt=2&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;color=#1e293b&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;skip_first=true&quot;</span> \
+  <span class="hl-flag">--output</span> slides_border.pdf</code></pre>
+<p>レスポンス：枠線を追加した PDF。すべての数値はサーバー側で安全な範囲に収められます。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-書籤與目錄" data-title="PDF のしおりと目次" hidden>
+<div class="doc-crumb">4. PDF 編集 API</div>
+<h4 id="pdf-書籤與目錄">PDF のしおりと目次</h4>
+<p>PDF にしおり（ビューアの左側のナビゲーション）とクリックできる目次ページを追加します。<strong>複数のファイルを渡すと自動で連結し、ファイル名で第 1 階層のしおりを作成します</strong>。子文書の元のしおりは 1 階層下げて保持します。PDF と文書ファイル（文書ファイルは先に自動で PDF に変換します）を受け付けます。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-bookmark/api/pdf-bookmark</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>files</code></td><td>file[]</td><td>✓</td><td>1 つまたは複数の PDF / 文書ファイル。複数の場合は順に連結します</td></tr><tr><td><code>bookmarks</code></td><td>str</td><td></td><td>しおりを自分で指定します（JSON 配列。各要素は <code>{&quot;title&quot;,&quot;page&quot;,&quot;level&quot;}</code>）。指定すると自動生成を置き換えます</td></tr><tr><td><code>auto</code></td><td>bool</td><td></td><td>文字サイズから見出しを自動検出します。既定は <code>false</code>（<code>bookmarks</code> がなく、かつ 1 ファイルのときのみ有効です）</td></tr><tr><td><code>toc_page</code></td><td>bool</td><td></td><td>目次ページを挿入します。既定は <code>false</code>。<strong>web インターフェースの既定はチェック済みです</strong>が、API で <code>false</code> のままにしているのは、既存の自動化呼び出しで突然 1 ページ増えないようにするためです</td></tr><tr><td><code>toc_at</code></td><td>int</td><td></td><td>目次を何ページ目の前に挿入するか。既定は <code>1</code>（先頭）。<strong>表紙がある場合は <code>2</code></strong></td></tr><tr><td><code>toc_title</code></td><td>str</td><td></td><td>目次ページのタイトル。既定は<code>目次</code></td></tr><tr><td><code>toc_max_level</code></td><td>int</td><td></td><td>目次を第何階層まで表示するか（1〜3）。既定は <code>3</code></td></tr></tbody></table></div>
+<p>しおりの<strong>階層は 1 から始め、一度に 1 階層しか増やせません</strong>（1→3 は自動的に 1→2 に修正されます）。<strong>総ページ数を超えるページ番号は最終ページに丸められます</strong> —— どちらも自動で修正され、失敗にはなりません。目次ページを挿入するとページ番号は自動で後ろへずれるため、自分で計算する必要はありません —— <strong><code>toc_at</code> より前のしおりは変更されません</strong>（表紙を指すものは引き続き 1 ページ目のままです）。</p>
+<pre><code class="lang-bash"><span class="hl-cmt"># 多檔串接 + 以檔名建書籤 + 產生目錄頁</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-bookmark/api/pdf-bookmark</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;files=@投標須知.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;files=@規格書.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;files=@價格標.pdf&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;toc_page=true&quot;</span> \
+  <span class="hl-flag">--output</span> 標案文件.pdf
+
+<span class="hl-cmt"># 單檔 + 自己指定書籤</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-bookmark/api/pdf-bookmark</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;files=@report.pdf&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&#x27;bookmarks=[{&quot;title&quot;:&quot;第一章&quot;,&quot;page&quot;:1,&quot;level&quot;:1},{&quot;title&quot;:&quot;1.1 背景&quot;,&quot;page&quot;:3,&quot;level&quot;:2}]&#x27;</span> \
+  <span class="hl-flag">--output</span> report_bm.pdf</code></pre>
+<p>レスポンス：しおりを追加した PDF。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-騎縫章" data-title="PDF の割印" hidden>
+<div class="doc-crumb">4. PDF 編集 API</div>
+<h4 id="pdf-騎縫章">PDF の割印</h4>
+<p>1 つの印章を数片に切って連続したページにまたがって押します —— どこか 1 ページでも差し替えやページ抜けがあれば、その一片が合わなくなります。PDF と文書ファイルを受け付けます。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-seam-stamp/api/pdf-seam-stamp</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF または文書ファイル。<strong>2 ページ以上</strong></td></tr><tr><td><code>stamp</code></td><td>file</td><td></td><td>自分の印章画像（PNG / JPG。ほぼ真っ白な下地は自動で除去します）。指定しない場合はシステムが生成します</td></tr><tr><td><code>text</code></td><td>str</td><td></td><td>システムが生成するときの印面の文字。既定は<code>騎縫章</code>（4 文字以内なら田の字に配置します）</td></tr><tr><td><code>shape</code></td><td>str</td><td></td><td><code>circle</code>（既定）/ <code>square</code> / <code>rect</code></td></tr><tr><td><code>color</code></td><td>str</td><td></td><td>印章の色の hex。既定は <code>#c81414</code></td></tr><tr><td><code>mode</code></td><td>str</td><td></td><td><code>side</code>（側辺の割印。既定）/ <code>spread</code>（見開き）</td></tr><tr><td><code>group</code></td><td>int</td><td></td><td>1 つの印が何ページにまたがるか。既定は <code>2</code>。<code>0</code> = 文書全体で 1 つ</td></tr><tr><td><code>edge</code></td><td>str</td><td></td><td>side モードでどちら側にそろえるか：<code>right</code>（既定）/ <code>left</code></td></tr><tr><td><code>size_mm</code></td><td>float</td><td></td><td>印章の大きさ（mm）。既定は <code>40</code></td></tr><tr><td><code>offset_mm</code></td><td>float</td><td></td><td>ページの端からの距離（mm）。既定は <code>3</code></td></tr><tr><td><code>pos_mm</code></td><td>float</td><td></td><td>上下の位置（mm）。<code>0</code> = 上下中央</td></tr><tr><td><code>angle_deg</code></td><td>float</td><td></td><td>角度。既定は <code>0</code></td></tr><tr><td><code>opacity</code></td><td>float</td><td></td><td>濃さ <code>0</code>〜<code>1</code>。既定は <code>1</code></td></tr><tr><td><code>jitter_pos</code></td><td>bool</td><td></td><td>組ごとに高さをランダムにします。既定は <code>false</code></td></tr><tr><td><code>jitter_angle</code></td><td>bool</td><td></td><td>組ごとに角度をランダムにします（上限 ±8 度）。既定は <code>false</code></td></tr><tr><td><code>seed</code></td><td>int</td><td></td><td>乱数シード。<code>0</code> = ランダム</td></tr></tbody></table></div>
+<p><strong>角度は印章全体を先に回転させてから切ります</strong> —— 逆（先に切って個別に回転）では継ぎ目が合いません。<strong>同じ組の中では切片の位置と角度が完全に一致します</strong>。そうでないと組み直せません。</p>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-seam-stamp/api/pdf-seam-stamp</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@contract.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;text=節省&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;group=3&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;mode=side&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;size_mm=45&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;jitter_angle=true&quot;</span> \
+  <span class="hl-flag">--output</span> contract_seam.pdf</code></pre>
+<p>レスポンス：割印を押した PDF。</p>
+      </section>
+      <section class="doc-section" data-sec="文件拉正" data-title="文書のまっすぐ補正" hidden>
+<div class="doc-crumb">4. PDF 編集 API</div>
+<h4 id="文件拉正">文書のまっすぐ補正</h4>
+<p>傾いて撮影・傾いてスキャンされた文書をまっすぐにし、黒い縁を切り取り、むらのある下地を除きます。スマートフォンでの撮影では紙の 四隅を検出して透視補正します。<strong>AI も GPU もまったく使いません</strong>（従来型の画像処理で、CPU で約 0.8 秒／ページ @200 dpi）。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/doc-straighten/api/doc-straighten</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF、画像（スマートフォンで撮影した HEIC を含む）、または文書ファイル</td></tr><tr><td><code>dpi</code></td><td>int</td><td></td><td>処理解像度。150 / 200（既定）/ 300</td></tr><tr><td><code>binarize</code></td><td>bool</td><td></td><td>白黒に変換します。<strong>既定は無効</strong> —— 実測では中国語の細い画が失われ、文字認識率が明らかに下がります。用途はファイルを小さくすることです</td></tr><tr><td><code>detect_quad</code></td><td>bool</td><td></td><td>紙の境界を検出して透視補正します（既定は有効）。検出できない場合は自動的にまっすぐ補正のみに戻ります</td></tr><tr><td><code>enhance</code></td><td>bool</td><td></td><td>クリーンアップ：むらのある下地と影を平坦にします（<strong>既定は有効</strong>）。スマートフォンで撮影した片側の強い影で実測したところ、文字認識率が 0.472 → 0.982 になりました。すでに平坦なスキャン文書では、有効にしても変化はありません</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/doc-straighten/api/doc-straighten</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@scan.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;dpi=200&quot;</span> \
+  <span class="hl-flag">-o</span> straightened.pdf <span class="hl-flag">-D</span> -
+<span class="hl-cmt"># 回應標頭：</span>
+<span class="hl-cmt">#   X-Straighten-Pages: 12</span>
+<span class="hl-cmt">#   X-Straighten-Worst-Residual: 0.10      ← 修正後殘留的歪斜角（越接近 0 越好）</span></code></pre>
+<p><strong><code>X-Straighten-Worst-Residual</code> が受け入れの指標です</strong>：向きを間違えたときは「角度」も変化して見えるため、 残りの傾きだけが実態を示します。通常は 0.2° 以内に収まります。</p>
+<p>web インターフェースはバックグラウンドジョブで動作します：<code>POST /tools/doc-straighten/load</code> でアップロード → <code>POST /tools/doc-straighten/submit</code> で送信（<code>job_id</code> を返します）→ <code>GET /api/jobs/{job_id}</code> でポーリング → <code>GET /api/jobs/{job_id}/download</code> で結果を取得します。 ページごとのプレビューは <code>POST /tools/doc-straighten/preview</code> です（補正角度と残りの傾きを返します）。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-頁面尺寸統一" data-title="PDF のページサイズの統一" hidden>
+<div class="doc-crumb">4. PDF 編集 API</div>
+<h4 id="pdf-頁面尺寸統一">PDF のページサイズの統一</h4>
+<p>サイズが混在したページを 1 種類の用紙にそろえます。内容はベクターのまま保たれ（テキストも選択できます）、画像には変換しません。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-page-size/api/pdf-page-size</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF または文書ファイル</td></tr><tr><td><code>paper</code></td><td>str</td><td></td><td><code>a3</code> / <code>a4</code>（既定）/ <code>a5</code> / <code>b4</code> / <code>b5</code> / <code>letter</code> / <code>legal</code> / <code>tabloid</code> / <code>custom</code></td></tr><tr><td><code>custom_w_mm</code> <code>custom_h_mm</code></td><td>float</td><td></td><td><code>paper=custom</code> のときの幅と高さ（mm）</td></tr><tr><td><code>orientation</code></td><td>str</td><td></td><td><code>auto</code>（元のページに合わせる。既定）/ <code>portrait</code> / <code>landscape</code></td></tr><tr><td><code>fit</code></td><td>str</td><td></td><td><code>scale</code>（縮小して余白。既定。内容が失われません）/ <code>center</code>（縮小せず中央。はみ出した分は切り取られます）/ <code>crop</code>（拡大して埋める）</td></tr><tr><td><code>align</code></td><td>str</td><td></td><td><code>center</code>（既定）/ <code>top-left</code></td></tr><tr><td><code>keep_same</code></td><td>bool</td><td></td><td>もともと目的のサイズのページは変更しません。既定は <code>true</code></td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-page-size/api/pdf-page-size</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@tender.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;paper=a4&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;orientation=auto&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;fit=scale&quot;</span> \
+  <span class="hl-flag">--output</span> tender_a4.pdf</code></pre>
+<p>レスポンス：サイズを統一した PDF。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-多頁合一n-up" data-title="PDF の複数ページ結合（N-up）" hidden>
+<div class="doc-crumb">4. PDF 編集 API</div>
+<h4 id="pdf-多頁合一n-up">PDF の複数ページ結合（N-up）</h4>
+<p>複数ページを 1 ページに縮小して並べます（2-up / 4-up など）。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-nup/api/pdf-nup</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr><tr><td><code>cols</code></td><td>int</td><td>✓</td><td>1 ページあたりの列数</td></tr><tr><td><code>rows</code></td><td>int</td><td>✓</td><td>1 ページあたりの行数</td></tr><tr><td><code>paper</code></td><td>str</td><td></td><td>用紙。<code>A4</code>（既定）/ <code>A3</code> / <code>Letter</code> ...</td></tr><tr><td><code>orientation</code></td><td>str</td><td></td><td><code>portrait</code> / <code>landscape</code></td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-nup/api/pdf-nup</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@slides.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;cols=2&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;rows=2&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;paper=A4&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;orientation=landscape&quot;</span> \
+  <span class="hl-flag">--output</span> 4up.pdf</code></pre>
+<p>レスポンス：N-up 後の PDF。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-壓縮" data-title="PDF の圧縮" hidden>
+<div class="doc-crumb">4. PDF 編集 API</div>
+<h4 id="pdf-壓縮">PDF の圧縮</h4>
+<p>PDF のファイルサイズを小さくします。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-compress/api/pdf-compress</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr><tr><td><code>preset</code></td><td>str</td><td></td><td><code>gentle</code>（軽め）/ <code>balanced</code>（既定、バランス）/ <code>aggressive</code>（最小）</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-compress/api/pdf-compress</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@large.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;preset=balanced&quot;</span> \
+  <span class="hl-flag">--output</span> small.pdf</code></pre>
+<p>レスポンス：圧縮後の PDF。</p>
+      </section>
+      <section class="doc-section" data-sec="掃描拼合" data-title="スキャンの合成" hidden>
+<div class="doc-crumb">4. PDF 編集 API</div>
+<h4 id="掃描拼合">スキャンの合成</h4>
+<p>複数のスキャン（証明書類の表裏など）から「内容のあるブロック」を自動で検出し、元の色を保ったまま、元のスキャン内での相対位置どおりに 1 枚の A4 白地 PDF へ合成します。重なった場合は元の位置を保ち、自動では並べ替えません（ドラッグで微調整したい場合は web インターフェースをお使いください）。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/scan-merge/api/scan-merge</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>files</code></td><td>file（複数可）</td><td>✓</td><td>スキャン文書。PDF / PNG / JPG / TIFF / WebP。それぞれ 1 ブロックの内容を含みます</td></tr><tr><td><code>whiten</code></td><td>bool</td><td></td><td>薄い灰色 / 黄色のスキャンの下地を純白に明るくするか（カラーの内容には影響しません）。既定は <code>true</code></td></tr><tr><td><code>filename</code></td><td>str</td><td></td><td>出力ファイル名。既定は <code>scan-merge.pdf</code></td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/scan-merge/api/scan-merge</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;files=@id-front.jpg&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;files=@id-back.jpg&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;whiten=true&quot;</span> \
+  <span class="hl-flag">--output</span> id-merged.pdf</code></pre>
+<p>レスポンス：1 枚の A4 白地 PDF のバイナリ。</p>
+<p><strong>どのファイルからも内容のブロックを検出できない場合は <code>422</code> を返します</strong>（全面が白い場合や、スキャン時にカバーを閉め忘れた真っ黒な画像など）。 これはリクエスト形式の問題ではなく「送られてきた画像に合成できるものがない」という意味です —— メッセージにどちらであるかを明示します。</p>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="pdf-文字擷取" data-title="PDF のテキスト抽出" hidden>
+<div class="doc-crumb">5. PDF 抽出・解析 API</div>
+<h4 id="pdf-文字擷取">PDF のテキスト抽出</h4>
+<p>PDF 内のすべてのテキストを抽出します（壊れた CMap / OCR の二重レイヤーを自動で処理します）。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-extract-text/api/pdf-extract-text</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-extract-text/api/pdf-extract-text</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@document.pdf&quot;</span> | jq</code></pre>
+<p>レスポンス JSON：ページごとのテキスト + 全文。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-圖片擷取" data-title="PDF の画像抽出" hidden>
+<div class="doc-crumb">5. PDF 抽出・解析 API</div>
+<h4 id="pdf-圖片擷取">PDF の画像抽出</h4>
+<p>PDF に埋め込まれたすべての画像を抽出します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-extract-images/api/pdf-extract-images</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-extract-images/api/pdf-extract-images</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@document.pdf&quot;</span> \
+  <span class="hl-flag">--output</span> images.zip</code></pre>
+<p>レスポンス：画像をまとめた ZIP。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-附件擷取" data-title="PDF の添付ファイル抽出" hidden>
+<div class="doc-crumb">5. PDF 抽出・解析 API</div>
+<h4 id="pdf-附件擷取">PDF の添付ファイル抽出</h4>
+<p>PDF に埋め込まれた添付ファイル（embedded files）を一覧表示 / 抽出します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-attachments/api/pdf-attachments</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-attachments/api/pdf-attachments</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@with_attachments.pdf&quot;</span> \
+  <span class="hl-flag">--output</span> attachments.zip</code></pre>
+<p>レスポンス：添付ファイルの一覧 + 内容（ZIP）。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-中繼資料" data-title="PDF のメタデータ" hidden>
+<div class="doc-crumb">5. PDF 抽出・解析 API</div>
+<h4 id="pdf-中繼資料">PDF のメタデータ</h4>
+<p>PDF の metadata、XMP、しおり、注釈、フォームを読み取り / 消去します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-metadata/api/pdf-metadata</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr><tr><td><code>clear_info</code></td><td>bool</td><td></td><td>文書情報（作成者 / タイトル / ソフトなど）を消去</td></tr><tr><td><code>clear_xmp</code></td><td>bool</td><td></td><td>XMP metadata を消去</td></tr><tr><td><code>clear_toc</code></td><td>bool</td><td></td><td>しおり / 目次を消去</td></tr><tr><td><code>clear_annots</code></td><td>bool</td><td></td><td>注釈を消去</td></tr><tr><td><code>clear_forms</code></td><td>bool</td><td></td><td>フォーム項目を消去</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-metadata/api/pdf-metadata</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@document.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;clear_info=true&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;clear_xmp=true&quot;</span> \
+  <span class="hl-flag">--output</span> cleaned.pdf</code></pre>
+<p>レスポンス：clear_* フラグがない場合 → metadata の JSON を返します。フラグがある場合 → 消去後の PDF を返します。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-字數統計" data-title="PDF の文字数集計" hidden>
+<div class="doc-crumb">5. PDF 抽出・解析 API</div>
+<h4 id="pdf-字數統計">PDF の文字数集計</h4>
+<p>ページ数、文字数、語数、読了時間、高頻度語を集計します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-wordcount/api/pdf-wordcount</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF、オフィス文書（.doc / .docx / .odt / .xls / .xlsx / .ods / .ppt / .pptx / .odp）、またはプレーンテキスト（.txt / .md / .csv / .log / .json / .xml / .html）</td></tr></tbody></table></div>
+<p>オフィス文書は<strong>先に PDF に変換してから集計します</strong> —— ページ数と 1 ページあたりの文字数は、そうして初めて「実際に印刷したときの姿」を表す 数字になるためです。したがってこのエンドポイントは、オフィス文書を受け取るときに Office エンジン（OxOffice / LibreOffice）を必要とします。</p>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-wordcount/api/pdf-wordcount</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@document.pdf&quot;</span> | jq</code></pre>
+<p>レスポンス JSON（抜粋）：</p>
+<pre><code class="lang-json">{
+  <span class="hl-key">&quot;filename&quot;</span>: <span class="hl-str">&quot;document.pdf&quot;</span>,
+  <span class="hl-key">&quot;page_count&quot;</span>: <span class="hl-num">12</span>,
+  <span class="hl-key">&quot;char_count&quot;</span>: <span class="hl-num">18342</span>,
+  <span class="hl-key">&quot;word_count&quot;</span>: <span class="hl-num">3521</span>,
+  <span class="hl-key">&quot;estimated_reading_minutes&quot;</span>: <span class="hl-num">12.5</span>,
+  <span class="hl-key">&quot;per_page_chars&quot;</span>: [<span class="hl-cmt">/* ... */</span>],
+  <span class="hl-key">&quot;top_words_zh2&quot;</span>: [<span class="hl-cmt">/* ... */</span>], <span class="hl-key">&quot;top_words_en&quot;</span>: [<span class="hl-cmt">/* ... */</span>]
+}</code></pre>
+      </section>
+      <section class="doc-section" data-sec="pdf-ocr" data-title="PDF OCR" hidden>
+<div class="doc-crumb">5. PDF 抽出・解析 API</div>
+<h4 id="pdf-ocr">PDF OCR</h4>
+<p>スキャンした PDF の文字を認識し、選択できるテキストレイヤーを追加します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-ocr/api/pdf-ocr</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr><tr><td><code>lang</code></td><td>str</td><td></td><td>言語。例 <code>chi_tra+eng</code>（既定）/ <code>eng</code> / <code>chi_sim</code></td></tr><tr><td><code>dpi</code></td><td>int</td><td></td><td>レンダリング解像度。既定は <code>300</code></td></tr><tr><td><code>skip_pages_with_text</code></td><td>bool</td><td></td><td>テキストレイヤーがすでにあるページをスキップするか。既定は <code>true</code></td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-ocr/api/pdf-ocr</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@scan.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;lang=chi_tra+eng&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;dpi=300&quot;</span> \
+  <span class="hl-flag">--output</span> ocr.pdf</code></pre>
+<p>レスポンス：テキストレイヤーを追加した PDF。</p>
+<h5 id="外部-gpu-ocr-server">外部 GPU OCR Server</h5>
+<p>管理者は <code>admin/ocr-langs → 外部 GPU 認識サーバー</code>から <code>jt-ocr-server</code> を GPU ホストに配置できます。jtdt は HTTP でリモートの EasyOCR を呼び出し、CPU より 10 倍以上高速になります。設定関連の admin endpoints：</p>
+<pre><code class="lang-text"><span class="hl-method">GET</span>  /admin/ocr-langs/deploy/install.sh        <span class="hl-cmt"># 下載安裝腳本</span>
+<span class="hl-method">GET</span>  /admin/ocr-langs/deploy/uninstall.sh      <span class="hl-cmt"># 下載解除安裝腳本</span>
+<span class="hl-method">GET</span>  /admin/api/ocr-langs/external/status      <span class="hl-cmt"># 讀取目前設定</span>
+<span class="hl-method">POST</span> /admin/api/ocr-langs/external/save        <span class="hl-cmt"># 儲存 URL / Token / Timeout / 啟用</span>
+<span class="hl-method">POST</span> /admin/api/ocr-langs/external/test        <span class="hl-cmt"># 測試連接</span></code></pre>
+<p>有効にすると <code>/tools/pdf-ocr/*</code> と、内部で EasyOCR を呼ぶツールが自動的にリモート GPU を使います。接続に失敗した場合は自動でローカルに戻ります。<code>jt-ocr-server</code> 自身の外部エンドポイント：</p>
+<pre><code class="lang-text"><span class="hl-method">GET</span>  /healthz        <span class="hl-cmt"># 不需 token,回 GPU/VRAM 資訊</span>
+<span class="hl-method">GET</span>  /version        <span class="hl-cmt"># 需 Bearer token</span>
+<span class="hl-method">POST</span> /ocr            <span class="hl-cmt"># 需 Bearer token,multipart image + langs form</span></code></pre>
+      </section>
+      <section class="doc-section" data-sec="pdf-註解整理" data-title="PDF の注釈の整理" hidden>
+<div class="doc-crumb">5. PDF 抽出・解析 API</div>
+<h4 id="pdf-註解整理">PDF の注釈の整理</h4>
+<p>PDF のすべての注釈を一覧表示します（ページ番号、種類、作成者、内容、座標、時刻）。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-annotations/api/pdf-annotations</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-annotations/api/pdf-annotations</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@reviewed.pdf&quot;</span> | jq</code></pre>
+<p>レスポンス JSON：各注釈の詳細情報。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-註解清除" data-title="PDF の注釈の消去" hidden>
+<div class="doc-crumb">5. PDF 抽出・解析 API</div>
+<h4 id="pdf-註解清除">PDF の注釈の消去</h4>
+<p>PDF の注釈を除去します（種類 / 作成者で絞り込めます）。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-annotations-strip/api/pdf-annotations-strip</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr><tr><td><code>types</code></td><td>str</td><td></td><td>この種類だけを消去する CSV（<code>Highlight</code> / <code>Text</code> / <code>FreeText</code> ...）。空欄 = すべて消去</td></tr><tr><td><code>authors</code></td><td>str</td><td></td><td>この作成者だけを消去する CSV。空欄 = すべて消去</td></tr><tr><td><code>mode</code></td><td>str</td><td></td><td>処理モード</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-annotations-strip/api/pdf-annotations-strip</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@reviewed.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;types=Highlight,Text&quot;</span> \
+  <span class="hl-flag">--output</span> clean.pdf</code></pre>
+<p>レスポンス：消去後の PDF。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-註解平面化" data-title="PDF の注釈のフラット化" hidden>
+<div class="doc-crumb">5. PDF 抽出・解析 API</div>
+<h4 id="pdf-註解平面化">PDF の注釈のフラット化</h4>
+<p>注釈をページの内容ストリームに焼き込みます（受取側は削除できません。フォーム項目は引き続き入力できます）。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-annotations-flatten/api/pdf-annotations-flatten</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-annotations-flatten/api/pdf-annotations-flatten</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@annotated.pdf&quot;</span> \
+  <span class="hl-flag">--output</span> flattened.pdf</code></pre>
+<p>レスポンス：フラット化後の PDF。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-隱藏內容掃描" data-title="PDF の隠れた内容のスキャン" hidden>
+<div class="doc-crumb">5. PDF 抽出・解析 API</div>
+<h4 id="pdf-隱藏內容掃描">PDF の隠れた内容のスキャン</h4>
+<p>PDF の中で漏えいのおそれがある隠れた内容（メタデータ、覆い隠されたテキスト、レイヤー、添付ファイルなど）をスキャンします。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-hidden-scan/api/pdf-hidden-scan</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-hidden-scan/api/pdf-hidden-scan</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@document.pdf&quot;</span> | jq</code></pre>
+<p>レスポンス JSON：種類ごとの隠れた内容の検出結果。</p>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="pdf-表單填寫" data-title="PDF のフォーム入力" hidden>
+<div class="doc-crumb">6. フォームと署名 API</div>
+<h4 id="pdf-表單填寫">PDF のフォーム入力</h4>
+<p>フォームの項目を自動認識し、会社マスターの情報を入力します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-fill/api/pdf-fill</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>入力対象の PDF フォーム</td></tr><tr><td><code>company_id</code></td><td>str</td><td></td><td>会社マスターの ID（admin 側で作成）</td></tr><tr><td><code>font_id</code></td><td>str</td><td></td><td>入力に使うフォントの ID</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-fill/api/pdf-fill</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@vendor_form.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;company_id=acme&quot;</span> \
+  <span class="hl-flag">--output</span> filled.pdf</code></pre>
+<p>レスポンス：入力済みの PDF。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-用印--簽名" data-title="PDF の押印 / 署名" hidden>
+<div class="doc-crumb">6. フォームと署名 API</div>
+<h4 id="pdf-用印--簽名">PDF の押印 / 署名</h4>
+<p>PDF の上に印章 / 署名の画像を重ねます。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-stamp/api/pdf-stamp</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr><tr><td><code>stamp_image</code></td><td>file</td><td>✓</td><td>印章 / 署名の画像（透明 PNG が最適）</td></tr><tr><td><code>x_mm</code></td><td>float</td><td>✓</td><td>左下からの X 位置（mm）</td></tr><tr><td><code>y_mm</code></td><td>float</td><td>✓</td><td>左下からの Y 位置（mm）</td></tr><tr><td><code>width_mm</code></td><td>float</td><td>✓</td><td>幅（mm）</td></tr><tr><td><code>height_mm</code></td><td>float</td><td>✓</td><td>高さ（mm）</td></tr><tr><td><code>rotation_deg</code></td><td>float</td><td></td><td>回転角度。既定は <code>0</code></td></tr><tr><td><code>page_mode</code></td><td>str</td><td></td><td><code>all</code>（各ページ）/ <code>first</code> / <code>last</code>。既定は <code>all</code></td></tr><tr><td><code>pages_json</code></td><td>str</td><td></td><td>ページの指定：JSON 配列で 0 始まりのページ番号（例 <code>[0,2,4]</code>）。指定すると <code>page_mode</code> より優先されます。範囲外のページ番号は無視されます</td></tr><tr><td><code>placements_json</code></td><td>str</td><td></td><td><strong>ページごとの独立した位置</strong>（任意）。JSON 配列で、各オブジェクトがページ番号と座標を持ちます → ページごとに別の位置へ置け、<strong>同じページに複数</strong>置けます。指定すると <code>x_mm</code> / <code>y_mm</code> / <code>width_mm</code> / <code>height_mm</code> / <code>rotation_deg</code> / <code>page_mode</code> / <code>pages_json</code> は無視されます。<strong>指定しない場合の動作は従来とまったく同じです</strong></td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-stamp/api/pdf-stamp</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@contract.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;stamp_image=@chop.png&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;x_mm=150&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;y_mm=30&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;width_mm=30&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;height_mm=30&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;pages_json=[0,2]&quot;</span> \
+  <span class="hl-flag">--output</span> stamped.pdf</code></pre>
+<p>レスポンス：押印後の PDF。</p>
+<p><strong>ページごとの独立した位置（placements）</strong>：複数ページの契約書 / 継続申込書のように「ページごとに署名位置が違い、同じページに何か所も署名する」場面に向いています。</p>
+<div class="table-wrap"><table><thead><tr><th>placement の項目</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>page</code></td><td>int</td><td>✓</td><td>0 始まりのページ番号。その PDF のページ数を超えるものは自動でスキップします</td></tr><tr><td><code>x_mm</code> / <code>y_mm</code></td><td>float</td><td>✓</td><td>位置（mm）</td></tr><tr><td><code>width_mm</code> / <code>height_mm</code></td><td>float</td><td></td><td>サイズ（mm）。既定は 30×30</td></tr><tr><td><code>rotation_deg</code></td><td>float</td><td></td><td>回転角度。既定は <code>0</code></td></tr><tr><td><code>asset_id</code></td><td>str</td><td></td><td>共有アセットの画像に切り替えます（既定はアップロードした <code>stamp_image</code> を使います）</td></tr></tbody></table></div>
+<pre><code class="lang-bash"><span class="hl-cmt"># 第 1 頁蓋 2 處、第 3 頁蓋 1 處，第 2 頁不蓋</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-stamp/api/pdf-stamp</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@policy.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;stamp_image=@sign.png&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&#x27;placements_json=[
+        {&quot;page&quot;:0,&quot;x_mm&quot;:40,&quot;y_mm&quot;:250,&quot;width_mm&quot;:20,&quot;height_mm&quot;:20},
+        {&quot;page&quot;:0,&quot;x_mm&quot;:150,&quot;y_mm&quot;:100,&quot;width_mm&quot;:20,&quot;height_mm&quot;:20},
+        {&quot;page&quot;:2,&quot;x_mm&quot;:100,&quot;y_mm&quot;:150,&quot;width_mm&quot;:25,&quot;height_mm&quot;:25}]&#x27;</span> \
+  <span class="hl-flag">--output</span> stamped.pdf</code></pre>
+      </section>
+      <section class="doc-section" data-sec="pdf-浮水印" data-title="PDF 透かし" hidden>
+<div class="doc-crumb">6. フォームと署名 API</div>
+<h4 id="pdf-浮水印">PDF 透かし</h4>
+<p>テキストの透かしを追加します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-watermark/api/pdf-watermark</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr><tr><td><code>text</code></td><td>str</td><td>✓</td><td>透かしの文言</td></tr><tr><td><code>opacity</code></td><td>float</td><td></td><td>透明度 0–1。既定は <code>0.15</code></td></tr><tr><td><code>rotation_deg</code></td><td>float</td><td></td><td>回転角度。既定は <code>45</code></td></tr><tr><td><code>mode</code></td><td>str</td><td></td><td><code>tile</code>（敷き詰め）/ <code>center</code>（中央）</td></tr><tr><td><code>text_color</code></td><td>str</td><td></td><td>文字色の hex</td></tr><tr><td><code>text_size_pt</code></td><td>float</td><td></td><td>文字サイズ（pt）</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-watermark/api/pdf-watermark</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@document.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;text=機密&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;opacity=0.12&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;mode=tile&quot;</span> \
+  <span class="hl-flag">--output</span> watermarked.pdf</code></pre>
+<p>レスポンス：透かしを追加した PDF。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-編輯器" data-title="PDF エディタ" hidden>
+<div class="doc-crumb">6. フォームと署名 API</div>
+<h4 id="pdf-編輯器">PDF エディタ</h4>
+<p>overlay の JSON モデルに従って、テキスト / 画像 / 図形 / マスクを PDF に焼き込みます（本当に削除する redaction を含みます）。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-editor/api/pdf-editor</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>元の PDF</td></tr><tr><td><code>model</code></td><td>str (JSON)</td><td>✓</td><td>overlay のオブジェクトモデルの JSON 文字列</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-editor/api/pdf-editor</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@document.pdf&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&#x27;model={&quot;version&quot;:1,&quot;pages&quot;:[{&quot;page&quot;:0,&quot;objects&quot;:[{&quot;id&quot;:&quot;o1&quot;,&quot;type&quot;:&quot;text&quot;,&quot;x&quot;:100,&quot;y&quot;:200,&quot;w&quot;:120,&quot;h&quot;:20,&quot;text&quot;:&quot;已蓋章&quot;,&quot;font&quot;:&quot;Noto Sans TC&quot;,&quot;size&quot;:14,&quot;color&quot;:&quot;#cc0000&quot;}]}]}&#x27;</span> \
+  <span class="hl-flag">--output</span> edited.pdf</code></pre>
+<p>レスポンス：overlay を適用した PDF。モデルの形式は web UI の pdf-editor をご覧ください。</p>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="pdf-加密" data-title="PDF の暗号化" hidden>
+<div class="doc-crumb">7. セキュリティとプライバシー API</div>
+<h4 id="pdf-加密">PDF の暗号化</h4>
+<p>ユーザー / 所有者のパスワードを追加し、権限を設定します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-encrypt/api/pdf-encrypt</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF</td></tr><tr><td><code>user_pw</code></td><td>str</td><td></td><td>開くパスワード</td></tr><tr><td><code>owner_pw</code></td><td>str</td><td></td><td>権限のパスワード</td></tr><tr><td><code>algorithm</code></td><td>str</td><td></td><td>暗号化アルゴリズム。例 <code>AES-256</code></td></tr><tr><td><code>allow_print</code></td><td>bool</td><td></td><td>印刷を許可</td></tr><tr><td><code>allow_copy</code></td><td>bool</td><td></td><td>内容のコピーを許可</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-encrypt/api/pdf-encrypt</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@document.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;user_pw=open123&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;owner_pw=admin456&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;algorithm=AES-256&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;allow_print=true&quot;</span> \
+  <span class="hl-flag">--output</span> encrypted.pdf</code></pre>
+<p>レスポンス：暗号化後の PDF。</p>
+      </section>
+      <section class="doc-section" data-sec="pdf-解密" data-title="PDF の復号" hidden>
+<div class="doc-crumb">7. セキュリティとプライバシー API</div>
+<h4 id="pdf-解密">PDF の復号</h4>
+<p>パスワードを使って PDF の暗号化を解除します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/pdf-decrypt/api/pdf-decrypt</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>暗号化された PDF</td></tr><tr><td><code>password</code></td><td>str</td><td>✓</td><td>開くパスワード</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/pdf-decrypt/api/pdf-decrypt</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@encrypted.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;password=open123&quot;</span> \
+  <span class="hl-flag">--output</span> decrypted.pdf</code></pre>
+<p>レスポンス：復号後の PDF。</p>
+      </section>
+      <section class="doc-section" data-sec="文件去識別化" data-title="文書の匿名化" hidden>
+<div class="doc-crumb">7. セキュリティとプライバシー API</div>
+<h4 id="文件去識別化">文書の匿名化</h4>
+<p>Word / PDF 文書の個人情報を検出して伏せます（正規表現 / 任意で LLM）。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/doc-deident/api/doc-deident</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF / Word の文書</td></tr><tr><td><code>types</code></td><td>str</td><td></td><td>検出する PII の種類の CSV（マイナンバー / 電話番号 / email / 住所 ...）。空欄 = 既定のセット</td></tr><tr><td><code>mode</code></td><td>str</td><td></td><td><code>mask</code>（マスク。既定）/ <code>redact</code>（本当に削除）/ <code>replace</code>（ダミー値に置き換え）</td></tr><tr><td><code>replacements</code></td><td>str</td><td></td><td><code>replace</code> のみ：JSON オブジェクト <code>{&quot;元の値&quot;: &quot;指定する新しい値&quot;}</code>。指定しなかったものはすべて自動生成します</td></tr><tr><td><code>valid_checksum</code></td><td>str</td><td></td><td><code>replace</code> のみ：<code>1</code> = チェックディジットを通るダミー値を生成します（下の説明をご覧ください）</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/doc-deident/api/doc-deident</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@contract.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;mode=mask&quot;</span> \
+  <span class="hl-flag">--output</span> deidentified.pdf</code></pre>
+<p>レスポンス：匿名化後のファイル。</p>
+<h5 id="替換模式modereplace">置き換えモード（<code>mode=replace</code>）</h5>
+<p>検出したデータを、見た目は普通だが実際とは違う値に置き換えます —— システムのテスト、 外部に見せるレポート、教材の例に向いています。原文は同じく<strong>本当に削除されます</strong>。</p>
+<p><code>replacements</code> で指定しなかった値は<strong>自動生成</strong>され、項目の型に合った形になります （マイナンバー、統一番号、携帯電話、Email、クレジットカード、人名、住所、日付…）。しかも<strong>同じ元の値は 文書全体で常に同じダミー値に対応します</strong>。</p>
+<p><code>valid_checksum</code> 既定では無効で、生成されるダミー値は<strong>あえてチェックディジットを通しません</strong>ため、実在する人のデータと衝突することは決してありません。 次に設定すると <code>1</code> マイナンバー / 統一番号 / クレジットカードは正しいチェックディジットを計算します（テストシステムに入れても弾かれませんが、 計算が通る番号は実在の誰かのものである可能性があります）。Email には次を使い <code>example.com</code>、IP には <code>192.0.2.x</code>、MAC には次を使います <code>00:00:5E</code>。いずれも文書専用の予約範囲で、どちらの設定も安全です。</p>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/doc-deident/api/doc-deident</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@contract.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;mode=replace&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&#x27;replacements={&quot;0912345678&quot;:&quot;0955555555&quot;}&#x27;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;valid_checksum=1&quot;</span> \
+  <span class="hl-flag">--output</span> replaced.pdf</code></pre>
+      </section>
+      <section class="doc-section" data-sec="文字去識別化" data-title="テキストの匿名化" hidden>
+<div class="doc-crumb">7. セキュリティとプライバシー API</div>
+<h4 id="文字去識別化">テキストの匿名化</h4>
+<p>プレーンテキストの個人情報を検出して伏せます。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/text-deident/api/text-deident</code></pre>
+<p>Body（JSON）：</p>
+<div class="table-wrap"><table><thead><tr><th>項目</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>text</code></td><td>str</td><td>✓</td><td>処理対象のテキスト</td></tr><tr><td><code>mode</code></td><td>str</td><td></td><td><code>mask</code>（既定）/ <code>redact</code></td></tr><tr><td><code>types</code></td><td>array</td><td></td><td>検出する PII の種類 ID の配列。省略 = 既定のセット</td></tr><tr><td><code>custom_regex</code></td><td>str</td><td></td><td>カスタムの検出用正規表現</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/text-deident/api/text-deident</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Content-Type: application/json&quot;</span> \
+  <span class="hl-flag">-d</span> <span class="hl-str">&#x27;{&quot;text&quot;:&quot;我的電話是 0912345678，身分證 A123456789&quot;,&quot;mode&quot;:&quot;mask&quot;}&#x27;</span></code></pre>
+<p>レスポンス JSON：伏せ字化したテキスト + 一致した PII の一覧。</p>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="文字差異比對" data-title="テキストの差分比較" hidden>
+<div class="doc-crumb">8. テキストと比較 API</div>
+<h4 id="文字差異比對">テキストの差分比較</h4>
+<p>2 つのテキストの差分を比較します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/text-diff/api/text-diff</code></pre>
+<p>Body（JSON）：</p>
+<div class="table-wrap"><table><thead><tr><th>項目</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>text_a</code></td><td>str</td><td>✓</td><td>古い版のテキスト</td></tr><tr><td><code>text_b</code></td><td>str</td><td>✓</td><td>新しい版のテキスト</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/text-diff/api/text-diff</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Content-Type: application/json&quot;</span> \
+  <span class="hl-flag">-d</span> <span class="hl-str">&#x27;{&quot;text_a&quot;:&quot;原始內容\n第二行&quot;,&quot;text_b&quot;:&quot;修改內容\n第二行&quot;}&#x27;</span></code></pre>
+<p>レスポンス JSON：各差分の種類（<code>equal</code> / <code>insert</code> / <code>delete</code> / <code>replace</code>）と内容。</p>
+      </section>
+      <section class="doc-section" data-sec="文件差異比對" data-title="文書の差分比較" hidden>
+<div class="doc-crumb">8. テキストと比較 API</div>
+<h4 id="文件差異比對">文書の差分比較</h4>
+<p>2 つの文書（PDF / Word）の内容の差分を比較します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/doc-diff/api/doc-diff</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file_a</code></td><td>file</td><td>✓</td><td>古い版の文書</td></tr><tr><td><code>file_b</code></td><td>file</td><td>✓</td><td>新しい版の文書</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/doc-diff/api/doc-diff</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file_a=@v1.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;file_b=@v2.pdf&quot;</span> | jq</code></pre>
+<p>レスポンス JSON：段落ごとの差分の構造。</p>
+      </section>
+      <section class="doc-section" data-sec="清單處理" data-title="リスト処理" hidden>
+<div class="doc-crumb">8. テキストと比較 API</div>
+<h4 id="清單處理">リスト処理</h4>
+<p>テキストの一覧に対して、重複除去、並べ替え、集計、集合演算などのパイプライン処理を行います。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/text-list/api/text-list</code></pre>
+<p>Body（JSON）：</p>
+<div class="table-wrap"><table><thead><tr><th>項目</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>text</code></td><td>str</td><td>✓</td><td>1 行 1 件のリストのテキスト</td></tr><tr><td><code>ops</code></td><td>array</td><td></td><td>処理のパイプライン。各要素は <code>{&quot;op&quot;: &quot;...&quot;}</code>。op は <code>dedup</code> / <code>sort</code> / <code>count</code> / <code>exclude</code> / <code>lower</code> / <code>upper</code> / <code>title</code> など</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/text-list/api/text-list</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Content-Type: application/json&quot;</span> \
+  <span class="hl-flag">-d</span> <span class="hl-str">&#x27;{&quot;text&quot;:&quot;banana\napple\napple\ncherry&quot;,&quot;ops&quot;:[{&quot;op&quot;:&quot;dedup&quot;},{&quot;op&quot;:&quot;sort&quot;}]}&#x27;</span></code></pre>
+<p>レスポンス JSON：<code>{&quot;lines&quot;: [...], &quot;count&quot;: N, &quot;original_count&quot;: M, ...}</code>。</p>
+      </section>
+      <section class="doc-section" data-sec="文件翻譯" data-title="文書の翻訳" hidden>
+<div class="doc-crumb">8. テキストと比較 API</div>
+<h4 id="文件翻譯">文書の翻訳</h4>
+<p>オフィス文書全体を別の言語に翻訳し、<strong>同じ形式・同じレイアウトのファイルを返します</strong> —— テキストだけを置き換え、 レイアウトは組み直しません。<code>.doc</code> / <code>.docx</code> / <code>.odt</code>、<code>.xls</code> / <code>.xlsx</code> / <code>.ods</code>、 <code>.ppt</code> / <code>.pptx</code> / <code>.odp</code> に対応します。</p>
+<blockquote><p><strong>PDF は受け付けません</strong>：PDF には段落がなく、テキストは位置の決まった断片です。長さの違う訳文に置き換えると レイアウトは必ず崩れます。PDF を翻訳するには下の「一文ずつ翻訳」をお使いください。</p></blockquote>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/doc-translate/api/doc-translate</code></pre>
+<p>Form（multipart）：</p>
+<div class="table-wrap"><table><thead><tr><th>項目</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>オフィス文書（上記 9 種類の拡張子）</td></tr><tr><td><code>target_lang</code></td><td>str</td><td></td><td>翻訳先の言語。既定は <code>zh-TW</code></td></tr><tr><td><code>source_lang</code></td><td>str</td><td></td><td><code>auto</code>（既定）/ <code>en</code> / <code>ja</code> / <code>ko</code> …</td></tr><tr><td><code>domain</code></td><td>str</td><td></td><td>分野のヒント（法律契約、診療レポート…）。専門用語の精度を高めます</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/doc-translate/api/doc-translate</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@contract.docx&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;target_lang=en&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;domain=法律合約&quot;</span> \
+  <span class="hl-flag">-o</span> contract_translated.docx</code></pre>
+<p>レスポンスは<strong>翻訳後のファイルそのもの</strong>です（<code>Content-Disposition: attachment</code>）。形式はアップロードしたものと同じです。</p>
+<blockquote><p>このエンドポイントは<strong>同期</strong>です：全体を翻訳し終えてから応答するため、大きなファイルではリバースプロキシのタイムアウトに達します。 web インターフェースはバックグラウンドジョブ版を使います（<code>POST /tools/doc-translate/start</code>、 送信後は次で進捗を確認し <code>/api/jobs/{job_id}</code> 、完了後は次で <code>GET /tools/doc-translate/download/{upload_id}</code> ファイルを取得します）。 admin による LLM サービスの有効化が必要です（<code>/admin/llm-settings</code>）。無効の場合は次を返します <code>503</code>。</p></blockquote>
+      </section>
+      <section class="doc-section" data-sec="逐句翻譯" data-title="一文ずつ翻訳" hidden>
+<div class="doc-crumb">8. テキストと比較 API</div>
+<h4 id="逐句翻譯">一文ずつ翻訳</h4>
+<p>ローカルの LLM を使って一文ずつ翻訳します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/translate-doc/api/translate-doc</code></pre>
+<p>Body（JSON）：</p>
+<div class="table-wrap"><table><thead><tr><th>項目</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>text</code></td><td>str</td><td>✓</td><td>翻訳対象のテキスト</td></tr><tr><td><code>source_lang</code></td><td>str</td><td></td><td><code>auto</code>（既定）/ <code>en</code> / <code>zh</code> / <code>ja</code> / <code>ko</code> ...</td></tr><tr><td><code>target_lang</code></td><td>str</td><td></td><td>翻訳先の言語。既定は <code>zh-TW</code></td></tr><tr><td><code>domain</code></td><td>str</td><td></td><td>分野のヒント（専門用語の精度を高めます）</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/translate-doc/api/translate-doc</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Content-Type: application/json&quot;</span> \
+  <span class="hl-flag">-d</span> <span class="hl-str">&#x27;{&quot;text&quot;:&quot;Hello world. This is a test.&quot;,&quot;source_lang&quot;:&quot;auto&quot;,&quot;target_lang&quot;:&quot;zh-TW&quot;}&#x27;</span></code></pre>
+<p>レスポンス JSON：</p>
+<pre><code class="lang-json">{
+  <span class="hl-key">&quot;source_lang&quot;</span>: <span class="hl-str">&quot;en&quot;</span>,
+  <span class="hl-key">&quot;target_lang&quot;</span>: <span class="hl-str">&quot;zh-TW&quot;</span>,
+  <span class="hl-key">&quot;results&quot;</span>: [
+    {<span class="hl-key">&quot;src&quot;</span>: <span class="hl-str">&quot;Hello world.&quot;</span>, <span class="hl-key">&quot;translated&quot;</span>: <span class="hl-str">&quot;你好，世界。&quot;</span>, <span class="hl-key">&quot;error&quot;</span>: <span class="hl-str">&quot;&quot;</span>},
+    {<span class="hl-key">&quot;src&quot;</span>: <span class="hl-str">&quot;This is a test.&quot;</span>, <span class="hl-key">&quot;translated&quot;</span>: <span class="hl-str">&quot;這是一個測試。&quot;</span>, <span class="hl-key">&quot;error&quot;</span>: <span class="hl-str">&quot;&quot;</span>}
+  ]
+}</code></pre>
+<blockquote><p>admin による LLM サービスの有効化が必要です（<code>/admin/llm-settings</code>）。無効の場合は次を返します <code>503</code>。</p></blockquote>
+<h5 id="大量句子背景作業版">大量の文：バックグラウンドジョブ版</h5>
+<p>上のエンドポイントは<strong>同期</strong>です：全体を翻訳し終えてから応答するため、文が多いとリバースプロキシのタイムアウトに達します。 数百文以上ではバックグラウンドジョブに切り替えてください —— 送信するとすぐにジョブ番号を受け取り、翻訳はサーバーで続行され、<strong>呼び出し側はオフラインになってかまいません</strong>。あとから戻って進捗と結果を確認できます。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/translate-doc/start
+<span class="hl-method">GET</span>  /tools/translate-doc/job/{job_id}?start=<span class="hl-num">0</span></code></pre>
+<p><code>start</code> の Body（JSON）：</p>
+<div class="table-wrap"><table><thead><tr><th>項目</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>sentences</code></td><td>list[str]</td><td>✓</td><td>分割済みの文の配列（自分で分割するか、先に <code>/extract-text</code> を使ってください）</td></tr><tr><td><code>source_lang</code></td><td>str</td><td></td><td><code>auto</code>（既定）/ <code>en</code> / <code>zh</code> …</td></tr><tr><td><code>target_lang</code></td><td>str</td><td></td><td>翻訳先の言語。既定は <code>zh-TW</code></td></tr><tr><td><code>domain</code></td><td>str</td><td></td><td>分野のヒント</td></tr><tr><td><code>filename</code></td><td>str</td><td></td><td>表示用の元のファイル名（「マイジョブ」に表示されます）</td></tr></tbody></table></div>
+<pre><code class="lang-bash">JOB=$(curl <span class="hl-flag">-s</span> <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/translate-doc/start</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Content-Type: application/json&quot;</span> \
+  <span class="hl-flag">-d</span> <span class="hl-str">&#x27;{&quot;sentences&quot;:[&quot;Hello world.&quot;,&quot;This is a test.&quot;],&quot;target_lang&quot;:&quot;zh-TW&quot;}&#x27;</span> \
+  | jq <span class="hl-flag">-r</span> .job_id)
+
+curl <span class="hl-flag">-s</span> <span class="hl-str">&quot;http://localhost:8765/tools/translate-doc/job/$JOB&quot;</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> | jq</code></pre>
+<p>照会のレスポンス：</p>
+<pre><code class="lang-json">{
+  <span class="hl-key">&quot;status&quot;</span>: <span class="hl-str">&quot;running&quot;</span>,
+  <span class="hl-key">&quot;progress&quot;</span>: <span class="hl-num">0.5</span>,
+  <span class="hl-key">&quot;message&quot;</span>: <span class="hl-str">&quot;翻譯中… 1 / 2 句&quot;</span>,
+  <span class="hl-key">&quot;elapsed&quot;</span>: <span class="hl-num">3.2</span>,
+  <span class="hl-key">&quot;total&quot;</span>: <span class="hl-num">2</span>,
+  <span class="hl-key">&quot;start&quot;</span>: <span class="hl-num">0</span>,
+  <span class="hl-key">&quot;results&quot;</span>: [
+    {<span class="hl-key">&quot;src&quot;</span>: <span class="hl-str">&quot;Hello world.&quot;</span>, <span class="hl-key">&quot;translated&quot;</span>: <span class="hl-str">&quot;你好，世界。&quot;</span>},
+    {<span class="hl-key">&quot;src&quot;</span>: <span class="hl-str">&quot;This is a test.&quot;</span>}
+  ],
+  <span class="hl-key">&quot;cancelled&quot;</span>: <span class="hl-bool">false</span>
+}</code></pre>
+<ul>
+<li><code>status</code>：<code>pending</code> / <code>running</code> / <code>done</code> / <code>error</code> / <code>cancelled</code> / <code>interrupted</code></li>
+<li><strong>原文は送信した時点で照会できます</strong>（右側のまだ翻訳が終わっていない項目には <code>translated</code> の欄がありません）。</li>
+</ul>
+<p>  そのため、呼び出し側は処理中でも表示を進められます。</p>
+<ul>
+<li><code>start=N</code> N 件目より後のデータだけを返します —— 数万文のときに毎回全部を取得する必要がありません。</li>
+<li>キャンセルには共通のジョブのエンドポイントを使います：<code>POST /api/jobs/{job_id}/cancel</code>。</li>
+<li>所有の扱いは他のジョブのエンドポイントと同じで、所有者でない場合は常に <code>404</code> を返します。</li>
+</ul>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="統編查詢單筆" data-title="統一番号の照会（単件）" hidden>
+<div class="doc-crumb">9. ビジネス照会 API</div>
+<h4 id="統編查詢單筆">統一番号の照会（単件）</h4>
+<p>8 桁の統一番号から会社 / 機関の名称、住所、業種分類を逆引きします。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/vat-lookup/api/vat-lookup</code></pre>
+<p>Body（JSON）：<code>{&quot;vat&quot;: &quot;12345678&quot;}</code></p>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/vat-lookup/api/vat-lookup</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Content-Type: application/json&quot;</span> \
+  <span class="hl-flag">-d</span> <span class="hl-str">&#x27;{&quot;vat&quot;:&quot;12345678&quot;}&#x27;</span> | jq</code></pre>
+<p>レスポンス JSON：会社名 / 住所 / 業種など。見つからない場合は <code>404</code> を返します。</p>
+      </section>
+      <section class="doc-section" data-sec="統編查詢path-style" data-title="統一番号の照会（path style）" hidden>
+<div class="doc-crumb">9. ビジネス照会 API</div>
+<h4 id="統編查詢path-style">統一番号の照会（path style）</h4>
+<p>上と同じですが、GET + path パラメータを使います。</p>
+<pre><code class="lang-text"><span class="hl-method">GET</span> /api/vat-lookup/{vat}</code></pre>
+<pre><code class="lang-bash">curl <span class="hl-url">http://localhost:8765/api/vat-lookup/12345678</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> | jq</code></pre>
+<p>レスポンス JSON：単件の照会と同じです。</p>
+      </section>
+      <section class="doc-section" data-sec="統編查詢批次" data-title="統一番号の照会（一括）" hidden>
+<div class="doc-crumb">9. ビジネス照会 API</div>
+<h4 id="統編查詢批次">統一番号の照会（一括）</h4>
+<p>複数の統一番号を一度に照会します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/vat-lookup/api/vat-lookup/batch</code></pre>
+<p>Body（JSON）：<code>{&quot;vats&quot;: [&quot;12345678&quot;, &quot;23456789&quot;]}</code></p>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/vat-lookup/api/vat-lookup/batch</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Content-Type: application/json&quot;</span> \
+  <span class="hl-flag">-d</span> <span class="hl-str">&#x27;{&quot;vats&quot;:[&quot;12345678&quot;,&quot;23456789&quot;]}&#x27;</span> | jq</code></pre>
+<p>レスポンス JSON：照会結果の配列。</p>
+      </section>
+      <section class="doc-section" data-sec="電子發票掃描" data-title="電子請求書のスキャン" hidden>
+<div class="doc-crumb">9. ビジネス照会 API</div>
+<h4 id="電子發票掃描">電子請求書のスキャン</h4>
+<p>電子請求書の QR コードの内容を解析します。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/einvoice-scan/api/einvoice-scan</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>請求書の QR コードを含む画像 / PDF</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/einvoice-scan/api/einvoice-scan</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@invoice.jpg&quot;</span> | jq</code></pre>
+<p>レスポンス JSON：請求書番号、日付、金額、売り手の統一番号など。</p>
+      </section>
+      <section class="doc-section" data-sec="電子發票後端狀態" data-title="電子請求書のバックエンド状態" hidden>
+<div class="doc-crumb">9. ビジネス照会 API</div>
+<h4 id="電子發票後端狀態">電子請求書のバックエンド状態</h4>
+<p>QR コードのデコードのバックエンド（zbar）が利用できるかを確認します。</p>
+<pre><code class="lang-text"><span class="hl-method">GET</span> /tools/einvoice-scan/api/backend-status</code></pre>
+<pre><code class="lang-bash">curl <span class="hl-url">http://localhost:8765/tools/einvoice-scan/api/backend-status</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> | jq</code></pre>
+<p>レスポンス JSON：<code>{&quot;available&quot;: true/false, ...}</code>。</p>
+      </section>
+      <section class="doc-section" data-sec="送件前檢核--自家公司主檔" data-title="送付前チェック —— 自社のマスター" hidden>
+<div class="doc-crumb">9. ビジネス照会 API</div>
+<h4 id="送件前檢核--自家公司主檔">送付前チェック —— 自社のマスター</h4>
+<p>送付前チェックで使う自社エンティティを管理します（CRUD）。</p>
+<pre><code class="lang-text"><span class="hl-method">GET</span>    /tools/submission-check/api/self-entities
+<span class="hl-method">POST</span>   /tools/submission-check/api/self-entities
+<span class="hl-method">PUT</span>    /tools/submission-check/api/self-entities/{entity_id}
+<span class="hl-method">DELETE</span> /tools/submission-check/api/self-entities/{entity_id}</code></pre>
+<p>POST / PUT のパラメータ：<code>name</code>、<code>tax_id</code>、<code>address</code>、<code>aliases</code>、<code>type</code>、<code>note</code>。</p>
+<pre><code class="lang-bash"><span class="hl-cmt"># 列出</span>
+curl <span class="hl-url">http://localhost:8765/tools/submission-check/api/self-entities</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> | jq
+
+<span class="hl-cmt"># 新增</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/submission-check/api/self-entities</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;name=Acme 股份有限公司&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;tax_id=12345678&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;address=台北市...&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;type=company&quot;</span>
+
+<span class="hl-cmt"># 更新</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">PUT</span> <span class="hl-url">http://localhost:8765/tools/submission-check/api/self-entities/abc123</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;name=Acme 國際&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;tax_id=12345678&quot;</span>
+
+<span class="hl-cmt"># 刪除</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">DELETE</span> <span class="hl-url">http://localhost:8765/tools/submission-check/api/self-entities/abc123</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span></code></pre>
+<p>レスポンス JSON：エンティティの一覧 / 操作の結果。</p>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="乘車證明整理" data-title="乗車証明の整理" hidden>
+<div class="doc-crumb">9. ビジネス照会 API</div>
+<h4 id="乘車證明整理">乗車証明の整理</h4>
+<p>台鉄 / 台湾高鉄 / Uber の乗車証明 PDF をまとめて解析し、構造化された JSON を返します。<strong>解析するだけで、ユーザーの一覧には書き込みません</strong>。</p>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /tools/transit-proof/api/transit-proof</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>files</code></td><td>file[]</td><td>✓</td><td>乗車証明の PDF。一度に最大 200 個</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/transit-proof/api/transit-proof</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;files=@proof1.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;files=@proof2.pdf&quot;</span> | jq</code></pre>
+<pre><code class="lang-json">{
+  <span class="hl-key">&quot;ok&quot;</span>: <span class="hl-bool">true</span>,
+  <span class="hl-key">&quot;count&quot;</span>: <span class="hl-num">1</span>,
+  <span class="hl-key">&quot;entries&quot;</span>: [{<span class="hl-key">&quot;date&quot;</span>: <span class="hl-str">&quot;...&quot;</span>, <span class="hl-key">&quot;from&quot;</span>: <span class="hl-str">&quot;...&quot;</span>, <span class="hl-key">&quot;to&quot;</span>: <span class="hl-str">&quot;...&quot;</span>, <span class="hl-key">&quot;amount&quot;</span>: <span class="hl-num">0</span>}],
+  <span class="hl-key">&quot;failed&quot;</span>: [{<span class="hl-key">&quot;file&quot;</span>: <span class="hl-str">&quot;other.pdf&quot;</span>,
+              <span class="hl-key">&quot;error&quot;</span>: <span class="hl-str">&quot;無法辨識為乘車證明（格式不符或版面不支援）&quot;</span>}]
+}</code></pre>
+<p><strong>認識できないファイルがあってもバッチ全体は失敗しません</strong> —— 成功したものは <code>entries</code> に入り、失敗したものはファイルごとに <code>failed</code> に並びます （HTTP は 200 のままです）。取りこぼしの有無は <code>failed</code> が空かどうかで判断し、HTTP の状態だけを見ないでください。 200 個を超えると <code>400</code>、<code>files</code> をまったく渡さない場合は <code>422</code> を返します。</p>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="llm-校驗pdf-fill" data-title="LLM 検証（pdf-fill）" hidden>
+<div class="doc-crumb">10. Job モード API</div>
+<p>時間のかかる操作や一括操作は job queue で行います。流れは次のとおりです：</p>
+<ol>
+<li>対応するツールの送信 endpoint を呼び出す → <code>{&quot;job_id&quot;: &quot;...&quot;}</code> を受け取る</li>
+<li><code>GET /api/jobs/{job_id}</code> を <code>status == &quot;completed&quot;</code> になるまでポーリングする</li>
+<li><code>GET /api/jobs/{job_id}/download</code> で結果を取得する（1 ファイルなら PDF、複数なら ZIP）</li>
+</ol>
+<h4 id="llm-校驗pdf-fill">LLM 検証（pdf-fill）</h4>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /api/llm-review</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF（項目を入力済みで、検証の準備ができたもの）</td></tr><tr><td><code>template_id</code></td><td>str</td><td>✓</td><td>テンプレート ID（admin 側が記憶しているレイアウト）</td></tr><tr><td><code>rounds</code></td><td>int</td><td></td><td>レビュー回数。既定は admin の設定を読みます</td></tr></tbody></table></div>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/api/llm-review</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@filled.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;template_id=vendor_form_v3&quot;</span> \
+  | jq
+<span class="hl-cmt"># → {&quot;job_id&quot;: &quot;...&quot;}</span></code></pre>
+<p>レスポンス：<code>{&quot;job_id&quot;: &quot;...&quot;}</code>。</p>
+      </section>
+      <section class="doc-section" data-sec="查-job-狀態" data-title="job の状態を照会" hidden>
+<div class="doc-crumb">10. Job モード API</div>
+<h4 id="查-job-狀態">job の状態を照会</h4>
+<pre><code class="lang-text"><span class="hl-method">GET</span> /api/jobs/{job_id}</code></pre>
+<pre><code class="lang-bash">curl <span class="hl-url">http://localhost:8765/api/jobs/abc123</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> | jq</code></pre>
+<p>レスポンス：</p>
+<pre><code class="lang-json">{
+  <span class="hl-key">&quot;job_id&quot;</span>: <span class="hl-str">&quot;abc123...&quot;</span>,
+  <span class="hl-key">&quot;status&quot;</span>: <span class="hl-str">&quot;running&quot;</span>,
+  <span class="hl-key">&quot;progress&quot;</span>: <span class="hl-num">0.65</span>,
+  <span class="hl-key">&quot;message&quot;</span>: <span class="hl-str">&quot;校驗第 5 / 12 欄位&quot;</span>,
+  <span class="hl-key">&quot;error&quot;</span>: <span class="hl-bool">null</span>,
+  <span class="hl-key">&quot;tool&quot;</span>: <span class="hl-str">&quot;pdf-fill-llm&quot;</span>
+}</code></pre>
+<p><code>status</code>：<code>pending</code> / <code>running</code> / <code>completed</code> / <code>failed</code>。</p>
+      </section>
+      <section class="doc-section" data-sec="下載-job-結果" data-title="job の結果をダウンロード" hidden>
+<div class="doc-crumb">10. Job モード API</div>
+<h4 id="下載-job-結果">job の結果をダウンロード</h4>
+<pre><code class="lang-text"><span class="hl-method">GET</span> /api/jobs/{job_id}/download
+<span class="hl-method">GET</span> /api/jobs/{job_id}/download/{filename}    <span class="hl-cmt"># 同一份結果，只是讓瀏覽器存成這個檔名</span></code></pre>
+<pre><code class="lang-bash">curl <span class="hl-url">http://localhost:8765/api/jobs/abc123/download</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">--output</span> result.pdf</code></pre>
+<p>レスポンス：結果ファイル（PDF / ZIP）。未完了（<code>status != completed</code>）の場合は <code>409</code> を返します。</p>
+      </section>
+      <section class="doc-section" data-sec="下載-job-結果為-png" data-title="job の結果を PNG でダウンロード" hidden>
+<div class="doc-crumb">10. Job モード API</div>
+<h4 id="下載-job-結果為-png">job の結果を PNG でダウンロード</h4>
+<pre><code class="lang-text"><span class="hl-method">GET</span> /api/jobs/{job_id}/download-png</code></pre>
+<pre><code class="lang-bash">curl <span class="hl-url">http://localhost:8765/api/jobs/abc123/download-png</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">--output</span> result.zip</code></pre>
+<p>レスポンス：job の PDF の結果を PNG にレンダリングして返します（複数ページ / 複数ファイルは自動で ZIP にまとめます）。</p>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="列出資產" data-title="アセットの一覧" hidden>
+<div class="doc-crumb">11. 管理側 API</div>
+<p>admin でのログイン、または admin role の token が必要です。</p>
+<h4 id="列出資產">アセットの一覧</h4>
+<p>すべての印章 / 署名 / ロゴ / 透かしのアセットを一覧表示します。</p>
+<pre><code class="lang-text"><span class="hl-method">GET</span> /admin/api/assets</code></pre>
+<pre><code class="lang-bash">curl <span class="hl-url">http://localhost:8765/admin/api/assets</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer ADMIN_TOKEN&quot;</span> | jq</code></pre>
+      </section>
+      <section class="doc-section" data-sec="讀取--更新-llm-設定" data-title="LLM 設定の読み取り / 更新" hidden>
+<div class="doc-crumb">11. 管理側 API</div>
+<h4 id="讀取--更新-llm-設定">LLM 設定の読み取り / 更新</h4>
+<pre><code class="lang-text"><span class="hl-method">GET</span>  /admin/api/llm/settings
+<span class="hl-method">POST</span> /admin/api/llm/settings</code></pre>
+<pre><code class="lang-bash"><span class="hl-cmt"># 讀取</span>
+curl <span class="hl-url">http://localhost:8765/admin/api/llm/settings</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer ADMIN_TOKEN&quot;</span> | jq
+
+<span class="hl-cmt"># 更新</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/admin/api/llm/settings</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer ADMIN_TOKEN&quot;</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Content-Type: application/json&quot;</span> \
+  <span class="hl-flag">-d</span> <span class="hl-str">&#x27;{&quot;enabled&quot;:true,&quot;base_url&quot;:&quot;http://localhost:11434&quot;,&quot;model&quot;:&quot;gemma4:26b&quot;}&#x27;</span></code></pre>
+      </section>
+      <section class="doc-section" data-sec="測試-llm-連線" data-title="LLM 接続のテスト" hidden>
+<div class="doc-crumb">11. 管理側 API</div>
+<h4 id="測試-llm-連線">LLM 接続のテスト</h4>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /admin/api/llm/test-connection</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>base_url</code></td><td>str</td><td></td><td>テストするアドレス。<strong>指定しない場合は現在保存されている設定をテストします</strong></td></tr><tr><td><code>api_key</code></td><td>str</td><td></td><td>上と同じで、指定しない場合は保存済みのものを使います</td></tr><tr><td><code>timeout_seconds</code></td><td>num</td><td></td><td>上限は 30 秒です（管理ページが固まらないようにするためです）</td></tr></tbody></table></div>
+<p>JSON body。管理ページの「接続をテスト」ボタンは<strong>まだ保存していない</strong>設定を渡します。 コマンドラインから「今の設定でつながるか」だけを確認したい場合は、body 全体を省略できます。</p>
+<pre><code class="lang-bash"><span class="hl-cmt"># 測目前存檔的設定</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/admin/api/llm/test-connection</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer ADMIN_TOKEN&quot;</span> | jq
+<span class="hl-cmt"># → {&quot;ok&quot;: true, &quot;latency_ms&quot;: 42, &quot;error&quot;: null, &quot;models&quot;: [...]}</span>
+
+<span class="hl-cmt"># 測一組還沒存的設定</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/admin/api/llm/test-connection</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer ADMIN_TOKEN&quot;</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Content-Type: application/json&quot;</span> \
+  <span class="hl-flag">-d</span> <span class="hl-str">&#x27;{&quot;base_url&quot;: &quot;http://10.0.0.5:11434/v1&quot;}&#x27;</span> | jq</code></pre>
+<p>接続できない場合も<strong>200 を返し</strong>、<code>ok: false</code> と <code>error</code> を含めます —— 「相手を検出できない」ことは このリクエスト自体の失敗ではないためです。</p>
+      </section>
+      <section class="doc-section" data-sec="抓-llm-模型清單" data-title="LLM モデル一覧の取得" hidden>
+<div class="doc-crumb">11. 管理側 API</div>
+<h4 id="抓-llm-模型清單">LLM モデル一覧の取得</h4>
+<pre><code class="lang-text"><span class="hl-method">GET</span> /admin/api/llm/models</code></pre>
+<pre><code class="lang-bash">curl <span class="hl-url">http://localhost:8765/admin/api/llm/models</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer ADMIN_TOKEN&quot;</span> | jq</code></pre>
+      </section>
+      <section class="doc-section" data-sec="系統相依套件狀態" data-title="システムの依存パッケージの状態" hidden>
+<div class="doc-crumb">11. 管理側 API</div>
+<h4 id="系統相依套件狀態">システムの依存パッケージの状態</h4>
+<pre><code class="lang-text"><span class="hl-method">GET</span> /admin/api/sys-deps</code></pre>
+<pre><code class="lang-bash">curl <span class="hl-url">http://localhost:8765/admin/api/sys-deps</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer ADMIN_TOKEN&quot;</span> | jq</code></pre>
+      </section>
+      <section class="doc-section" data-sec="企業-logo-狀態" data-title="企業ロゴの状態" hidden>
+<div class="doc-crumb">11. 管理側 API</div>
+<h4 id="企業-logo-狀態">企業ロゴの状態</h4>
+<pre><code class="lang-text"><span class="hl-method">GET</span> /admin/api/branding</code></pre>
+<pre><code class="lang-bash">curl <span class="hl-url">http://localhost:8765/admin/api/branding</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer ADMIN_TOKEN&quot;</span> | jq</code></pre>
+      </section>
+      <section class="doc-section" data-sec="設定匯出清單" data-title="設定エクスポートの一覧" hidden>
+<div class="doc-crumb">11. 管理側 API</div>
+<h4 id="設定匯出清單">設定エクスポートの一覧</h4>
+<pre><code class="lang-text"><span class="hl-method">GET</span> /admin/api/settings-export/categories</code></pre>
+<pre><code class="lang-bash">curl <span class="hl-url">http://localhost:8765/admin/api/settings-export/categories</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer ADMIN_TOKEN&quot;</span> | jq</code></pre>
+      </section>
+      <section class="doc-section" data-sec="token-管理" data-title="Token の管理" hidden>
+<div class="doc-crumb">11. 管理側 API</div>
+<h4 id="token-管理">Token の管理</h4>
+<pre><code class="lang-text"><span class="hl-method">POST</span> /admin/api/tokens/create    <span class="hl-cmt"># 核發新 token</span>
+<span class="hl-method">POST</span> /admin/api/tokens/revoke    <span class="hl-cmt"># 撤銷 token</span>
+<span class="hl-method">POST</span> /admin/api/tokens/enforce   <span class="hl-cmt"># 開關 enforce 模式</span></code></pre>
+<pre><code class="lang-bash"><span class="hl-cmt"># 核發</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/admin/api/tokens/create</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer ADMIN_TOKEN&quot;</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Content-Type: application/json&quot;</span> \
+  <span class="hl-flag">-d</span> <span class="hl-str">&#x27;{&quot;label&quot;:&quot;gitlab-ci&quot;}&#x27;</span> | jq
+
+<span class="hl-cmt"># 開啟 enforce</span>
+curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/admin/api/tokens/enforce</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer ADMIN_TOKEN&quot;</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Content-Type: application/json&quot;</span> \
+  <span class="hl-flag">-d</span> <span class="hl-str">&#x27;{&quot;enforce&quot;:true}&#x27;</span></code></pre>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="管理介面自己用的-xhr-端點" data-title="管理画面自身が使う XHR エンドポイント" hidden>
+<div class="doc-crumb">11. 管理側 API</div>
+<h4 id="管理介面自己用的-xhr-端點">管理画面自身が使う XHR エンドポイント</h4>
+<p>以下は<strong>管理ページ自身が呼び出すエンドポイント</strong>で、安定した外部インターフェースではありません：パラメータと戻り値は ページの変更に追随するため、<strong>互換性は保証されません</strong>。掲載しているのは「このドキュメントがどのエンドポイントも漏らさない」ためです。 自動化が必要な場合は、上の明確な契約のある API を優先してください。</p>
+<div class="table-wrap"><table><thead><tr><th>エンドポイント</th><th>メソッド</th><th>対応する管理ページ</th></tr></thead><tbody><tr><td><code>/admin/api/check-latest-version</code></td><td>POST</td><td>システム状態 —— 新しいバージョンの有無を確認</td></tr><tr><td><code>/admin/api/upload-limit/probe</code></td><td>POST</td><td>システム状態 —— リバースプロキシのアップロード上限を測定</td></tr><tr><td><code>/admin/api/ocr-langs/set-engine</code></td><td>POST</td><td>OCR 言語パック —— 既定のエンジンを切り替え</td></tr><tr><td><code>/admin/api/ocr-langs/set-quality</code></td><td>POST</td><td>OCR 言語パック —— 認識品質を切り替え</td></tr><tr><td><code>/admin/api/ocr-langs/switch-active</code></td><td>POST</td><td>OCR 言語パック —— 有効な言語を切り替え</td></tr><tr><td><code>/admin/jobs/api/list</code></td><td>GET</td><td>ジョブキュー —— 現在のジョブ一覧</td></tr><tr><td><code>/admin/jobs/api/history</code></td><td>GET</td><td>ジョブキュー —— 履歴</td></tr><tr><td><code>/admin/jobs/api/cancel/{job_id}</code></td><td>POST</td><td>ジョブキュー —— ジョブを 1 件キャンセル</td></tr><tr><td><code>/admin/jobs/api/pause</code></td><td>POST</td><td>ジョブキュー —— ディスパッチの一時停止 / 再開</td></tr><tr><td><code>/admin/jobs/api/concurrency</code></td><td>POST</td><td>ジョブキュー —— 同時実行ジョブ数の上限</td></tr><tr><td><code>/admin/jobs/api/priority-users</code></td><td>GET / POST</td><td>ジョブキュー —— 優先処理リスト（<strong>順序がそのまま優先度です</strong>）</td></tr><tr><td><code>/admin/jobs/api/user-search</code></td><td>GET</td><td>ジョブキュー —— 優先ユーザーを指定するときの検索ボックス</td></tr></tbody></table></div>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="gitlab-ci--github-actions把-word-文件自動轉-pdf" data-title="GitLab CI / GitHub Actions：Word 文書を自動で PDF に変換" hidden>
+<div class="doc-crumb">12. 連携の例</div>
+<h4 id="gitlab-ci--github-actions把-word-文件自動轉-pdf">GitLab CI / GitHub Actions：Word 文書を自動で PDF に変換</h4>
+<pre><code class="lang-yaml"><span class="hl-cmt"># .gitlab-ci.yml</span>
+convert-docs:
+  script:
+    - |
+      for f in docs/*.docx; do
+        curl <span class="hl-flag">-fsSL</span> <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-str">&quot;http://jtdt.internal:8765/api/convert-to-pdf&quot;</span> \
+          <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer $JTDT_TOKEN&quot;</span> \
+          <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@$f&quot;</span> \
+          <span class="hl-flag">--output</span> <span class="hl-str">&quot;build/$(basename &quot;</span>$f<span class="hl-str">&quot; .docx).pdf&quot;</span>
+      done
+  artifacts:
+    paths: [build/]</code></pre>
+      </section>
+      <section class="doc-section" data-sec="python-客戶端批次清掉-pdf-註解" data-title="Python クライアント：PDF の注釈を一括で消去" hidden>
+<div class="doc-crumb">12. 連携の例</div>
+<h4 id="python-客戶端批次清掉-pdf-註解">Python クライアント：PDF の注釈を一括で消去</h4>
+<pre><code class="lang-python">import requests
+from pathlib import Path
+
+API = <span class="hl-str">&quot;http://localhost:8765&quot;</span>
+TOKEN = <span class="hl-str">&quot;YOUR_64_HEX_TOKEN&quot;</span>
+H = {<span class="hl-str">&quot;Authorization&quot;</span>: f<span class="hl-str">&quot;Bearer {TOKEN}&quot;</span>}
+
+for pdf in Path(<span class="hl-str">&quot;incoming/&quot;</span>).glob(<span class="hl-str">&quot;*.pdf&quot;</span>):
+    with pdf.open(<span class="hl-str">&quot;rb&quot;</span>) as f:
+        r = requests.post(
+            f<span class="hl-str">&quot;{API}/tools/pdf-annotations-strip/api/pdf-annotations-strip&quot;</span>,
+            headers=H,
+            files={<span class="hl-str">&quot;file&quot;</span>: (pdf.name, f, <span class="hl-str">&quot;application/pdf&quot;</span>)},
+        )
+    r.raise_for_status()
+    (Path(<span class="hl-str">&quot;clean/&quot;</span>) / pdf.name).write_bytes(r.content)
+    print(f<span class="hl-str">&quot;OK {pdf.name}&quot;</span>)</code></pre>
+      </section>
+      <section class="doc-section" data-sec="shell監看-job-完成後下載" data-title="Shell：job の完了を監視してダウンロード" hidden>
+<div class="doc-crumb">12. 連携の例</div>
+<h4 id="shell監看-job-完成後下載">Shell：job の完了を監視してダウンロード</h4>
+<pre><code class="lang-bash"><span class="hl-cmt">#!/bin/bash</span>
+TOKEN=<span class="hl-str">&quot;YOUR_TOKEN&quot;</span>
+API=<span class="hl-str">&quot;http://localhost:8765&quot;</span>
+
+JOB=$(curl <span class="hl-flag">-fsSL</span> <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-str">&quot;$API/api/llm-review&quot;</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer $TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@filled.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;template_id=vendor_form_v3&quot;</span> \
+  | jq <span class="hl-flag">-r</span> .job_id)
+
+echo <span class="hl-str">&quot;Job: $JOB&quot;</span>
+
+while :; do
+  S=$(curl <span class="hl-flag">-fsSL</span> <span class="hl-str">&quot;$API/api/jobs/$JOB&quot;</span> <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer $TOKEN&quot;</span>)
+  STATE=$(echo <span class="hl-str">&quot;$S&quot;</span> | jq <span class="hl-flag">-r</span> .status)
+  PROG=$(echo <span class="hl-str">&quot;$S&quot;</span> | jq <span class="hl-flag">-r</span> .progress)
+  echo <span class="hl-str">&quot;  $STATE  $PROG&quot;</span>
+  [ <span class="hl-str">&quot;$STATE&quot;</span> = <span class="hl-str">&quot;completed&quot;</span> ] &amp;&amp; break
+  [ <span class="hl-str">&quot;$STATE&quot;</span> = <span class="hl-str">&quot;failed&quot;</span> ] &amp;&amp; { echo <span class="hl-str">&quot;Failed&quot;</span>; exit <span class="hl-num">1</span>; }
+  sleep <span class="hl-num">2</span>
+done
+
+curl <span class="hl-flag">-fsSL</span> <span class="hl-str">&quot;$API/api/jobs/$JOB/download&quot;</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer $TOKEN&quot;</span> \
+  <span class="hl-flag">--output</span> reviewed.pdf
+echo <span class="hl-str">&quot;Saved: reviewed.pdf&quot;</span></code></pre>
+      </section>
+      <section class="doc-section" data-sec="nodejs逐句翻譯" data-title="Node.js：一文ずつ翻訳" hidden>
+<div class="doc-crumb">12. 連携の例</div>
+<h4 id="nodejs逐句翻譯">Node.js：一文ずつ翻訳</h4>
+<pre><code class="lang-js">const r = await fetch(
+  <span class="hl-str">&#x27;http://localhost:8765/tools/translate-doc/api/translate-doc&#x27;</span>,
+  {
+    method: <span class="hl-str">&#x27;POST&#x27;</span>,
+    headers: {
+      <span class="hl-str">&#x27;Content-Type&#x27;</span>: <span class="hl-str">&#x27;application/json&#x27;</span>,
+      <span class="hl-str">&#x27;Authorization&#x27;</span>: <span class="hl-str">&#x27;Bearer YOUR_TOKEN&#x27;</span>,
+    },
+    body: JSON.stringify({
+      text: <span class="hl-str">&#x27;Hello world. This is a test.&#x27;</span>,
+      source_lang: <span class="hl-str">&#x27;auto&#x27;</span>,
+      target_lang: <span class="hl-str">&#x27;zh-TW&#x27;</span>,
+    }),
+  }
+);
+const j = await r.json();
+console.log(j.results);
+// [{src: <span class="hl-str">&#x27;Hello world.&#x27;</span>, translated: <span class="hl-str">&#x27;你好，世界。&#x27;</span>, error: <span class="hl-str">&#x27;&#x27;</span>}, ...]</code></pre>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="13-cli-管理-token" data-title="13. CLI での token 管理" hidden>
+<h3 id="13-cli-管理-token">13. CLI での token 管理</h3>
+<pre><code class="lang-bash"><span class="hl-cmt"># 列出</span>
+sudo jtdt auth show
+
+<span class="hl-cmt"># 直接讀檔可看（unhash 不可逆）：</span>
+sudo cat /var/lib/jt-doc-tools/data/api_tokens.json
+
+<span class="hl-cmt"># 撤銷（CLI 沒提供撤銷，必要時直接清掉檔案後重啟服務）：</span>
+sudo systemctl stop jt-doc-tools
+sudo rm /var/lib/jt-doc-tools/data/api_tokens.json
+sudo systemctl start jt-doc-tools
+<span class="hl-cmt"># 重啟後 admin UI 重新核發</span></code></pre>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="14-速率限制--大檔上限" data-title="14. レート制限 / 大きなファイルの上限" hidden>
+<h3 id="14-速率限制--大檔上限">14. レート制限 / 大きなファイルの上限</h3>
+<p>現時点で rate limit は<strong>内蔵していません</strong>。導入時にはリバースプロキシ（nginx / Caddy）で次を追加することをおすすめします：</p>
+<ul>
+<li><code>client_max_body_size 100M</code>（必須。設定しないと大きな PDF が拒否されます）</li>
+<li><code>proxy_read_timeout 900s</code> + <code>proxy_send_timeout 900s</code>（必須 —— LLM ツールの推論は 1 件あたり 5-15 分かかることがよくあり、既定の 60s では必ず 504 になります）</li>
+<li><code>proxy_buffering off</code>（LLM の streaming に適しています）</li>
+<li><strong>多層の nginx 構成（自前の LLM proxy + jt-doc-tools で nginx が 2 台）ではどの層にも設定が必要です</strong>。1 層でも既定のままだと、その時点で切れます</li>
+<li>外部に公開する必要がある場合は、悪用を防ぐために <code>limit_req_zone</code> の追加をおすすめします</li>
+</ul>
+<p>詳しくは <a href="https://github.com/jasoncheng7115/jt-doc-tools/blob/main/OPS.md" target="_blank" rel="noopener">OPS.md</a> の「リバースプロキシ」の節と「504 Gateway Timeout のトラブルシューティング手順」をご覧ください。</p>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="14b-使用者工作區session-認證非-bearer-api" data-title="14b. ユーザーのワークスペース（session 認証。Bearer API ではありません）" hidden>
+<h3 id="14b-使用者工作區session-認證非-bearer-api">14b. ユーザーのワークスペース（session 認証。Bearer API ではありません）</h3>
+<p>「マイワークスペース」はログイン session に紐づく web 機能で（cookie 認証）、<strong>外部向けの Bearer API ではありません</strong>。各ファイルがログインしたアカウント単位で分離されるためです。admin が「ワークスペース設定」で有効にする必要があり、無効のときは以下のエンドポイントはすべて 404 を返します。</p>
+<div class="table-wrap"><table><thead><tr><th>エンドポイント</th><th>メソッド</th><th>説明</th></tr></thead><tbody><tr><td><code>/workspace</code></td><td>GET</td><td>「マイワークスペース」ページ</td></tr><tr><td><code>/workspace/api/list</code></td><td>GET</td><td>自分のファイルを一覧表示（<code>?accept=pdf,png</code> で絞り込み）+ 容量 + 保持時間</td></tr><tr><td><code>/workspace/api/count</code></td><td>GET</td><td>ファイル数（サイドバーのバッジ用）</td></tr><tr><td><code>/workspace/save</code></td><td>POST</td><td>保存：<code>job_id</code>（サーバー側で job の結果を複製）または <code>file</code>（bytes を直接アップロード）。PDF / PNG のみ</td></tr><tr><td><code>/workspace/file/{file_id}</code></td><td>GET</td><td>ファイルの取得（<code>?dl=1</code> でダウンロード）</td></tr><tr><td><code>/workspace/thumb/{file_id}</code></td><td>GET</td><td>サムネイル（PDF は 1 ページ目をレンダリング / PNG は元画像）</td></tr><tr><td><code>/workspace/delete</code></td><td>POST</td><td>削除（<code>file_id</code>）</td></tr><tr><td><code>/workspace/rename</code></td><td>POST</td><td>名前の変更（<code>file_id</code>、<code>name</code>）</td></tr></tbody></table></div>
+<p>容量の割り当て、1 ファイルの上限、保持時間、有効 / 無効は admin が <code>/admin/workspace</code> で設定します（全体で統一され、個別の例外はありません）。</p>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="14c-使用者通知與收件匣session-認證非-bearer-api" data-title="14c. ユーザーの通知と受信トレイ（session 認証。Bearer API ではありません）" hidden>
+<h3 id="14c-使用者通知與收件匣session-認證非-bearer-api">14c. ユーザーの通知と受信トレイ（session 認証。Bearer API ではありません）</h3>
+<p>§14b のワークスペースと同じ性質で、ログイン session（cookie）に紐づくため、<strong>外部向けの Bearer API ではありません</strong>。 内容がログインしたアカウント単位で分離されるためです。未ログインの場合は常に 401 / 302 を返します。</p>
+<div class="table-wrap"><table><thead><tr><th>エンドポイント</th><th>メソッド</th><th>説明</th></tr></thead><tbody><tr><td><code>/api/my/notify</code></td><td>GET</td><td>自分の通知設定を読み取ります（ジョブの完了時に通知するか、どのチャネルを使うか）</td></tr><tr><td><code>/api/my/notify</code></td><td>POST</td><td>自分の通知設定を保存します</td></tr><tr><td><code>/api/my/inbox</code></td><td>GET</td><td>サイト内通知の一覧（未読を優先）</td></tr><tr><td><code>/api/my/inbox/seen</code></td><td>POST</td><td>既読にする（<code>id</code> または <code>all=1</code>）</td></tr></tbody></table></div>
+<blockquote><p>この 4 つは<strong>意図的に Bearer API に含めていません</strong>：返すのは「このログインしたユーザーの」データであり、 token で呼び出しても意味がないためです（token はユーザーに紐づきますが、これらのエンドポイントはブラウザーからの利用を想定しています）。</p></blockquote>
+<hr>
+      </section>
+      <section class="doc-section" data-sec="15-變更歷史" data-title="15. 変更履歴" hidden>
+<h3 id="15-變更歷史">15. 変更履歴</h3>
+<p>API のインターフェースは SemVer に従います：minor バージョン（1.4.x → 1.5.x など）は<strong>後方互換</strong>を保証し、major バージョン（1.x → 2.x）でのみ breaking な変更を行います。エンドポイントの追加は breaking には含みません。</p>
+<p>完全な変更履歴は <a href="https://github.com/jasoncheng7115/jt-doc-tools/blob/main/CHANGELOG.md" target="_blank" rel="noopener">CHANGELOG.md</a> をご覧ください。</p>
+      </section>
+      <nav class="doc-prevnext" id="docPrevNext">
+        <a class="pn pn-prev" href="#" hidden><span>前のページ</span><b></b></a>
+        <a class="pn pn-next" href="#" hidden><span>次のページ</span><b></b></a>
+      </nav>
+    </article>
+    <aside class="doc-otp is-empty" id="docOtp">
+      <div class="otp-h">この節の項目</div>
+      <nav class="otp-list" id="otpList"></nav>
+    </aside>
+  </div>
+</main>
+<script>
+(function () {
+  // 左欄：章節 + 其下各端點（可收折）。每「章」一頁切換。
+  // 右欄：只放「目前章節內更細的小標題」(h5)，沒有就隱藏。
+  var sections = Array.prototype.slice.call(
+    document.querySelectorAll('.doc-section'));
+  var navLinks = Array.prototype.slice.call(
+    document.querySelectorAll('.doc-nav-list a'));
+  var otpHost = document.getElementById('docOtp');
+  var otpList = document.getElementById('otpList');
+  var pnPrev = document.querySelector('.pn-prev');
+  var pnNext = document.querySelector('.pn-next');
+  if (!sections.length) return;
+  var order = sections.map(function (s) { return s.dataset.sec; });
+  var spyHandler = null;
+
+  // 章節收折：點整列章名（或前方三角）即可收折，章名本身不連到任何頁面
+  function toggleGroup(head) {
+    var grp = head.closest('.nav-group');
+    if (!grp) return;
+    var c = grp.classList.toggle('collapsed');
+    head.setAttribute('aria-expanded', c ? 'false' : 'true');
+  }
+  document.querySelectorAll('.nav-group-head').forEach(function (head) {
+    head.addEventListener('click', function (e) {
+      e.preventDefault();
+      toggleGroup(head);
+    });
+    head.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleGroup(head);
+      }
+    });
+  });
+
+  function buildOtp(sec) {
+    otpList.innerHTML = '';
+    var subs = Array.prototype.slice.call(sec.querySelectorAll('h5[id]'));
+    if (!subs.length) { otpHost.classList.add('is-empty'); return []; }
+    otpHost.classList.remove('is-empty');
+    subs.forEach(function (h) {
+      var a = document.createElement('a');
+      a.href = '#' + h.id;
+      a.textContent = h.textContent;
+      a.addEventListener('click', function (e) {
+        e.preventDefault();
+        h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        history.replaceState(null, '', '#' + h.id);
+      });
+      otpList.appendChild(a);
+    });
+    return subs;
+  }
+
+  function spyTargets(subs) {
+    // 每頁只有單一端點，僅右欄「本節細項」(h5) 隨捲動高亮
+    if (spyHandler) window.removeEventListener('scroll', spyHandler);
+    if (!subs.length) return;
+    var otpLinks = Array.prototype.slice.call(otpList.querySelectorAll('a'));
+    spyHandler = function () {
+      var top = window.scrollY + 130;
+      var cur = subs[0].id;
+      subs.forEach(function (h) { if (h.offsetTop <= top) cur = h.id; });
+      otpLinks.forEach(function (a) {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + cur);
+      });
+    };
+    window.addEventListener('scroll', spyHandler, { passive: true });
+    spyHandler();
+  }
+
+  function setPrevNext(idx) {
+    if (idx > 0) {
+      pnPrev.hidden = false;
+      pnPrev.setAttribute('href', '#' + sections[idx - 1].dataset.sec);
+      pnPrev.querySelector('b').textContent = sections[idx - 1].dataset.title;
+    } else { pnPrev.hidden = true; }
+    if (idx < sections.length - 1) {
+      pnNext.hidden = false;
+      pnNext.setAttribute('href', '#' + sections[idx + 1].dataset.sec);
+      pnNext.querySelector('b').textContent = sections[idx + 1].dataset.title;
+    } else { pnNext.hidden = true; }
+  }
+
+  function activate(id, opts) {
+    opts = opts || {};
+    var el = id ? document.getElementById(id) : null;
+    var sec = el ? el.closest('.doc-section') : null;
+    if (!sec) {
+      for (var i = 0; i < sections.length; i++) {
+        if (sections[i].dataset.sec === id) { sec = sections[i]; break; }
+      }
+    }
+    if (!sec) sec = sections[0];
+    sections.forEach(function (s) { s.hidden = (s !== sec); });
+    var slug = sec.dataset.sec;
+    navLinks.forEach(function (a) { a.classList.remove('active', 'nav-current'); });
+    var activeLink = navLinks.filter(function (a) {
+      return a.getAttribute('href') === '#' + slug;
+    })[0];
+    if (activeLink) {
+      activeLink.classList.add('active');
+      var grp = activeLink.closest('.nav-group');
+      if (grp) {
+        grp.classList.remove('collapsed');
+        // 端點頁 → 父章節給細微標示（粗體），提供章節脈絡
+        var chLink = grp.querySelector('.nav-ch');
+        if (chLink && chLink !== activeLink) chLink.classList.add('nav-current');
+      }
+    }
+    var subs = buildOtp(sec);
+    spyTargets(subs);
+    setPrevNext(order.indexOf(slug));
+    if (!opts.keepScroll) window.scrollTo({ top: 0 });
+  }
+
+  function curHash() {
+    try { return decodeURIComponent(location.hash.slice(1)); }
+    catch (e) { return location.hash.slice(1); }
+  }
+  function onClick(e) {
+    var a = e.currentTarget;
+    var id = decodeURIComponent(a.getAttribute('href').slice(1));
+    if (!id) return;
+    e.preventDefault();
+    if (curHash() === id) activate(id);
+    else location.hash = id;
+  }
+  navLinks.forEach(function (a) { a.addEventListener('click', onClick); });
+  pnPrev.addEventListener('click', onClick);
+  pnNext.addEventListener('click', onClick);
+  window.addEventListener('hashchange', function () { activate(curHash()); });
+  activate(curHash(), { keepScroll: !!location.hash });
+
+  // 搜尋 / 過濾左欄章節與端點
+  var searchEl = document.getElementById('docSearch');
+  var clearEl = document.getElementById('docSearchClear');
+  var emptyEl = document.getElementById('docSearchEmpty');
+  var groups = Array.prototype.slice.call(document.querySelectorAll('.nav-group'));
+
+  function runFilter(q) {
+    q = (q || '').trim().toLowerCase();
+    clearEl.hidden = !q;
+    var anyShown = false;
+    groups.forEach(function (g) {
+      var chLink = g.querySelector('.nav-ch');
+      var chText = chLink ? chLink.textContent.toLowerCase() : '';
+      var eps = Array.prototype.slice.call(g.querySelectorAll('.nav-ep'));
+      if (!q) {
+        g.hidden = false;
+        eps.forEach(function (a) { a.hidden = false; });
+        return;
+      }
+      var chHit = chText.indexOf(q) >= 0;
+      var epHits = 0;
+      eps.forEach(function (a) {
+        var hit = chHit || a.textContent.toLowerCase().indexOf(q) >= 0;
+        a.hidden = !hit;
+        if (hit) epHits++;
+      });
+      // 章名命中 → 整章顯示；否則只在有端點命中時顯示
+      var show = chHit || epHits > 0;
+      g.hidden = !show;
+      if (show) {
+        anyShown = true;
+        g.classList.remove('collapsed');  // 搜尋時自動展開
+      }
+    });
+    emptyEl.hidden = !q || anyShown;
+  }
+
+  if (searchEl) {
+    searchEl.addEventListener('input', function () { runFilter(searchEl.value); });
+    searchEl.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { searchEl.value = ''; runFilter(''); }
+    });
+  }
+  if (clearEl) {
+    clearEl.addEventListener('click', function () {
+      searchEl.value = ''; runFilter(''); searchEl.focus();
+    });
+  }
+})();
+</script>
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-col">
+      <div class="footer-brand">Jason Tools ドキュメントツールボックス</div>
+      <p class="footer-tag">PDF / Office の統合型文書処理プラットフォーム：クラウドに出さず、データは自分の手元に残ります。</p>
+    </div>
+    <div class="footer-col">
+      <div class="footer-h">リンク</div>
+      <a href="index-ja.html">紹介サイト</a>
+      <a href="https://github.com/jasoncheng7115/jt-doc-tools" target="_blank" rel="noopener">ソースコードリポジトリ</a>
+      <a href="https://github.com/jasoncheng7115/jt-doc-tools/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a>
+      <a href="troubleshooting-ja.html">インストールとアップグレードのトラブルシューティング</a>
+      <a href="https://github.com/jasoncheng7115/jt-doc-tools/issues" target="_blank" rel="noopener">問題を報告</a>
+    </div>
+    <div class="footer-col">
+      <div class="footer-h">作成者</div>
+      <p>
+        <strong>Jason Cheng</strong><br>
+        <a href="https://[網址]" target="_blank" rel="noopener">Jason Tools</a>
+      </p>
+    </div>
+    <div class="footer-col">
+      <div class="footer-h">ライセンス</div>
+      <p>GNU Affero General Public License v3.0</p>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="container">
+      © 2026 Jason Tools · Built with HTML & CSS, hosted on GitHub Pages
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -47,7 +47,19 @@ CHINESE: tuple[str, ...] = ("zh-Hant", "zh-Hans")
 
 
 #: 目前支援的介面語言。加語言時只動這裡與語系檔。
-SUPPORTED: tuple[str, ...] = ("zh-Hant", "en")
+SUPPORTED: tuple[str, ...] = ("zh-Hant", "en", "ja")
+
+#: 語言的**自稱**（endonym）—— 語言選單一律用該語言自己的寫法，
+#: 不要翻譯（英文使用者看到「Japanese」也不知道那是不是他要的；
+#: 日文使用者看得懂「日本語」）。這是選單唯一的來源，樣板不要自己寫死
+#: `{% if ... == 'en' %}English{% else %}繁體中文{% endif %}`
+#: —— 那種寫法每加一種語言就要改一次，而且**漏改不會有任何錯誤訊息**，
+#: 只是選單少一項。
+LOCALE_NAMES: dict[str, str] = {
+    "zh-Hant": "繁體中文",
+    "en": "English",
+    "ja": "日本語",
+}
 #: 記住選擇的 cookie。**不放網址前綴**（`/en/...`）—— 全站樣板都用絕對路徑，
 #: 加前綴會踩到反向代理那幾個雷（必須掛在根路徑）。
 COOKIE_NAME = "jtdt_locale"
@@ -59,6 +71,9 @@ def normalise(tag: str | None) -> str | None:
 
     `zh-TW` / `zh-Hant-TW` / `zh` 都當成繁體中文；`zh-CN` / `zh-Hans` **不算**
     （目前沒有簡體中文，硬對過去會讓簡中使用者看到繁中卻以為系統支援簡中）。
+
+    `ja` / `ja-JP` → 日文。**注意 `ja` 不可以被 `zh` 那條吃掉** ——
+    日文裡有大量漢字，但那跟語言標籤無關，判斷一律看標籤的主語言碼。
     """
     if not tag:
         return None
@@ -67,8 +82,11 @@ def normalise(tag: str | None) -> str | None:
         if "hans" in t or t.split("-")[-1] in ("cn", "sg"):
             return None
         return "zh-Hant"
-    if t.split("-")[0] == "en":
+    primary = t.split("-")[0]
+    if primary == "en":
         return "en"
+    if primary == "ja":
+        return "ja"
     return None
 
 

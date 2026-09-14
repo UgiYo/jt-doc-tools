@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""從中文 README 產出英文版（`README.md` → `README_en.md`）。
+"""從中文 README 產出其他語言版（`README.md` → `README_en.md` / `README_ja.md`）。
 
 跟介紹站同一個原則：**中文版是唯一的來源，英文版用生成的**。同一份文件放兩個
 地方一定會漂 —— 這個專案已經吃過好幾次虧。
@@ -9,7 +9,8 @@ Markdown 用**逐行**對照（一行一條）：README 的每一行本來就自
 
 用法：
     python3 github/build-i18n-md.py --extract    # 抽出待翻的行
-    python3 github/build-i18n-md.py              # 產生 README_en.md
+    python3 github/build-i18n-md.py              # 產生所有語言
+    python3 github/build-i18n-md.py --lang ja    # 只做日文
     python3 github/build-i18n-md.py --check      # 只檢查有沒有漏翻
 """
 from __future__ import annotations
@@ -93,15 +94,31 @@ def build(src: Path, cat_path: Path, dst: Path) -> int:
     return missing
 
 
+def _locales() -> "list[str]":
+    """要產出哪些語言 —— **唯一來源是 `ui_locale.SUPPORTED`**，
+    不在這裡另外寫一份（同一份清單放兩個地方一定會漂）。"""
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from app.core.ui_locale import DEFAULT_LOCALE, SUPPORTED
+    return [c for c in SUPPORTED if c != DEFAULT_LOCALE]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--extract", action="store_true")
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--lang", default=None, help="只做這個語言（預設全部）")
     a = ap.parse_args()
-    src, cat, dst = GH / "README.md", I18N / "readme.en.json", GH / "README_en.md"
-    if a.extract or a.check:
-        return 1 if extract(src, cat) and a.check else 0
-    return 1 if build(src, cat, dst) else 0
+    rc = 0
+    for lang in ([a.lang] if a.lang else _locales()):
+        src = GH / "README.md"
+        cat = I18N / f"readme.{lang}.json"
+        dst = GH / f"README_{lang}.md"
+        if a.extract or a.check:
+            rc |= 1 if extract(src, cat) and a.check else 0
+        else:
+            rc |= 1 if build(src, cat, dst) else 0
+    return rc
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-[繁體中文](CHANGELOG.md) ｜ **English**
+[繁體中文](CHANGELOG.md) ｜ **English** ｜ [日本語](CHANGELOG_ja.md)
 
 # Change log (English)
 
@@ -8,6 +8,120 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 > **[CHANGELOG.md](CHANGELOG.md) is the complete history** (767 releases).
 > This English file summarises **recent releases** — enough to see what changed
 > and decide whether to upgrade. For anything older, read the Chinese file.
+
+---
+
+## [1.15.46] - 2026-09-14
+
+### Japanese interface added (site, API guide, troubleshooting and README too)
+
+"Interface language" in the sidebar now offers `日本語`. The catalogue holds
+**4,891 entries**, and there are four public documents in Japanese
+(`index-ja.html`, `api-ja.html`, `troubleshooting-ja.html`, `README_ja.md`).
+
+**The language switch became a list, not a toggle.** One button was enough for
+two languages; with three, a reader standing on the Japanese page had no way
+out to the English one. Every page now links to **every language but its own**.
+
+> **The generators and the guards all read the language list from
+> `ui_locale.SUPPORTED`.** Eight places used to hard-code `en` — those guards
+> would have gone on **quietly checking English only** after a third language
+> arrived ("scanned nothing" and "scanned everything and it was clean" look
+> identical in pytest output).
+
+**Three things only Japanese exposed** (none of them happen with English):
+
+* **The terminology guard flagged the whole Japanese file.** Japanese `保存`
+  and `字体` are correct Japanese, and both are on the Chinese banned-words list
+  (Chinese wants `儲存` and `字型`). Nearly every Japanese line has kanji, so
+  without an exclusion the report is all false positives — and **once a check
+  is noisy, people start ignoring it**. The exclusion keys off the **file
+  name** (`README_ja.md`, `index-ja.html`), because the translated files sit
+  beside the Chinese ones and a directory rule cannot tell them apart.
+* **"A translation must not contain Han characters" does not hold for
+  Japanese.** Every Japanese translation contains kanji. The check now looks
+  for Chinese words modern Japanese does not use (`這` / `嗎` / `什麼` / `沒有` …),
+  which is the signal for "this entry was never translated at all".
+  **`的` must not be on that list**: `一般的` and `自動的` are correct Japanese
+  (the first version included it and produced three false positives on the
+  spot).
+* **A Japanese interface does not mean redaction handles Japanese
+  documents.** The document language defaulted to "Taiwan unless the interface
+  is `en`", so Japanese users silently got the Taiwanese pattern set — and
+  Taiwanese landline / address / VAT-number patterns applied to another
+  language do not *miss*, they **match the wrong thing**, while the screen
+  says "done". Languages with no pattern set of their own now fall back to the
+  language-independent group.
+
+### Fixed: dropdown labels never went through translation
+
+Scanning the Japanese interface page by page in a real browser found five
+places. **Every one of them was Chinese in the English interface too** — the
+two dropdowns on the translation glossary page had been wrong since it shipped
+in v1.15.19:
+
+| Where | What |
+|---|---|
+| Translation glossary | 12 language options |
+| System status | Database names (audit log, VAT database …) |
+| Document redaction **and** text redaction | Document-language dropdown |
+| Document straightening | The resolution hints |
+| Login page | Authentication source ("Local accounts") |
+
+> **What they share is that the text comes from server data** — a guard that
+> greps templates for a literal `tr('…')` cannot see any of it. The new
+> `test_option_labels_go_through_tr` checks the expression inside every
+> `<option>` instead. Genuine data (user names, tool ids, a language's own
+> name) is exempt **with the reason written down**.
+>
+> **Sweep the whole family at once**: the two redaction tools each carry a
+> copy of the same template and I fixed only one of them first.
+
+### Fixed: one sentence on the site had its clauses swapped (in English too)
+
+The "tools that need an Office engine" paragraph is split by `<b>` tags and
+translated segment by segment, which put the verbs the wrong way round:
+*"These tools need Word / Excel / PowerPoint / ODF when handling OxOffice or
+LibreOffice"*. **Each segment's translation has to read correctly in its own
+position.**
+
+Japanese also gained a typographic rule: when an inline tag has Japanese on
+**both** sides, the space between them is removed (the Chinese source often
+leaves one because the tag contains Latin text), otherwise you get things like
+`不要 です`.
+
+### Fixed: the language cookie had no `Secure` flag on HTTPS sites (found by ZAP)
+
+`/ui-locale` used `request.url.scheme == "https"`, and this project turns
+uvicorn's `proxy_headers` off — **behind a reverse proxy that value is always
+http**, so `jtdt_locale` shipped without `Secure` on an HTTPS site. It now uses
+the shared `is_https_request()` (and so does the SSO transaction cookie, which
+was looking at the redirect URI we send the IdP, when `Secure` is about **the
+browser's leg** of the connection).
+
+> **That helper's docstring already said "every cookie's `secure` must go
+> through here" — there was simply no guard.** Almost every regression in this
+> project comes back that way. The new `tests/test_cookie_secure_flag.py` walks
+> the AST and checks every `set_cookie` / `delete_cookie` (**deleting needs the
+> flags too** — `Max-Age=0` does not inherit them), plus a second check that
+> the one exempt local variable really is computed from that helper; without
+> it, someone hard-coding `is_https = True` would stay green.
+>
+> **Nothing had ever scanned that path before**: with Japanese added, the
+> language switch became a group of links, and ZAP's spider POSTed to
+> `/ui-locale` for the first time. **"The scan found nothing" and "there is
+> nothing" are different claims** — a scan only proves the parts it reached
+> were clean.
+
+### Also
+
+* The screenshot tool and the page-by-page scanner both take `--locale` now,
+  and the Japanese site uses screenshots of the **Japanese** interface
+  (`screenshots/ja/`).
+* `tests/test_i18n_catalog.py` strips comments before harvesting `tr()` keys
+  from JavaScript — a comment explaining the rule contained an example call and
+  was counted as a real key. That is this project's recurring "the scanner was
+  fooled by the very name it checks for"; this time it caught me.
 
 ---
 

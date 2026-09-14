@@ -18,24 +18,42 @@ _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parent.parent))
 from tools.repo_paths import public_root as _public_root
 
 DOCS = _public_root(Path(__file__).resolve().parent.parent) / "docs"
-PAGES = (("index.html", "index.en.json", "index-en.html"),
-         ("api.html", "api.en.json", "api-en.html"))
+
+
+def _locales() -> "list[str]":
+    """要驗哪些語言 —— **唯一來源是 `ui_locale.SUPPORTED`**。
+
+    寫死 `en` 的話，加了第三種語言之後這整支守門會**安靜地只驗英文**
+    ——「掃 0 個檔」跟「掃過都乾淨」在 pytest 輸出裡長得一模一樣。
+    """
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from app.core.ui_locale import DEFAULT_LOCALE, SUPPORTED
+    return [c for c in SUPPORTED if c != DEFAULT_LOCALE]
+
+
+PAGES = tuple((f"{n}.html", f"{n}.{lang}.json", f"{n}-{lang}.html")
+              for lang in _locales() for n in ("index", "api"))
 CJK = re.compile(r"[㐀-鿿]")
 _STRIP = re.compile(
-    r"<(script|style|code|pre)\b.*?</\1>|<!--.*?-->", re.S | re.I)
+    r"<(script|style|code|pre)\b.*?</\1>|<!--.*?-->"
+    # 語言切換那一組是**產生的**，裡面一定會有其他語言的自稱
+    #（英文頁上的「日本語」、日文頁上的「繁體中文」）—— 那是對的，不是漏翻。
+    r"|<span id=\"langSwitch\".*?</span>", re.S | re.I)
 
 
 @pytest.mark.parametrize("src,cat,dst", PAGES)
 def test_english_page_exists_and_has_no_chinese_left(src: str, cat: str, dst: str):
     p = DOCS / dst
-    assert p.exists(), f"缺英文版：{dst}（跑 python3 github/build-i18n-page.py）"
+    assert p.exists(), f"缺 {dst}（跑 python3 github/build-i18n-page.py）"
     html = p.read_text(encoding="utf-8")
-    assert re.search(r'<html lang="en"', html), "英文版的 lang 要是 en"
+    lang = dst.rsplit("-", 1)[1].removesuffix(".html")
+    assert re.search(rf'<html lang="{lang}"', html), f"{dst} 的 lang 要是 {lang}"
     body = _STRIP.sub(" ", html)
     left = {m.group(1).strip() for m in re.finditer(r">([^<>]+)<", body)
             if CJK.search(m.group(1))}
-    # 語言切換那顆按鈕本來就要寫中文（它是「切回中文」的入口）
-    left.discard("繁體中文")
+    if lang == "ja":
+        return          # 日文譯文本來就是漢字，這條判準對它不成立
     assert left == set(), f"{dst} 還有中文沒翻：{sorted(left)[:5]}"
 
 
@@ -48,11 +66,22 @@ def test_catalog_has_no_empty_translation(src: str, cat: str, dst: str):
 
 @pytest.mark.parametrize("src,cat,dst", PAGES)
 def test_language_link_points_both_ways(src: str, cat: str, dst: str):
-    """兩邊都要有語言連結，而且方向相反 —— 只有單向的話英文使用者回不去。"""
+    """**每一種語言都要連得到其他每一種語言。**
+
+    兩語時這是一個「切換」；三語之後不是了 —— 原本的寫法會讓日文頁
+    沒有出口到英文頁（實際踩到）。
+    """
     zh = (DOCS / src).read_text(encoding="utf-8")
-    en = (DOCS / dst).read_text(encoding="utf-8")
-    assert f'href="{dst}"' in zh, f"{src} 少了往英文版的連結"
-    assert f'href="{src}"' in en, f"{dst} 少了回中文版的連結"
+    other = (DOCS / dst).read_text(encoding="utf-8")
+    assert f'href="{dst}"' in zh, f"{src} 少了往 {dst} 的連結"
+    assert f'href="{src}"' in other, f"{dst} 少了回 {src} 的連結"
+    page = src.removesuffix(".html")
+    me = dst.rsplit("-", 1)[1].removesuffix(".html")
+    for lang in _locales():
+        if lang == me:
+            continue
+        assert f'href="{page}-{lang}.html"' in other, \
+            f"{dst} 少了往 {page}-{lang}.html 的連結（三語要互相連得到）"
 
 
 # ---------------------------------------------------------------------------
@@ -82,27 +111,41 @@ def _chinese_lines(md: str) -> list[str]:
             if CJK.search(ln) and "繁體中文" not in ln]
 
 
-def test_readme_english_version_is_generated_and_complete():
-    p = GH / "README_en.md"
-    assert p.exists(), "缺 README_en.md（跑 python3 github/build-i18n-md.py）"
+@pytest.mark.parametrize("lang", _locales())
+def test_readme_translated_version_is_generated_and_complete(lang: str):
+    p = GH / f"README_{lang}.md"
+    assert p.exists(), f"缺 README_{lang}.md（跑 python3 github/build-i18n-md.py）"
+    if lang == "ja":
+        return          # 日文譯文本來就是漢字
     left = _chinese_lines(p.read_text(encoding="utf-8"))
-    assert left == [], f"README_en.md 還有中文沒翻：{left[:3]}"
+    assert left == [], f"README_{lang}.md 還有中文沒翻：{left[:3]}"
 
 
-def test_changelog_english_version_exists_and_has_no_chinese_left():
-    p = GH / "CHANGELOG_en.md"
-    assert p.exists(), "缺 CHANGELOG_en.md"
+@pytest.mark.parametrize("lang", _locales())
+def test_changelog_translated_version_exists(lang: str):
+    p = GH / f"CHANGELOG_{lang}.md"
+    assert p.exists(), f"缺 CHANGELOG_{lang}.md"
+    if lang == "ja":
+        return
     left = _chinese_lines(p.read_text(encoding="utf-8"))
-    assert left == [], f"CHANGELOG_en.md 還有中文沒翻：{left[:3]}"
+    assert left == [], f"CHANGELOG_{lang}.md 還有中文沒翻：{left[:3]}"
 
 
-@pytest.mark.parametrize("zh,en", [("README.md", "README_en.md"),
-                                   ("CHANGELOG.md", "CHANGELOG_en.md")])
-def test_markdown_language_switch_points_both_ways(zh: str, en: str):
-    zh_head = (GH / zh).read_text(encoding="utf-8").splitlines()[0]
-    en_head = (GH / en).read_text(encoding="utf-8").splitlines()[0]
-    assert f"({en})" in zh_head, f"{zh} 第一行要有連到 {en} 的語言切換"
-    assert f"({zh})" in en_head, f"{en} 第一行要有連回 {zh} 的語言切換"
+@pytest.mark.parametrize("base", ["README", "CHANGELOG"])
+def test_markdown_language_switch_covers_every_language(base: str):
+    """第一行的語言列要**每一種語言都連得到其他每一種**。"""
+    heads = {"zh-Hant": (GH / f"{base}.md").read_text(encoding="utf-8").splitlines()[0]}
+    for lang in _locales():
+        heads[lang] = (GH / f"{base}_{lang}.md").read_text(
+            encoding="utf-8").splitlines()[0]
+    names = {"zh-Hant": f"{base}.md",
+             **{lang: f"{base}_{lang}.md" for lang in _locales()}}
+    for me, head in heads.items():
+        for other, fname in names.items():
+            if other == me:
+                continue
+            assert f"({fname})" in head, \
+                f"{names[me]} 第一行少了連到 {fname} 的語言切換"
 
 
 # ---------------------------------------------------------------------------
@@ -199,23 +242,25 @@ def test_no_pure_punctuation_keys(cat: str):
     assert not bad, f"純標點的鍵：{bad}"
 
 
-def test_english_page_uses_english_screenshots():
-    """英文版引用的截圖必須是**英文介面**那一組。
+@pytest.mark.parametrize("lang", _locales())
+def test_translated_page_uses_that_language_screenshots(lang: str):
+    """某語言版引用的截圖必須是**那個語言的介面**那一組。
 
     原本兩個版本共用同一批中文截圖 —— 讀者看到的畫面跟他實際會看到的不一樣，
-    而截圖正是「有沒有真的支援英文」最直接的證據。
+    而截圖正是「有沒有真的支援那個語言」最直接的證據。
 
-    產生方式：`python tools/capture_en_screenshots.py --base <拋棄式實例>`。
+    產生方式：
+    `python tools/capture_locale_screenshots.py --locale <語言> --base <拋棄式實例>`。
     """
     import re
-    html = (DOCS / "index-en.html").read_text(encoding="utf-8")
+    html = (DOCS / f"index-{lang}.html").read_text(encoding="utf-8")
     refs = sorted(set(re.findall(r'screenshots/[\w./-]+\.png', html)))
-    assert refs, "英文版頁面一張截圖都沒有"
-    zh = [r for r in refs if not r.startswith("screenshots/en/")]
-    assert not zh, f"英文版還在用中文介面的截圖：{zh}"
+    assert refs, f"{lang} 版頁面一張截圖都沒有"
+    zh = [r for r in refs if not r.startswith(f"screenshots/{lang}/")]
+    assert not zh, f"{lang} 版還在用中文介面的截圖：{zh}"
     for r in refs:
         p = DOCS / r
-        assert p.is_file(), f"英文版引用了不存在的截圖：{r}"
+        assert p.is_file(), f"{lang} 版引用了不存在的截圖：{r}"
 
 
 # ---------------------------------------------------------------------------
@@ -301,3 +346,28 @@ def test_english_readme_is_regenerated_after_every_change() -> None:
     assert not stale, (
         "README_en.md 是舊的 —— 跑 `python3 github/build-i18n-md.py`。"
     )
+
+
+def test_japanese_pages_do_not_leave_a_stray_space_around_inline_tags():
+    """日文頁：行內標記**兩側都是日文**時中間不可以有空白。
+
+    中文原文在 `<b>` 旁邊常留一個空白（標籤裡面是拉丁字，例如
+    `<b>不需</b> Office 引擎`）；翻成日文之後兩側都變日文字，那個空白就變成
+    「不要 です」這種怪東西 —— **畫面上看得到，自動化測試原本一律抓不到**。
+
+    產生器 `_tighten_cjk_spaces()` 負責收掉。這一條是它的守門：
+    只驗「產物有沒有重跑生成器」的話，把那條規則拿掉再重跑一樣是綠的。
+    """
+    ja_ch = r"[\u3040-\u30ff\u3400-\u9fff\uff01-\uff60、。「」－]"
+    tag = r"</?(?:b|strong|i|em|code|span|a|kbd|small|u|mark)\b[^>]*>"
+    pats = [re.compile(rf"{ja_ch}(?:{tag})+ (?={ja_ch})"),
+            re.compile(rf"{ja_ch} (?:{tag})+(?={ja_ch})")]
+    bad: list[str] = []
+    for name in ("index", "api", "troubleshooting"):
+        f = DOCS / f"{name}-ja.html"
+        if not f.is_file():
+            continue
+        html = f.read_text(encoding="utf-8")
+        for pat in pats:
+            bad += [f"{f.name}: …{m.group(0)}…" for m in pat.finditer(html)]
+    assert not bad, "日文頁行內標記旁邊多了空白：\n" + "\n".join(bad[:10])

@@ -44,10 +44,10 @@
   <p class="muted">{{ tr('設完看不出有沒有生效等於沒設。貼一段原文，看會命中哪幾條。') }}</p>
   <div class="profile-toolbar">
     <label class="tg-inline">{{ tr('原文語言') }}
-      <select id="tSrc" class="field">{% for l in langs %}<option value="{{ l.code }}">{{ l.name }}</option>{% endfor %}</select>
+      <select id="tSrc" class="field">{% for l in langs %}<option value="{{ l.code }}">{{ tr(l.name) }}</option>{% endfor %}</select>
     </label>
     <label class="tg-inline">{{ tr('譯文語言') }}
-      <select id="tTgt" class="field">{% for l in langs %}<option value="{{ l.code }}">{{ l.name }}</option>{% endfor %}</select>
+      <select id="tTgt" class="field">{% for l in langs %}<option value="{{ l.code }}">{{ tr(l.name) }}</option>{% endfor %}</select>
     </label>
     <button class="btn" id="tryBtn" type="button">{{ icon('play') }}{{ tr('試一次') }}</button>
   </div>
@@ -96,8 +96,11 @@ function say(msg, cls) {
 }
 
 function langOptions(sel) {
+  // 語言名稱是**資料表算出來的**（`_LANG_NAMES`），樣板掃字面 `tr('…')` 的
+  // 守門看不到 —— 所以這裡要自己包，否則英文 / 日文介面下這排下拉全是中文
+  // （2026-09-14 日文版逐頁掃抓到，英文版從這頁上線就一直是中文）。
   return LANGS.map(l =>
-    `<option value="${l.code}"${l.code === sel ? ' selected' : ''}>${l.name}</option>`
+    `<option value="${l.code}"${l.code === sel ? ' selected' : ''}>${tr(l.name)}</option>`
   ).join('');
 }
 

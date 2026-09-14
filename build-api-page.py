@@ -14,6 +14,21 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+
+
+def _lang_switch() -> str:
+    """語言切換那一組 —— **跟 `build-i18n-page.py` 共用同一支產生器**。
+
+    自己再寫一份的話，加第四種語言時這一頁會安靜地停在兩語
+    （2026-09-14 加日文時就是這樣紅的：`api.html` 只連得到英文）。
+    """
+    import importlib.util as _ilu
+
+    spec = _ilu.spec_from_file_location(
+        "_build_i18n_page", ROOT / "build-i18n-page.py")
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod._lang_group("api", "zh-Hant")
 SRC = ROOT / "API.md"
 OUT = ROOT / "docs" / "api.html"
 
@@ -349,7 +364,7 @@ PAGE = """\
       <a href="index.html#install" class="nav-link">安裝</a>
       <a href="api.html" class="nav-link">API</a>
       <a href="troubleshooting.html" class="nav-link">疑難排解</a>
-      <a href="api-en.html" class="nav-link nav-lang" id="langSwitch" hreflang="en" lang="en">English</a>
+      __LANG_SWITCH__
       <a class="btn btn-outline nav-github" href="https://github.com/jasoncheng7115/jt-doc-tools" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.2 1.9 1.2 1.1 1.9 2.9 1.4 3.6 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg>
         GitHub
@@ -762,6 +777,7 @@ def main() -> None:
     page = (
         PAGE.replace("__NAV__", nav_html)
         .replace("__SECTIONS__", sections_html)
+        .replace("__LANG_SWITCH__", _lang_switch())
     )
     OUT.write_text(page, encoding="utf-8")
     n_sec = sections_html.count('<section class="doc-section"')
