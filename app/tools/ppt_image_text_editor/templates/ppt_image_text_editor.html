@@ -13,7 +13,7 @@
 <div id="results"></div>
 <div class="panel" id="exportPanel" hidden>
   <button class="btn" id="resetBtn">{{ tr('重設全部修改') }}</button>
-  <button class="btn" id="editableBtn">{{ tr('轉成可編輯投影片') }}</button>
+  <button class="btn" id="editableBtn">{{ tr('下載可編輯 PPTX') }}</button>
   <button class="btn btn-primary" id="exportBtn">{{ tr('套用修改並下載 PPTX') }}</button>
 </div>
 <style nonce="{{ request.state.csp_nonce }}">
@@ -89,11 +89,15 @@ window.addEventListener('resize',()=>document.querySelectorAll('.pite-card').for
 $('#resetBtn').addEventListener('click',()=>{document.querySelectorAll('.pite-card').forEach(card=>{const img=analyzed.find(x=>String(x.index)===card.dataset.imageIndex);if(!img)return;card.querySelectorAll('.pite-row').forEach((row,wi)=>{const input=row.querySelector('.new'),box=card.querySelector(`.pite-box[data-word="${wi}"]`);input.value=img.words[wi].text;setChanged(row,box,img.words[wi]);row.classList.remove('active');box.classList.remove('active')});schedulePreview(card,img)})});
 
 $('#editableBtn').addEventListener('click',async()=>{
- if(!uploadId)return;const edits=[];document.querySelectorAll('.pite-card').forEach((card,i)=>edits.push(...collectImageEdits(card,analyzed[i])));
- const fd=new FormData();fd.append('edits_json',JSON.stringify(edits));$('#status').textContent='{{ tr("建立可編輯文字層中…") }}';
- const r=await fetch(`/tools/ppt-image-text-editor/editable/${uploadId}`,{method:'POST',body:fd});
- if(!r.ok){$('#status').textContent=await responseError(r,'conversion failed');return}
- sessionStorage.setItem('editableSlidesImport',JSON.stringify(await r.json()));location.href='/tools/editable-slides/';
+ if(!uploadId)return;const button=$('#editableBtn'),edits=[];document.querySelectorAll('.pite-card').forEach(card=>{const img=analyzed.find(x=>String(x.index)===card.dataset.imageIndex);if(img)edits.push(...collectImageEdits(card,img))});
+ const fd=new FormData();fd.append('edits_json',JSON.stringify(edits));button.disabled=true;$('#status').textContent='{{ tr("建立可編輯 PPTX 中…") }}';
+ try{
+  let r=await fetch(`/tools/ppt-image-text-editor/editable/${uploadId}`,{method:'POST',body:fd});if(!r.ok)throw new Error(await responseError(r,'conversion failed'));let job=await r.json();
+  while(job.status==='queued'||job.status==='running'){$('#status').textContent=job.status==='queued'?'{{ tr("可編輯 PPTX 排隊中…") }}':'{{ tr("正在建立可編輯 PPTX…") }}';await sleep(1000);r=await fetch(`/tools/ppt-image-text-editor/editable/${uploadId}`);if(!r.ok)throw new Error(await responseError(r,'conversion status failed'));job=await r.json()}
+  if(job.status!=='done')throw new Error(job.error||'conversion failed');
+  const a=document.createElement('a');a.href=`/tools/ppt-image-text-editor/editable/${uploadId}/download`;a.download=job.filename||'editable.pptx';document.body.appendChild(a);a.click();a.remove();$('#status').textContent='{{ tr("可編輯 PPTX 已完成下載") }}';
+ }catch(error){$('#status').textContent=error.message||String(error)}
+ finally{button.disabled=false}
 });
 $('#exportBtn').addEventListener('click',async()=>{let edits=[];document.querySelectorAll('.pite-card').forEach(card=>{const img=analyzed.find(x=>String(x.index)===card.dataset.imageIndex);if(img)edits.push(...collectImageEdits(card,img))});if(!edits.length){alert('{{ tr("尚未修改任何文字") }}');return}let fd=new FormData();fd.append('edits_json',JSON.stringify(edits));let r=await fetch(`/tools/ppt-image-text-editor/export/${uploadId}`,{method:'POST',body:fd});if(!r.ok){alert(await responseError(r,'export failed'));return}let b=await r.blob();let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='edited.pptx';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)});
 resumeSavedAnalysis();

@@ -1,5 +1,5 @@
 from __future__ import annotations
-import asyncio,json,re,time,uuid
+import asyncio,hashlib,json,re,time,uuid
 from pathlib import Path
 from fastapi import APIRouter,File,Form,HTTPException,Request,UploadFile
 from fastapi.responses import FileResponse,HTMLResponse,Response
@@ -7,10 +7,11 @@ from ...config import settings
 from ...core import upload_owner as _uo
 from ...core import ocr_engine as _oe
 from .editable_bridge import build_editable_deck
+from app.tools.editable_slides.pptx_io import export_pptx
 from .image_edit import available_fonts,edit_text,image_format_for_path,to_png
 from .pptx_core import list_slide_images,read_media,replace_media
 router=APIRouter();_ID_RE=re.compile(r"^[a-f0-9]{32}$")
-_OCR_LIMIT=asyncio.Semaphore(1);_jobs={};_tasks=set()
+_OCR_LIMIT=asyncio.Semaphore(1);_CONVERT_LIMIT=asyncio.Semaphore(1);_jobs={};_convert_jobs={};_tasks=set()
 def _job_view(uid):
  job=_jobs.get(uid)
  if not job:return None
@@ -139,9 +140,45 @@ async def export(uid:str,request:Request,edits_json:str=Form(...)):
   by_media.setdefault(path,[]).append(e)
  replacements={path:_apply_edits(read_media(raw,path),es,image_format_for_path(path)) for path,es in by_media.items()};out=replace_media(raw,replacements);out_path=_work_dir()/f"{uid}_edited.pptx";out_path.write_bytes(out);base=Path(m.get("filename") or "edited.pptx").stem;return FileResponse(str(out_path),media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",filename=f"{base}_edited.pptx")
 
+def _editable_path(uid):return _work_dir()/f"{uid}_editable.pptx"
+def _convert_view(uid):
+ job=_convert_jobs.get(uid)
+ if not job:return None
+ return {k:v for k,v in job.items() if k not in {"analyses","edits"}}
+def _build_editable_file(uid,analyses,edits):
+ deck=build_editable_deck(_src(uid).read_bytes(),analyses,edits)
+ _editable_path(uid).write_bytes(export_pptx(deck))
+async def _run_editable_conversion(uid):
+ job=_convert_jobs[uid]
+ try:
+  async with _CONVERT_LIMIT:
+   job.update(status="running",started_at=time.time())
+   await asyncio.to_thread(_build_editable_file,uid,job["analyses"],job["edits"])
+   job.update(status="done",completed_at=time.time())
+ except Exception as exc:job.update(status="failed",error=str(exc),completed_at=time.time())
+
 @router.post("/editable/{uid}")
 async def editable(uid:str,request:Request,edits_json:str=Form("[]")):
  uid=_safe_id(uid);_uo.require(uid,request);edits=_parse_edits(edits_json);m=json.loads(_manifest(uid).read_text(encoding="utf-8"));analyses=m.get("analysis") or []
  if not analyses:raise HTTPException(400,"請先執行 OCR 分析")
- try:return build_editable_deck(_src(uid).read_bytes(),analyses,edits)
- except Exception as exc:raise HTTPException(400,f"轉換可編輯簡報失敗：{exc}") from exc
+ signature=hashlib.sha256(json.dumps(edits,ensure_ascii=False,sort_keys=True).encode()).hexdigest()
+ existing=_convert_jobs.get(uid)
+ if existing and existing["status"] in {"queued","running"}:
+  if existing["signature"]!=signature:raise HTTPException(409,"這份簡報正在轉換，請等待完成")
+  return _convert_view(uid)
+ if existing and existing["status"]=="done" and existing["signature"]==signature and _editable_path(uid).exists():return _convert_view(uid)
+ base=Path(m.get("filename") or "presentation.pptx").stem
+ job={"uid":uid,"status":"queued","created_at":time.time(),"completed_at":None,"error":None,"signature":signature,"filename":f"{base}_editable.pptx","analyses":analyses,"edits":edits}
+ _convert_jobs[uid]=job;task=asyncio.create_task(_run_editable_conversion(uid));_remember_task(task);return _convert_view(uid)
+
+@router.get("/editable/{uid}")
+async def editable_status(uid:str,request:Request):
+ uid=_safe_id(uid);_uo.require(uid,request);job=_convert_view(uid)
+ if not job:raise HTTPException(404,"editable conversion not started")
+ return job
+
+@router.get("/editable/{uid}/download")
+async def editable_download(uid:str,request:Request):
+ uid=_safe_id(uid);_uo.require(uid,request);job=_convert_jobs.get(uid)
+ if not job or job["status"]!="done" or not _editable_path(uid).exists():raise HTTPException(409,"可編輯 PPTX 尚未完成")
+ return FileResponse(str(_editable_path(uid)),media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",filename=job["filename"])
