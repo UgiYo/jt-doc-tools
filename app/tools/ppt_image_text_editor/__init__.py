@@ -6,11 +6,11 @@ from .router import router
 tool = ToolModule(
     metadata=ToolMetadata(
         id="ppt-image-text-editor",
-        name="PPT 圖片文字編輯",
-        description="OCR 辨識 PowerPoint 圖片中的文字並直接修改後匯出 PPTX",
+        name="PPT 圖片轉可編輯簡報",
+        description="OCR 辨識圖片式 PowerPoint，可修正文字並下載文字可編輯的 PPTX",
         icon="🖼️",
         category="內容處理",
-        version="0.1.0",
+        version="0.2.0",
     ),
     router=router,
     templates_dir=Path(__file__).parent / "templates",

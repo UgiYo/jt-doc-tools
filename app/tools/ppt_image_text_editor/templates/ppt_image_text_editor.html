@@ -1,20 +1,22 @@
 {% extends "base.html" %}
 {% from "components/icons.html" import icon %}
-{% block title %}{{ tr('PPT 圖片文字編輯') }} · {{ app_name }}{% endblock %}
+{% block title %}{{ tr('PPT 圖片轉可編輯簡報') }} · {{ app_name }}{% endblock %}
 {% block content %}
-<h1>{{ icon('presentation', size=22) }} {{ tr('PPT 圖片文字編輯') }}</h1>
-<p class="muted">{{ tr('上傳 PPTX，OCR 辨識圖片中的文字；修改後會即時產生接近匯出結果的預覽，也可逐筆復原。') }}</p>
+<h1>{{ icon('presentation', size=22) }} {{ tr('PPT 圖片轉可編輯簡報') }}</h1>
+<p class="muted">{{ tr('上傳圖片式 PPTX，透過 OCR 辨識圖片文字；可修正辨識內容，並下載文字可在 PowerPoint 編輯的 PPTX。') }}</p>
 <div class="panel">
   <input id="pptFile" type="file" accept=".pptx">
   <label>{{ tr('OCR 語言') }} <input id="langs" value="chi_tra+eng"></label>
-  <button type="button" class="btn btn-primary" id="analyze">{{ tr('上傳並分析') }}</button>\n  <button type="button" class="btn" id="cancelAnalysis" hidden>{{ tr('停止這份分析') }}</button>
+  <button type="button" class="btn btn-primary" id="analyze">{{ tr('上傳並辨識') }}</button>
+  <button type="button" class="btn" id="cancelAnalysis" hidden>{{ tr('停止這份分析') }}</button>
   <span id="status" class="muted"></span>
 </div>
 <div id="results"></div>
 <div class="panel" id="exportPanel" hidden>
   <button class="btn" id="resetBtn">{{ tr('重設全部修改') }}</button>
   <button class="btn" id="editableBtn">{{ tr('下載可編輯 PPTX') }}</button>
-  <button class="btn btn-primary" id="exportBtn">{{ tr('套用修改並下載 PPTX') }}</button>
+  <button class="btn btn-primary" id="exportBtn">{{ tr('下載圖片版 PPTX') }}</button>
+  <span class="muted">{{ tr('可編輯版會建立 PowerPoint 文字方塊；圖片版會把修改寫回原圖片。') }}</span>
 </div>
 <style nonce="{{ request.state.csp_nonce }}">
 .pite-card{display:grid;grid-template-columns:minmax(260px,1fr) minmax(340px,1fr);gap:16px;margin-bottom:16px}.pite-preview{overflow:auto;background:#f8fafc;border:1px solid var(--border);padding:8px}.pite-stage{position:relative;display:inline-block;max-width:100%;line-height:0}.pite-stage img{display:block;max-width:100%;height:auto}.pite-box{position:absolute;box-sizing:border-box;border:2px solid #2563eb;background:rgba(37,99,235,.08);cursor:pointer;min-width:3px;min-height:3px}.pite-box:hover,.pite-box.active{border-width:3px;background:rgba(37,99,235,.18);z-index:2}.pite-box.changed{border-color:#ea580c;background:rgba(234,88,12,.14)}.pite-meta{margin-top:8px;line-height:1.4;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pite-words{max-height:520px;overflow:auto}.pite-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center;border-bottom:1px solid var(--border);padding:6px}.pite-row small{grid-column:1/-1;color:#64748b}.pite-row.active{outline:2px solid #2563eb;outline-offset:-2px;background:rgba(37,99,235,.06)}.pite-row.changed{background:rgba(234,88,12,.06)}.pite-undo{white-space:nowrap}.pite-undo:disabled{opacity:.45}.pite-preview-state{font-size:.9em}@media(max-width:900px){.pite-card{grid-template-columns:1fr}}

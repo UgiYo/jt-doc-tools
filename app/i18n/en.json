@@ -4797,5 +4797,15 @@
   "🔒 auditor 角色僅可唯讀存取稽核紀錄與檔案歷史，沒有任何工具權限（職責分離原則）。此角色不可刪、不可改名、不可指派工具。": "The auditor role has read-only access to the audit log and file history and no tool permissions at all (separation of duties). It cannot be deleted, renamed, or given tools.",
   "🗑 批次刪除": "🗑 Bulk delete",
   "🗖 全圖": "🗖 Whole image",
-  "🤖 LLM 校驗結果": "LLM check result"
+  "🤖 LLM 校驗結果": "LLM check result",
+  "PPT 圖片轉可編輯簡報": "Convert Image-based PPT to Editable Slides",
+  "上傳圖片式 PPTX，透過 OCR 辨識圖片文字；可修正辨識內容，並下載文字可在 PowerPoint 編輯的 PPTX。": "Upload an image-based PPTX, recognize text with OCR, correct the results, and download a PPTX whose text remains editable in PowerPoint.",
+  "上傳並辨識": "Upload and recognize",
+  "下載可編輯 PPTX": "Download editable PPTX",
+  "下載圖片版 PPTX": "Download image-based PPTX",
+  "可編輯版會建立 PowerPoint 文字方塊；圖片版會把修改寫回原圖片。": "The editable version creates PowerPoint text boxes; the image-based version writes changes back into the original images.",
+  "建立可編輯 PPTX 中…": "Creating editable PPTX…",
+  "可編輯 PPTX 排隊中…": "Editable PPTX is queued…",
+  "正在建立可編輯 PPTX…": "Creating editable PPTX…",
+  "可編輯 PPTX 已完成下載": "Editable PPTX download started"
 }
