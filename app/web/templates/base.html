@@ -1074,7 +1074,7 @@
   </script>
   <script nonce="{{ request.state.csp_nonce }}">
     (() => {
-      const KEY='pptImageTextEditor.activeJob.v1', notice=document.getElementById('ocrJobNotice');
+      const KEY='pptImageTextEditor.activeJob.v1', CONVERT_KEY='pptImageTextEditor.editableJob.v1', notice=document.getElementById('ocrJobNotice');
       if(!notice)return;const title=document.getElementById('ocrJobNoticeTitle'),message=document.getElementById('ocrJobNoticeMessage');
       let checking=false;
       function saved(){try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch{return null}}
@@ -1087,6 +1087,20 @@
       }
       async function check(){
         if(checking||location.pathname.startsWith('/tools/ppt-image-text-editor'))return;
+        let converted=null;try{converted=JSON.parse(localStorage.getItem(CONVERT_KEY)||'null')}catch{}
+        if(converted?.upload_id&&['queued','running'].includes(converted.status)){
+          checking=true;
+          try{
+            const response=await fetch(`/tools/ppt-image-text-editor/editable/${converted.upload_id}`,{headers:{Accept:'application/json'}});
+            if(response.ok){const job={...await response.json(),upload_id:converted.upload_id};localStorage.setItem(CONVERT_KEY,JSON.stringify(job));
+              if(['done','failed'].includes(job.status)){
+                notice.classList.toggle('is-error',job.status==='failed');title.textContent=job.status==='failed'?'{{ tr("可編輯 PPTX 轉換失敗") }}':'{{ tr("可編輯 PPTX 已完成") }}';
+                message.textContent=job.status==='failed'?(job.error||'{{ tr("請回到工具頁重新嘗試") }}'):(job.filename||'');
+                const link=document.getElementById('ocrJobNoticeLink');link.textContent='{{ tr("前往下載") }} →';notice.hidden=false;
+              }
+            }
+          }catch{}finally{checking=false}
+        }
         const state=saved();if(!state?.upload_id||['cancelled'].includes(state.status))return;checking=true;
         try{
           const r=await fetch(`/tools/ppt-image-text-editor/analysis/${state.upload_id}`,{headers:{Accept:'application/json'}});

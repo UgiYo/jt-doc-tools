@@ -38,3 +38,11 @@ def test_queued_cancel_removes_job_immediately_from_queue():
     assert "_analysis_tasks" in ROUTER
     assert 'not j.get("cancel_requested")' in ROUTER
     assert "已立即取消排隊中的辨識" in TEMPLATE
+
+def test_editable_conversion_is_persisted_and_resumable():
+    assert '"editable_job"' in ROUTER
+    assert "_persist_convert_job" in ROUTER
+    assert "_restore_convert_job" in ROUTER
+    assert "editableJobPanel" in TEMPLATE
+    assert "pptImageTextEditor.editableJob.v1" in TEMPLATE
+    assert "已送出背景處理，可離開此頁" in TEMPLATE

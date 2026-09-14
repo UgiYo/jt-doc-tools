@@ -4809,5 +4809,16 @@
   "正在建立可編輯 PPTX…": "Creating editable PPTX…",
   "可編輯 PPTX 已完成下載": "Editable PPTX download started",
   "已要求停止；目前圖片辨識完成後會安全停止": "Stop requested; the job will stop safely after the current image finishes.",
-  "已立即取消排隊中的辨識": "The queued OCR job was cancelled immediately."
+  "已立即取消排隊中的辨識": "The queued OCR job was cancelled immediately.",
+  "建立可編輯 PPTX": "Create editable PPTX",
+  "可編輯 PPTX 轉換作業": "Editable PPTX conversion job",
+  "已送出背景處理，可離開此頁；目前正在排隊。": "Submitted for background processing. You may leave this page; the job is queued.",
+  "正在背景建立可編輯 PPTX，可離開此頁。": "Creating the editable PPTX in the background. You may leave this page.",
+  "可編輯 PPTX 已完成，可在 24 小時內下載。": "The editable PPTX is ready and can be downloaded within 24 hours.",
+  "轉換失敗": "Conversion failed",
+  "正在送出背景轉換作業…": "Submitting background conversion job…",
+  "已送出背景處理，可離開此頁。": "Submitted for background processing. You may leave this page.",
+  "可編輯 PPTX 轉換失敗": "Editable PPTX conversion failed",
+  "可編輯 PPTX 已完成": "Editable PPTX is ready",
+  "前往下載": "Go to download"
 }

@@ -150,10 +150,20 @@ async def export(uid:str,request:Request,edits_json:str=Form(...)):
  replacements={path:_apply_edits(read_media(raw,path),es,image_format_for_path(path)) for path,es in by_media.items()};out=replace_media(raw,replacements);out_path=_work_dir()/f"{uid}_edited.pptx";out_path.write_bytes(out);base=Path(m.get("filename") or "edited.pptx").stem;return FileResponse(str(out_path),media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",filename=f"{base}_edited.pptx")
 
 def _editable_path(uid):return _work_dir()/f"{uid}_editable.pptx"
+def _public_convert_job(job):return {k:v for k,v in job.items() if k not in {"analyses","edits"}}
+def _persist_convert_job(uid,job):
+ data=json.loads(_manifest(uid).read_text(encoding="utf-8"))
+ data["editable_job"]={**_public_convert_job(job),"edits":job.get("edits",[])}
+ _manifest(uid).write_text(json.dumps(data,ensure_ascii=False),encoding="utf-8")
+def _restore_convert_job(uid):
+ try:data=json.loads(_manifest(uid).read_text(encoding="utf-8"))
+ except FileNotFoundError:return None
+ saved=data.get("editable_job")
+ if not saved:return None
+ return {**saved,"analyses":data.get("analysis") or [],"edits":saved.get("edits") or []}
 def _convert_view(uid):
- job=_convert_jobs.get(uid)
- if not job:return None
- return {k:v for k,v in job.items() if k not in {"analyses","edits"}}
+ job=_convert_jobs.get(uid) or _restore_convert_job(uid)
+ return _public_convert_job(job) if job else None
 def _build_editable_file(uid,analyses,edits):
  deck=build_editable_deck(_src(uid).read_bytes(),analyses,edits)
  _editable_path(uid).write_bytes(export_pptx(deck))
@@ -161,33 +171,40 @@ async def _run_editable_conversion(uid):
  job=_convert_jobs[uid]
  try:
   async with _CONVERT_LIMIT:
-   job.update(status="running",started_at=time.time())
+   job.update(status="running",started_at=time.time());_persist_convert_job(uid,job)
    await asyncio.to_thread(_build_editable_file,uid,job["analyses"],job["edits"])
-   job.update(status="done",completed_at=time.time())
- except Exception as exc:job.update(status="failed",error=str(exc),completed_at=time.time())
+   job.update(status="done",completed_at=time.time());_persist_convert_job(uid,job)
+ except Exception as exc:
+  job.update(status="failed",error=str(exc),completed_at=time.time());_persist_convert_job(uid,job)
 
 @router.post("/editable/{uid}")
 async def editable(uid:str,request:Request,edits_json:str=Form("[]")):
  uid=_safe_id(uid);_uo.require(uid,request);edits=_parse_edits(edits_json);m=json.loads(_manifest(uid).read_text(encoding="utf-8"));analyses=m.get("analysis") or []
  if not analyses:raise HTTPException(400,"請先執行 OCR 分析")
  signature=hashlib.sha256(json.dumps(edits,ensure_ascii=False,sort_keys=True).encode()).hexdigest()
- existing=_convert_jobs.get(uid)
+ existing=_convert_jobs.get(uid) or _restore_convert_job(uid)
  if existing and existing["status"] in {"queued","running"}:
   if existing["signature"]!=signature:raise HTTPException(409,"這份簡報正在轉換，請等待完成")
+  if uid not in _convert_jobs:
+   existing["status"]="queued";_convert_jobs[uid]=existing;_persist_convert_job(uid,existing);task=asyncio.create_task(_run_editable_conversion(uid));_remember_task(task)
   return _convert_view(uid)
- if existing and existing["status"]=="done" and existing["signature"]==signature and _editable_path(uid).exists():return _convert_view(uid)
+ if existing and existing["status"]=="done" and existing["signature"]==signature and _editable_path(uid).exists():return _public_convert_job(existing)
  base=Path(m.get("filename") or "presentation.pptx").stem
  job={"uid":uid,"status":"queued","created_at":time.time(),"completed_at":None,"error":None,"signature":signature,"filename":f"{base}_editable.pptx","analyses":analyses,"edits":edits}
- _convert_jobs[uid]=job;task=asyncio.create_task(_run_editable_conversion(uid));_remember_task(task);return _convert_view(uid)
+ _convert_jobs[uid]=job;_persist_convert_job(uid,job);task=asyncio.create_task(_run_editable_conversion(uid));_remember_task(task);return _convert_view(uid)
 
 @router.get("/editable/{uid}")
 async def editable_status(uid:str,request:Request):
- uid=_safe_id(uid);_uo.require(uid,request);job=_convert_view(uid)
+ uid=_safe_id(uid);_uo.require(uid,request);job=_convert_jobs.get(uid)
+ if not job:
+  job=_restore_convert_job(uid)
+  if job and job["status"] in {"queued","running"}:
+   job["status"]="queued";_convert_jobs[uid]=job;_persist_convert_job(uid,job);task=asyncio.create_task(_run_editable_conversion(uid));_remember_task(task)
  if not job:raise HTTPException(404,"editable conversion not started")
- return job
+ return _public_convert_job(job)
 
 @router.get("/editable/{uid}/download")
 async def editable_download(uid:str,request:Request):
- uid=_safe_id(uid);_uo.require(uid,request);job=_convert_jobs.get(uid)
+ uid=_safe_id(uid);_uo.require(uid,request);job=_convert_jobs.get(uid) or _restore_convert_job(uid)
  if not job or job["status"]!="done" or not _editable_path(uid).exists():raise HTTPException(409,"可編輯 PPTX 尚未完成")
  return FileResponse(str(_editable_path(uid)),media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",filename=job["filename"])
