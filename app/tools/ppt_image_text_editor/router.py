@@ -10,7 +10,7 @@ from .editable_bridge import build_editable_deck
 from app.tools.editable_slides.pptx_io import export_pptx
 from .image_edit import available_fonts,edit_text,image_format_for_path,to_png
 from .pptx_core import list_slide_images,read_media,replace_media
-router=APIRouter();_ID_RE=re.compile(r"^[a-f0-9]{32}$")
+router=APIRouter();_ID_RE=re.compile(r"^[a-f0-9]{32}$");_EDITABLE_CONVERSION_VERSION="3"
 _OCR_LIMIT=asyncio.Semaphore(1);_CONVERT_LIMIT=_OCR_LIMIT;_jobs={};_convert_jobs={};_tasks=set();_analysis_tasks={}
 def _job_view(uid):
  job=_jobs.get(uid)
@@ -181,7 +181,7 @@ async def _run_editable_conversion(uid):
 async def editable(uid:str,request:Request,edits_json:str=Form("[]")):
  uid=_safe_id(uid);_uo.require(uid,request);edits=_parse_edits(edits_json);m=json.loads(_manifest(uid).read_text(encoding="utf-8"));analyses=m.get("analysis") or []
  if not analyses:raise HTTPException(400,"請先執行 OCR 分析")
- signature=hashlib.sha256(json.dumps(edits,ensure_ascii=False,sort_keys=True).encode()).hexdigest()
+ signature=hashlib.sha256((_EDITABLE_CONVERSION_VERSION+"\n"+json.dumps(edits,ensure_ascii=False,sort_keys=True)).encode()).hexdigest()
  existing=_convert_jobs.get(uid) or _restore_convert_job(uid)
  if existing and existing["status"] in {"queued","running"}:
   if existing["signature"]!=signature:raise HTTPException(409,"這份簡報正在轉換，請等待完成")
