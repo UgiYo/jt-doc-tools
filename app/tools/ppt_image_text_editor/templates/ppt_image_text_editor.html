@@ -102,7 +102,7 @@ function showConvert(job){
  const panel=$('#editableJobPanel'),state=$('#editableJobState'),download=$('#editableDownload');panel.hidden=false;download.hidden=true;
  if(job.status==='queued')state.textContent='{{ tr("已送出背景處理，可離開此頁；目前正在排隊。") }}';
  else if(job.status==='running')state.textContent='{{ tr("正在背景建立可編輯 PPTX，可離開此頁。") }}';
- else if(job.status==='done'){state.textContent='{{ tr("可編輯 PPTX 已完成，可在 24 小時內下載。") }}';download.href=`/tools/ppt-image-text-editor/editable/${job.upload_id}/download`;download.download=job.filename||'editable.pptx';download.hidden=false}
+ else if(job.status==='done'){state.textContent='{{ tr("可編輯 PPTX 已完成，請點擊下載。") }}';download.href=`/tools/ppt-image-text-editor/editable/${job.upload_id}/download`;download.download=job.filename||'editable.pptx';download.hidden=false}
  else if(job.status==='failed')state.textContent=`{{ tr("轉換失敗") }}：${job.error||''}`;
 }
 async function pollEditable(initial=null){
