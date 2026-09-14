@@ -25,6 +25,7 @@ def _set_text(shape, el):
     run = p.add_run(); run.text = str(el.get("text", ""))
     run.font.name = el.get("fontFamily", "Microsoft JhengHei")
     run.font.size = Pt(float(el.get("fontSize", 20))); run.font.bold = bool(el.get("bold", False))
+    run.font.italic = bool(el.get("italic", False)); run.font.underline = bool(el.get("underline", False))
     run.font.color.rgb = _rgb(el.get("color"), "111827")
 
 def export_pptx(deck: dict) -> bytes:
@@ -61,7 +62,10 @@ def import_pptx(raw: bytes) -> dict:
             elif getattr(shape, "has_text_frame", False) and shape.text.strip():
                 run = next((r for p in shape.text_frame.paragraphs for r in p.runs), None)
                 base.update(type="shape" if shape.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE else "text", text=shape.text,
-                            fontSize=round(run.font.size.pt if run and run.font.size else 20, 1), color="#111827", fill="#E5E7EB")
+                            fontSize=round(run.font.size.pt if run and run.font.size else 20, 1),
+                            fontFamily=(run.font.name if run and run.font.name else "Microsoft JhengHei"),
+                            bold=bool(run.font.bold) if run else False, italic=bool(run.font.italic) if run else False,
+                            underline=bool(run.font.underline) if run else False, color="#111827", fill="#E5E7EB")
                 elements.append(base)
         slides.append({"id": f"slide-{index + 1}", "background": "#FFFFFF", "elements": elements})
     return {"version": 1, "title": "Imported presentation", "size": {"width": _inch(prs.slide_width), "height": _inch(prs.slide_height)}, "slides": slides}
