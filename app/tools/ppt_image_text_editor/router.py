@@ -1,39 +1,29 @@
 from __future__ import annotations
-import asyncio,hashlib,json,re,time,uuid
+import asyncio,hashlib,json,re,threading,uuid
 from pathlib import Path
 from fastapi import APIRouter,File,Form,HTTPException,Request,UploadFile
 from fastapi.responses import FileResponse,HTMLResponse,Response
 from ...config import settings
 from ...core import upload_owner as _uo
 from ...core import ocr_engine as _oe
+from ...core.job_manager import job_manager
 from .editable_bridge import build_editable_pptx
 from .image_edit import available_fonts,edit_text,image_format_for_path,to_png
 from .pptx_core import list_slide_images,read_media,replace_media
-router=APIRouter();_ID_RE=re.compile(r"^[a-f0-9]{32}$");_EDITABLE_CONVERSION_VERSION="5"
-_OCR_LIMIT=asyncio.Semaphore(1);_CONVERT_LIMIT=_OCR_LIMIT;_jobs={};_convert_jobs={};_tasks=set();_analysis_tasks={}
-def _job_view(uid):
- job=_jobs.get(uid)
- if not job:return None
- view={k:v for k,v in job.items() if k not in {"result"}}
- if job["status"]=="queued":
-  waiting=sorted((j for j in _jobs.values() if j["status"]=="queued" and not j.get("cancel_requested")),key=lambda j:j["created_at"])
-  view["queue_position"]=next((i+1 for i,j in enumerate(waiting) if j["uid"]==uid),1)
- if job["status"]=="done":view["images"]=job.get("result",[])
- return view
-def _remember_task(task,uid=None):
- _tasks.add(task);task.add_done_callback(_tasks.discard)
- if uid:
-  _analysis_tasks[uid]=task
-  def forget(done):
-   if _analysis_tasks.get(uid) is done:_analysis_tasks.pop(uid,None)
-  task.add_done_callback(forget)
-def _prune_jobs():
- cutoff=time.time()-86400
- for key,job in list(_jobs.items()):
-  if job["status"] in {"done","failed","cancelled"} and job.get("completed_at",0)<cutoff:_jobs.pop(key,None)
+router=APIRouter();_ID_RE=re.compile(r"^[a-f0-9]{32}$");_EDITABLE_CONVERSION_VERSION="6"
+# OCR 與可編輯 PPTX 轉換都很吃 CPU / RAM；同一個 container 內一次只跑一件，
+# 但工作仍由全站 JobManager 排程，因此其他頁面、其他使用者與「我的作業」不會卡住。
+_PPT_HEAVY_LIMIT=threading.Semaphore(1);_MANIFEST_LOCK=threading.RLock()
 def _work_dir():p=settings.temp_dir/"ppt_image_text_editor";p.mkdir(parents=True,exist_ok=True);return p
 def _src(uid):return _work_dir()/f"{uid}.pptx"
 def _manifest(uid):return _work_dir()/f"{uid}.json"
+def _read_manifest(uid):
+ with _MANIFEST_LOCK:return json.loads(_manifest(uid).read_text(encoding="utf-8"))
+def _patch_manifest(uid,**values):
+ with _MANIFEST_LOCK:
+  data=json.loads(_manifest(uid).read_text(encoding="utf-8"));data.update(values)
+  _manifest(uid).write_text(json.dumps(data,ensure_ascii=False),encoding="utf-8")
+ return data
 def _safe_id(uid):
  if not _ID_RE.fullmatch(uid or ""):raise HTTPException(400,"invalid upload id")
  return uid
@@ -69,54 +59,62 @@ async def upload(request:Request,file:UploadFile=File(...)):
  except Exception as exc:raise HTTPException(400,f"PPTX 解析失敗：{exc}") from exc
  uid=uuid.uuid4().hex;_src(uid).write_bytes(raw);_manifest(uid).write_text(json.dumps({"filename":name},ensure_ascii=False),encoding="utf-8");_uo.record(uid,request);unique=sorted({r.media_path for r in refs})
  return {"upload_id":uid,"filename":name,"slides_with_images":len({r.slide for r in refs}),"image_refs":len(refs),"unique_images":len(unique)}
-async def _run_analysis(uid,langs):
- job=_jobs[uid]
+def _wait_heavy_slot(job):
+ while not _PPT_HEAVY_LIMIT.acquire(timeout=.5):
+  if job.cancelled:return False
+  job.message="等待 PPT OCR／轉換資源…"
+ return True
+def _analysis_view(uid):
+ try:data=_read_manifest(uid)
+ except FileNotFoundError:return None
+ jid=data.get("analysis_job_id");job=job_manager.get(jid) if jid else None
+ if not job:
+  result=data.get("analysis")
+  return ({"uid":uid,"status":"done","completed":len(result),"total":len(result),"images":result} if result is not None else None)
+ total=int((job.meta or {}).get("total") or 0);completed=min(total,int(round(job.progress*total))) if total else 0
+ job_manager.mark_polled(job.id)
+ status={"pending":"queued","error":"failed","interrupted":"failed"}.get(job.status,job.status)
+ view={"uid":uid,"job_id":job.id,"status":status,"created_at":job.created_at,"completed":completed,"total":total,"error":job.error}
+ if job.status=="pending":view["queue_position"]=job_manager.queue_positions().get(job.id)
+ if job.status=="done":view["images"]=data.get("analysis") or []
+ return view
+def _run_analysis(job,uid,langs):
+ if not _wait_heavy_slot(job):return
  try:
-  raw=await asyncio.to_thread(_src(uid).read_bytes);refs=await asyncio.to_thread(list_slide_images,raw);grouped={}
+  job.message="讀取投影片圖片…";raw=_src(uid).read_bytes();refs=list_slide_images(raw);grouped={}
   for ref in refs:
    item=grouped.setdefault(ref.media_path,{"media_path":ref.media_path,"slides":[],"rel_ids":[]});item["slides"].append(ref.slide);item["rel_ids"].append(ref.rel_id)
-  job["total"]=len(grouped)
-  async with _OCR_LIMIT:
-   if job.get("cancel_requested"):job.update(status="cancelled",completed_at=time.time());return
-   job["status"]="running";job["started_at"]=time.time();result=[]
-   for idx,(media_path,item) in enumerate(grouped.items()):
-    if job.get("cancel_requested"):job.update(status="cancelled",completed_at=time.time());return
-    try:
-     png,(w,h)=await asyncio.to_thread(to_png,read_media(raw,media_path))
-     words,engine=await asyncio.to_thread(_oe.recognize_image,png,langs,preprocess=True,allow_local_easyocr=_oe.local_easyocr_safe())
-     result.append({**item,"index":idx,"width":w,"height":h,"engine":engine,"preview_url":f"/tools/ppt-image-text-editor/preview/{uid}/{idx}","words":words})
-    except Exception as exc:result.append({**item,"index":idx,"width":0,"height":0,"words":[],"error":str(exc)})
-    job["completed"]=idx+1
-   cache={str(i):x[0] for i,x in enumerate(grouped.items())};data=json.loads(_manifest(uid).read_text(encoding="utf-8"));data["media_map"]=cache;data["analysis"]=result
-   await asyncio.to_thread(_manifest(uid).write_text,json.dumps(data,ensure_ascii=False),encoding="utf-8")
-   job.update(status="done",result=result,completed_at=time.time())
- except Exception as exc:job.update(status="failed",error=str(exc),completed_at=time.time())
+  total=len(grouped);job.meta["total"]=total;result=[]
+  for idx,(media_path,item) in enumerate(grouped.items()):
+   if job.cancelled:return
+   job.message=f"OCR 辨識中（{idx+1}/{total}）"
+   try:
+    png,(w,h)=to_png(read_media(raw,media_path));words,engine=_oe.recognize_image(png,langs,preprocess=True,allow_local_easyocr=_oe.local_easyocr_safe())
+    result.append({**item,"index":idx,"width":w,"height":h,"engine":engine,"preview_url":f"/tools/ppt-image-text-editor/preview/{uid}/{idx}","words":words})
+   except Exception as exc:result.append({**item,"index":idx,"width":0,"height":0,"words":[],"error":str(exc)})
+   job.progress=(idx+1)/max(1,total)
+  cache={str(i):x[0] for i,x in enumerate(grouped.items())};_patch_manifest(uid,media_map=cache,analysis=result)
+  job.message=f"OCR 完成，共辨識 {total} 張圖片"
+ finally:_PPT_HEAVY_LIMIT.release()
 
 @router.post("/analysis/{uid}")
 async def start_analysis(uid:str,request:Request,langs:str=Form("chi_tra+eng")):
- uid=_safe_id(uid);_uo.require(uid,request);_prune_jobs();existing=_jobs.get(uid)
- if existing and existing["status"] in {"queued","running","done"}:return _job_view(uid)
- job={"uid":uid,"status":"queued","created_at":time.time(),"completed":0,"total":0,"error":None,"cancel_requested":False};_jobs[uid]=job
- task=asyncio.create_task(_run_analysis(uid,langs));_remember_task(task,uid);return _job_view(uid)
+ uid=_safe_id(uid);_uo.require(uid,request);existing=_analysis_view(uid)
+ if existing and existing["status"] in {"queued","running","done"}:return existing
+ m=_read_manifest(uid);name=Path(m.get("filename") or "presentation.pptx").name
+ job=job_manager.submit("ppt-image-text-editor",lambda j:_run_analysis(j,uid,langs),meta={"filename":f"OCR 辨識｜{name}","upload_id":uid,"operation":"ocr","view_url":f"/tools/ppt-image-text-editor/?upload={uid}"},request=request)
+ _patch_manifest(uid,analysis_job_id=job.id);return _analysis_view(uid)
 
 @router.post("/analysis/{uid}/cancel")
 async def cancel_analysis(uid:str,request:Request):
- uid=_safe_id(uid);_uo.require(uid,request);job=_jobs.get(uid)
- if not job:raise HTTPException(404,"analysis job not found")
- if job["status"]=="queued":
-  job.update(cancel_requested=True,status="cancelled",completed_at=time.time())
-  task=_analysis_tasks.get(uid)
-  if task:task.cancel()
- elif job["status"]=="running":job["cancel_requested"]=True
- return _job_view(uid)
+ uid=_safe_id(uid);_uo.require(uid,request);m=_read_manifest(uid);jid=m.get("analysis_job_id")
+ if not jid or not job_manager.get(jid):raise HTTPException(404,"analysis job not found")
+ job_manager.cancel(jid);return _analysis_view(uid)
 
 @router.get("/analysis/{uid}")
 async def analysis_status(uid:str,request:Request):
- uid=_safe_id(uid);_uo.require(uid,request);view=_job_view(uid)
+ uid=_safe_id(uid);_uo.require(uid,request);view=_analysis_view(uid)
  if view:return view
- try:data=json.loads(_manifest(uid).read_text(encoding="utf-8"))
- except FileNotFoundError:raise HTTPException(404,"upload not found")
- if data.get("analysis") is not None:return {"uid":uid,"status":"done","completed":len(data["analysis"]),"total":len(data["analysis"]),"images":data["analysis"]}
  raise HTTPException(404,"analysis job not started")
 
 @router.get("/images/{uid}")
@@ -124,7 +122,7 @@ async def images(uid:str,request:Request,langs:str="chi_tra+eng"):
  """Backward-compatible endpoint; OCR runs off the event loop."""
  state=await start_analysis(uid,request,langs)
  while state["status"] in {"queued","running"}:
-  await asyncio.sleep(.5);state=_job_view(uid)
+  await asyncio.sleep(.5);state=_analysis_view(uid)
  if state["status"]=="failed":raise HTTPException(500,state.get("error") or "OCR failed")
  if state["status"]=="cancelled":raise HTTPException(409,"OCR cancelled")
  return {"upload_id":uid,"fonts":available_fonts(),"images":state.get("images",[])}
@@ -149,60 +147,56 @@ async def export(uid:str,request:Request,edits_json:str=Form(...)):
  replacements={path:_apply_edits(read_media(raw,path),es,image_format_for_path(path)) for path,es in by_media.items()};out=replace_media(raw,replacements);out_path=_work_dir()/f"{uid}_edited.pptx";out_path.write_bytes(out);base=Path(m.get("filename") or "edited.pptx").stem;return FileResponse(str(out_path),media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",filename=f"{base}_edited.pptx")
 
 def _editable_path(uid):return _work_dir()/f"{uid}_editable.pptx"
-def _public_convert_job(job):return {k:v for k,v in job.items() if k not in {"analyses","edits"}}
-def _persist_convert_job(uid,job):
- data=json.loads(_manifest(uid).read_text(encoding="utf-8"))
- data["editable_job"]={**_public_convert_job(job),"edits":job.get("edits",[])}
- _manifest(uid).write_text(json.dumps(data,ensure_ascii=False),encoding="utf-8")
-def _restore_convert_job(uid):
- try:data=json.loads(_manifest(uid).read_text(encoding="utf-8"))
- except FileNotFoundError:return None
- saved=data.get("editable_job")
- if not saved:return None
- return {**saved,"analyses":data.get("analysis") or [],"edits":saved.get("edits") or []}
 def _convert_view(uid):
- job=_convert_jobs.get(uid) or _restore_convert_job(uid)
- return _public_convert_job(job) if job else None
+ try:data=_read_manifest(uid)
+ except FileNotFoundError:return None
+ saved=data.get("editable_job") or {};jid=saved.get("job_id");job=job_manager.get(jid) if jid else None
+ if job:
+  job_manager.mark_polled(job.id)
+  status={"pending":"queued","error":"failed","interrupted":"failed"}.get(job.status,job.status)
+  return {"uid":uid,"job_id":job.id,"status":status,"created_at":job.created_at,"completed_at":job.updated_at if job.status in {"done","error","cancelled","interrupted"} else None,"error":job.error,"signature":saved.get("signature"),"filename":job.result_filename or saved.get("filename")}
+ if saved.get("status")=="done" and _editable_path(uid).exists():return saved
+ return None
 def _build_editable_file(uid,analyses,edits):
  _editable_path(uid).write_bytes(build_editable_pptx(_src(uid).read_bytes(),analyses,edits))
-async def _run_editable_conversion(uid):
- job=_convert_jobs[uid]
+def _run_editable_conversion(job,uid,analyses,edits,filename,signature):
+ if not _wait_heavy_slot(job):return
  try:
-  async with _CONVERT_LIMIT:
-   job.update(status="running",started_at=time.time());_persist_convert_job(uid,job)
-   await asyncio.to_thread(_build_editable_file,uid,job["analyses"],job["edits"])
-   job.update(status="done",completed_at=time.time());_persist_convert_job(uid,job)
- except Exception as exc:
-  job.update(status="failed",error=str(exc),completed_at=time.time());_persist_convert_job(uid,job)
+  if job.cancelled:return
+  job.message="正在保留原範本並建立可編輯文字…";job.progress=.15
+  _build_editable_file(uid,analyses,edits)
+  if job.cancelled:
+   _editable_path(uid).unlink(missing_ok=True);return
+  job.result_path=_editable_path(uid);job.result_filename=filename;job.progress=.95;job.message="可編輯 PPTX 已完成"
+  _patch_manifest(uid,editable_job={"job_id":job.id,"status":"done","signature":signature,"filename":filename})
+ finally:_PPT_HEAVY_LIMIT.release()
 
 @router.post("/editable/{uid}")
 async def editable(uid:str,request:Request,edits_json:str=Form("[]")):
- uid=_safe_id(uid);_uo.require(uid,request);edits=_parse_edits(edits_json);m=json.loads(_manifest(uid).read_text(encoding="utf-8"));analyses=m.get("analysis") or []
+ uid=_safe_id(uid);_uo.require(uid,request);edits=_parse_edits(edits_json);m=_read_manifest(uid);analyses=m.get("analysis") or []
  if not analyses:raise HTTPException(400,"請先執行 OCR 分析")
  signature=hashlib.sha256((_EDITABLE_CONVERSION_VERSION+"\n"+json.dumps(edits,ensure_ascii=False,sort_keys=True)).encode()).hexdigest()
- existing=_convert_jobs.get(uid) or _restore_convert_job(uid)
+ existing=_convert_view(uid)
  if existing and existing["status"] in {"queued","running"}:
   if existing["signature"]!=signature:raise HTTPException(409,"這份簡報正在轉換，請等待完成")
-  if uid not in _convert_jobs:
-   existing["status"]="queued";_convert_jobs[uid]=existing;_persist_convert_job(uid,existing);task=asyncio.create_task(_run_editable_conversion(uid));_remember_task(task)
-  return _convert_view(uid)
- if existing and existing["status"]=="done" and existing["signature"]==signature and _editable_path(uid).exists():return _public_convert_job(existing)
- base=Path(m.get("filename") or "presentation.pptx").stem
- job={"uid":uid,"status":"queued","created_at":time.time(),"completed_at":None,"error":None,"signature":signature,"filename":f"{base}_editable.pptx","analyses":analyses,"edits":edits}
- _convert_jobs[uid]=job;_persist_convert_job(uid,job);task=asyncio.create_task(_run_editable_conversion(uid));_remember_task(task);return _convert_view(uid)
+  return existing
+ if existing and existing["status"]=="done" and existing["signature"]==signature and _editable_path(uid).exists():return existing
+ original=Path(m.get("filename") or "presentation.pptx");filename=f"{original.stem}_editable.pptx"
+ ready=threading.Event()
+ def run(j):ready.wait(timeout=10);_run_editable_conversion(j,uid,analyses,edits,filename,signature)
+ job=job_manager.submit("ppt-image-text-editor",run,meta={"filename":f"可編輯 PPTX｜{original.name}","upload_id":uid,"operation":"editable-pptx","view_url":f"/tools/ppt-image-text-editor/?upload={uid}"},request=request)
+ try:_patch_manifest(uid,editable_job={"job_id":job.id,"status":"queued","signature":signature,"filename":filename})
+ finally:ready.set()
+ return _convert_view(uid)
 
 @router.get("/editable/{uid}")
 async def editable_status(uid:str,request:Request):
- uid=_safe_id(uid);_uo.require(uid,request);job=_convert_jobs.get(uid)
- if not job:
-  job=_restore_convert_job(uid)
-  if job and job["status"] in {"queued","running"}:
-   job["status"]="queued";_convert_jobs[uid]=job;_persist_convert_job(uid,job);task=asyncio.create_task(_run_editable_conversion(uid));_remember_task(task)
+ uid=_safe_id(uid);_uo.require(uid,request);job=_convert_view(uid)
  if not job:raise HTTPException(404,"editable conversion not started")
- return _public_convert_job(job)
+ return job
 
 @router.get("/editable/{uid}/download")
 async def editable_download(uid:str,request:Request):
- uid=_safe_id(uid);_uo.require(uid,request);job=_convert_jobs.get(uid) or _restore_convert_job(uid)
+ uid=_safe_id(uid);_uo.require(uid,request);job=_convert_view(uid)
  if not job or job["status"]!="done" or not _editable_path(uid).exists():raise HTTPException(409,"可編輯 PPTX 尚未完成")
  return FileResponse(str(_editable_path(uid)),media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",filename=job["filename"])

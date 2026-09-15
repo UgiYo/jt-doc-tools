@@ -105,6 +105,7 @@ function showConvert(job){
  else if(job.status==='running')state.textContent='{{ tr("正在背景建立可編輯 PPTX，可離開此頁。") }}';
  else if(job.status==='done'){state.textContent='{{ tr("可編輯 PPTX 已完成，請點擊下載。") }}';download.href=`/tools/ppt-image-text-editor/editable/${job.upload_id}/download`;download.download=job.filename||'editable.pptx';download.hidden=false}
  else if(job.status==='failed')state.textContent=`{{ tr("轉換失敗") }}：${job.error||''}`;
+ else if(job.status==='cancelled')state.textContent='{{ tr("轉換已取消") }}';
 }
 function clearEditableRecord(){
  ++editablePollToken;
@@ -129,6 +130,9 @@ $('#editableBtn').addEventListener('click',async()=>{
  finally{button.disabled=false}
 });
 $('#exportBtn').addEventListener('click',async()=>{let edits=[];document.querySelectorAll('.pite-card').forEach(card=>{const img=analyzed.find(x=>String(x.index)===card.dataset.imageIndex);if(img)edits.push(...collectImageEdits(card,img))});if(!edits.length){alert('{{ tr("尚未修改任何文字") }}');return}let fd=new FormData();fd.append('edits_json',JSON.stringify(edits));let r=await fetch(`/tools/ppt-image-text-editor/export/${uploadId}`,{method:'POST',body:fd});if(!r.ok){alert(await responseError(r,'export failed'));return}let b=await r.blob();let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='edited.pptx';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)});
-resumeSavedAnalysis();pollEditable();
+const linkedUpload=new URLSearchParams(location.search).get('upload');
+if(linkedUpload){uploadId=linkedUpload;saveJob({upload_id:linkedUpload,status:'linked'});resumeSavedAnalysis()}
+else resumeSavedAnalysis();
+pollEditable();
 </script>
 {% endblock %}

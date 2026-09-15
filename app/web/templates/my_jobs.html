@@ -362,7 +362,7 @@
         a.appendChild(document.createTextNode(tr('到工作區取用')));
         a.href = '/workspace';
         acts.appendChild(a);
-      } else if (j.status === 'done') {
+      } else if (j.status === 'done' && !j.view_url) {
         // 真的什麼都不剩了才說逾期。做成 chip 而不是裸文字 —— 裸文字塞在按鈕
         // 那一欄，寬度與基線都跟其他列對不齊，看起來就是歪的。
         acts.appendChild(el('span', 'mj-gone', tr('結果已逾期清除')));
