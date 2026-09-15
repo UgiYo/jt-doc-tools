@@ -38,13 +38,16 @@ def test_queued_cancel_removes_job_immediately_from_queue():
     assert '"pending":"queued"' in ROUTER
     assert "已立即取消排隊中的辨識" in TEMPLATE
 
-def test_editable_conversion_is_persisted_and_resumable():
-    assert '"editable_job"' in ROUTER
-    assert '"operation":"editable-pptx"' in ROUTER
-    assert "job.result_path=_editable_path(uid)" in ROUTER
+def test_image_output_is_persisted_and_resumable():
+    assert '"output_job"' in ROUTER
+    assert '"operation":"image-pptx"' in ROUTER
+    assert "job.result_path=_output_path(uid)" in ROUTER
+    assert "_apply_edits(read_media(raw,path)" in ROUTER
     assert "editableJobPanel" in TEMPLATE
-    assert "pptImageTextEditor.editableJob.v1" in TEMPLATE
+    assert "pptImageTextEditor.outputJob.v2" in TEMPLATE
     assert "已送出背景處理，可離開此頁" in TEMPLATE
+    assert "輸出文字不是 PowerPoint 文字方塊" in TEMPLATE
+    assert "/ppt-image-text-editor/output/" in TEMPLATE
 
 
 def test_jobs_are_visible_in_my_jobs_and_link_back_to_the_editor():

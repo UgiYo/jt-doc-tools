@@ -7,11 +7,10 @@ from ...config import settings
 from ...core import upload_owner as _uo
 from ...core import ocr_engine as _oe
 from ...core.job_manager import job_manager
-from .editable_bridge import build_editable_pptx
 from .image_edit import available_fonts,edit_text,image_format_for_path,to_png
 from .pptx_core import list_slide_images,read_media,replace_media
-router=APIRouter();_ID_RE=re.compile(r"^[a-f0-9]{32}$");_EDITABLE_CONVERSION_VERSION="6"
-# OCR 與可編輯 PPTX 轉換都很吃 CPU / RAM；同一個 container 內一次只跑一件，
+router=APIRouter();_ID_RE=re.compile(r"^[a-f0-9]{32}$");_IMAGE_OUTPUT_VERSION="1"
+# OCR 與圖片式 PPTX 輸出都很吃 CPU / RAM；同一個 container 內一次只跑一件，
 # 但工作仍由全站 JobManager 排程，因此其他頁面、其他使用者與「我的作業」不會卡住。
 _PPT_HEAVY_LIMIT=threading.Semaphore(1);_MANIFEST_LOCK=threading.RLock()
 def _work_dir():p=settings.temp_dir/"ppt_image_text_editor";p.mkdir(parents=True,exist_ok=True);return p
@@ -146,57 +145,66 @@ async def export(uid:str,request:Request,edits_json:str=Form(...)):
   by_media.setdefault(path,[]).append(e)
  replacements={path:_apply_edits(read_media(raw,path),es,image_format_for_path(path)) for path,es in by_media.items()};out=replace_media(raw,replacements);out_path=_work_dir()/f"{uid}_edited.pptx";out_path.write_bytes(out);base=Path(m.get("filename") or "edited.pptx").stem;return FileResponse(str(out_path),media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",filename=f"{base}_edited.pptx")
 
-def _editable_path(uid):return _work_dir()/f"{uid}_editable.pptx"
+def _output_path(uid):return _work_dir()/f"{uid}_modified.pptx"
 def _convert_view(uid):
  try:data=_read_manifest(uid)
  except FileNotFoundError:return None
- saved=data.get("editable_job") or {};jid=saved.get("job_id");job=job_manager.get(jid) if jid else None
+ saved=data.get("output_job") or {};jid=saved.get("job_id");job=job_manager.get(jid) if jid else None
  if job:
   job_manager.mark_polled(job.id)
   status={"pending":"queued","error":"failed","interrupted":"failed"}.get(job.status,job.status)
   return {"uid":uid,"job_id":job.id,"status":status,"created_at":job.created_at,"completed_at":job.updated_at if job.status in {"done","error","cancelled","interrupted"} else None,"error":job.error,"signature":saved.get("signature"),"filename":job.result_filename or saved.get("filename")}
- if saved.get("status")=="done" and _editable_path(uid).exists():return saved
+ if saved.get("status")=="done" and _output_path(uid).exists():return saved
  return None
-def _build_editable_file(uid,analyses,edits):
- _editable_path(uid).write_bytes(build_editable_pptx(_src(uid).read_bytes(),analyses,edits))
-def _run_editable_conversion(job,uid,analyses,edits,filename,signature):
+def _build_image_output(uid,media_map,edits):
+ raw=_src(uid).read_bytes();by_media={}
+ for e in edits:
+  path=media_map.get(str(e.get("image_index")))
+  if not path:raise ValueError("找不到指定圖片；請重新執行 OCR 分析")
+  by_media.setdefault(path,[]).append(e)
+ replacements={path:_apply_edits(read_media(raw,path),es,image_format_for_path(path)) for path,es in by_media.items()}
+ _output_path(uid).write_bytes(replace_media(raw,replacements) if replacements else raw)
+def _run_image_output(job,uid,media_map,edits,filename,signature):
  if not _wait_heavy_slot(job):return
  try:
   if job.cancelled:return
-  job.message="正在保留原範本並建立可編輯文字…";job.progress=.15
-  _build_editable_file(uid,analyses,edits)
+  job.message="正在將修改寫回原始投影片圖片…";job.progress=.15
+  _build_image_output(uid,media_map,edits)
   if job.cancelled:
-   _editable_path(uid).unlink(missing_ok=True);return
-  job.result_path=_editable_path(uid);job.result_filename=filename;job.progress=.95;job.message="可編輯 PPTX 已完成"
-  _patch_manifest(uid,editable_job={"job_id":job.id,"status":"done","signature":signature,"filename":filename})
+   _output_path(uid).unlink(missing_ok=True);return
+  job.result_path=_output_path(uid);job.result_filename=filename;job.progress=.95;job.message="修改後 PPTX 已完成"
+  _patch_manifest(uid,output_job={"job_id":job.id,"status":"done","signature":signature,"filename":filename})
  finally:_PPT_HEAVY_LIMIT.release()
 
+@router.post("/output/{uid}")
 @router.post("/editable/{uid}")
-async def editable(uid:str,request:Request,edits_json:str=Form("[]")):
- uid=_safe_id(uid);_uo.require(uid,request);edits=_parse_edits(edits_json);m=_read_manifest(uid);analyses=m.get("analysis") or []
- if not analyses:raise HTTPException(400,"請先執行 OCR 分析")
- signature=hashlib.sha256((_EDITABLE_CONVERSION_VERSION+"\n"+json.dumps(edits,ensure_ascii=False,sort_keys=True)).encode()).hexdigest()
+async def output(uid:str,request:Request,edits_json:str=Form("[]")):
+ uid=_safe_id(uid);_uo.require(uid,request);edits=_parse_edits(edits_json);m=_read_manifest(uid);media_map=m.get("media_map") or {}
+ if not m.get("analysis") or not media_map:raise HTTPException(400,"請先執行 OCR 分析")
+ signature=hashlib.sha256((_IMAGE_OUTPUT_VERSION+"\n"+json.dumps(edits,ensure_ascii=False,sort_keys=True)).encode()).hexdigest()
  existing=_convert_view(uid)
  if existing and existing["status"] in {"queued","running"}:
   if existing["signature"]!=signature:raise HTTPException(409,"這份簡報正在轉換，請等待完成")
   return existing
- if existing and existing["status"]=="done" and existing["signature"]==signature and _editable_path(uid).exists():return existing
- original=Path(m.get("filename") or "presentation.pptx");filename=f"{original.stem}_editable.pptx"
+ if existing and existing["status"]=="done" and existing["signature"]==signature and _output_path(uid).exists():return existing
+ original=Path(m.get("filename") or "presentation.pptx");filename=f"{original.stem}_modified.pptx"
  ready=threading.Event()
- def run(j):ready.wait(timeout=10);_run_editable_conversion(j,uid,analyses,edits,filename,signature)
- job=job_manager.submit("ppt-image-text-editor",run,meta={"filename":f"可編輯 PPTX｜{original.name}","upload_id":uid,"operation":"editable-pptx","view_url":f"/tools/ppt-image-text-editor/?upload={uid}"},request=request)
- try:_patch_manifest(uid,editable_job={"job_id":job.id,"status":"queued","signature":signature,"filename":filename})
+ def run(j):ready.wait(timeout=10);_run_image_output(j,uid,media_map,edits,filename,signature)
+ job=job_manager.submit("ppt-image-text-editor",run,meta={"filename":f"圖片文字修改｜{original.name}","upload_id":uid,"operation":"image-pptx","view_url":f"/tools/ppt-image-text-editor/?upload={uid}"},request=request)
+ try:_patch_manifest(uid,output_job={"job_id":job.id,"status":"queued","signature":signature,"filename":filename})
  finally:ready.set()
  return _convert_view(uid)
 
+@router.get("/output/{uid}")
 @router.get("/editable/{uid}")
-async def editable_status(uid:str,request:Request):
+async def output_status(uid:str,request:Request):
  uid=_safe_id(uid);_uo.require(uid,request);job=_convert_view(uid)
- if not job:raise HTTPException(404,"editable conversion not started")
+ if not job:raise HTTPException(404,"output job not started")
  return job
 
+@router.get("/output/{uid}/download")
 @router.get("/editable/{uid}/download")
-async def editable_download(uid:str,request:Request):
+async def output_download(uid:str,request:Request):
  uid=_safe_id(uid);_uo.require(uid,request);job=_convert_view(uid)
- if not job or job["status"]!="done" or not _editable_path(uid).exists():raise HTTPException(409,"可編輯 PPTX 尚未完成")
- return FileResponse(str(_editable_path(uid)),media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",filename=job["filename"])
+ if not job or job["status"]!="done" or not _output_path(uid).exists():raise HTTPException(409,"修改後 PPTX 尚未完成")
+ return FileResponse(str(_output_path(uid)),media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",filename=job["filename"])
