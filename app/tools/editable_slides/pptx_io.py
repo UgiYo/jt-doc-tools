@@ -7,7 +7,7 @@ import uuid
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE, MSO_SHAPE_TYPE
-from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
+from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
 from pptx.oxml.xmlchemy import OxmlElement
 from pptx.oxml.ns import qn
 from pptx.util import Inches, Pt
@@ -37,6 +37,7 @@ def _set_text(shape, el):
     if el.get("source") == "ocr":
         tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
         tf.word_wrap = False
+        tf.auto_size = MSO_AUTO_SIZE.NONE
     else:
         tf.word_wrap = True
     p = tf.paragraphs[0]
