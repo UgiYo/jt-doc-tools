@@ -56,3 +56,11 @@ def test_offline_easyocr_docker_build_preloads_models():
     assert "download_enabled=False" in dockerfile
     assert 'WITH_EASYOCR: "1"' in override
     assert 'PRELOAD_EASYOCR_MODELS: "1"' in override
+
+
+def test_editable_job_record_can_be_cleared_in_browser():
+    assert 'id="clearEditableJob"' in TEMPLATE
+    assert "localStorage.removeItem(CONVERT_KEY)" in TEMPLATE
+    assert "++editablePollToken" in TEMPLATE
+    assert "panel.hidden=true" in TEMPLATE
+    assert "download.removeAttribute('href')" in TEMPLATE

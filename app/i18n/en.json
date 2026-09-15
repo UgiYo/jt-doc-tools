@@ -4820,5 +4820,7 @@
   "可編輯 PPTX 轉換失敗": "Editable PPTX conversion failed",
   "可編輯 PPTX 已完成": "Editable PPTX is ready",
   "前往下載": "Go to download",
-  "可編輯 PPTX 已完成，請點擊下載。": "The editable PPTX is ready. Click download."
+  "可編輯 PPTX 已完成，請點擊下載。": "The editable PPTX is ready. Click download.",
+  "清除轉換紀錄": "Clear conversion record",
+  "已清除舊的轉換紀錄": "Previous conversion record cleared."
 }

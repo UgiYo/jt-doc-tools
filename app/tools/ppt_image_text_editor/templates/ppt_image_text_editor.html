@@ -16,6 +16,7 @@
   <h2>{{ tr('可編輯 PPTX 轉換作業') }}</h2>
   <span id="editableJobState" class="muted"></span>
   <a class="btn btn-primary" id="editableDownload" hidden>{{ tr('下載可編輯 PPTX') }}</a>
+  <button type="button" class="btn" id="clearEditableJob">{{ tr('清除轉換紀錄') }}</button>
 </div>
 <div class="panel" id="exportPanel" hidden>
   <button class="btn" id="resetBtn">{{ tr('重設全部修改') }}</button>
@@ -105,6 +106,14 @@ function showConvert(job){
  else if(job.status==='done'){state.textContent='{{ tr("可編輯 PPTX 已完成，請點擊下載。") }}';download.href=`/tools/ppt-image-text-editor/editable/${job.upload_id}/download`;download.download=job.filename||'editable.pptx';download.hidden=false}
  else if(job.status==='failed')state.textContent=`{{ tr("轉換失敗") }}：${job.error||''}`;
 }
+function clearEditableRecord(){
+ ++editablePollToken;
+ try{localStorage.removeItem(CONVERT_KEY)}catch{}
+ const panel=$('#editableJobPanel'),download=$('#editableDownload'),state=$('#editableJobState');
+ panel.hidden=true;download.hidden=true;download.removeAttribute('href');state.textContent='';
+ $('#status').textContent='{{ tr("已清除舊的轉換紀錄") }}';
+}
+$('#clearEditableJob').addEventListener('click',clearEditableRecord);
 async function pollEditable(initial=null){
  const token=++editablePollToken;let job=initial||savedConvert();if(!job?.upload_id)return;showConvert(job);
  while(token===editablePollToken&&['queued','running'].includes(job.status)){
