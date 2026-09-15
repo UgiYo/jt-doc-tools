@@ -6,11 +6,10 @@ from fastapi.responses import FileResponse,HTMLResponse,Response
 from ...config import settings
 from ...core import upload_owner as _uo
 from ...core import ocr_engine as _oe
-from .editable_bridge import build_editable_deck
-from app.tools.editable_slides.pptx_io import export_pptx
+from .editable_bridge import build_editable_pptx
 from .image_edit import available_fonts,edit_text,image_format_for_path,to_png
 from .pptx_core import list_slide_images,read_media,replace_media
-router=APIRouter();_ID_RE=re.compile(r"^[a-f0-9]{32}$");_EDITABLE_CONVERSION_VERSION="4"
+router=APIRouter();_ID_RE=re.compile(r"^[a-f0-9]{32}$");_EDITABLE_CONVERSION_VERSION="5"
 _OCR_LIMIT=asyncio.Semaphore(1);_CONVERT_LIMIT=_OCR_LIMIT;_jobs={};_convert_jobs={};_tasks=set();_analysis_tasks={}
 def _job_view(uid):
  job=_jobs.get(uid)
@@ -165,8 +164,7 @@ def _convert_view(uid):
  job=_convert_jobs.get(uid) or _restore_convert_job(uid)
  return _public_convert_job(job) if job else None
 def _build_editable_file(uid,analyses,edits):
- deck=build_editable_deck(_src(uid).read_bytes(),analyses,edits)
- _editable_path(uid).write_bytes(export_pptx(deck))
+ _editable_path(uid).write_bytes(build_editable_pptx(_src(uid).read_bytes(),analyses,edits))
 async def _run_editable_conversion(uid):
  job=_convert_jobs[uid]
  try:

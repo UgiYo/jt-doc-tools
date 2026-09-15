@@ -8,11 +8,13 @@ import unicodedata
 
 import numpy as np
 from PIL import Image
+from pptx import Presentation
+from pptx.util import Inches
 
-from app.tools.editable_slides.pptx_io import import_pptx
+from app.tools.editable_slides.pptx_io import _set_text, import_pptx
 
 from .image_edit import edit_text, estimate_background, estimate_foreground, to_png
-from .pptx_core import read_media
+from .pptx_core import read_media, replace_media
 
 
 def _data_bytes(src: str) -> bytes:
@@ -134,19 +136,22 @@ def _segment_text(segment: list[dict], edit_map: dict, analysis_index: int) -> s
     return "".join(pieces)
 
 
-def build_editable_deck(pptx_bytes: bytes, analyses: list[dict], edits: list[dict]) -> dict:
+def build_editable_deck(pptx_bytes: bytes, analyses: list[dict], edits: list[dict], include_cleaned_media: bool = False) -> dict:
     """Convert image text into repaired picture backgrounds plus native, line-based text boxes."""
     deck = import_pptx(pptx_bytes)
     edit_map = {(int(e.get("image_index", -1)), int(e.get("word_index", -1))): e for e in edits}
     by_digest: dict[str, dict] = {}
+    cleaned_media: dict[str, bytes] = {}
     for analysis in analyses:
         media_path = analysis.get("media_path")
         words = analysis.get("words") or []
         if not media_path or not analysis.get("width") or not analysis.get("height"):
             continue
         original = read_media(pptx_bytes, media_path)
+        cleaned = _clean_image(original, words)
+        cleaned_media[media_path] = cleaned
         by_digest[hashlib.sha256(original).hexdigest()] = {
-            **analysis, "cleaned": _clean_image(original, words), "colors": _word_colors(original, words)
+            **analysis, "cleaned": cleaned, "colors": _word_colors(original, words)
         }
 
     for slide in deck["slides"]:
@@ -190,4 +195,34 @@ def build_editable_deck(pptx_bytes: bytes, analyses: list[dict], edits: list[dic
                 })
         slide["elements"].extend(overlays)
     deck["title"] = "OCR editable presentation"
+    if include_cleaned_media:
+        deck["_cleanedMedia"] = {
+            path: base64.b64encode(payload).decode("ascii") for path, payload in cleaned_media.items()
+        }
     return deck
+
+
+def build_editable_pptx(pptx_bytes: bytes, analyses: list[dict], edits: list[dict]) -> bytes:
+    """Preserve the source theme/master/layout and only replace image text layers."""
+    deck = build_editable_deck(pptx_bytes, analyses, edits, include_cleaned_media=True)
+    replacements = {
+        path: base64.b64decode(payload, validate=True)
+        for path, payload in deck.pop("_cleanedMedia", {}).items()
+    }
+    preserved = replace_media(pptx_bytes, replacements)
+    prs = Presentation(io.BytesIO(preserved))
+    for slide_index, slide in enumerate(prs.slides):
+        if slide_index >= len(deck["slides"]):
+            break
+        for element in deck["slides"][slide_index]["elements"]:
+            if element.get("source") != "ocr":
+                continue
+            shape = slide.shapes.add_textbox(
+                Inches(element["x"]), Inches(element["y"]),
+                Inches(element["width"]), Inches(element["height"]),
+            )
+            _set_text(shape, element)
+    output = io.BytesIO()
+    prs.save(output)
+    return output.getvalue()
+

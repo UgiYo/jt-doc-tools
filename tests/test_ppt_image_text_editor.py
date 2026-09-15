@@ -184,3 +184,45 @@ def test_export_sets_cjk_typeface_and_keeps_fixed_font_size():
     assert 'lang="zh-TW"' in xml
     assert "normAutofit" not in xml and "spAutoFit" not in xml
     assert 'sz="2400"' in xml
+
+
+def test_editable_export_preserves_source_master_theme_and_native_shapes():
+    from pptx import Presentation
+    from pptx.dml.color import RGBColor
+    from pptx.util import Inches
+    from app.tools.ppt_image_text_editor.editable_bridge import build_editable_pptx
+
+    image = Image.new("RGB", (640, 360), "white")
+    ImageDraw.Draw(image).text((100, 80), "Original", fill="black")
+    png = io.BytesIO()
+    image.save(png, "PNG")
+    source_prs = Presentation()
+    source_prs.slide_width = Inches(13.333)
+    source_prs.slide_height = Inches(7.5)
+    slide = source_prs.slides.add_slide(source_prs.slide_layouts[5])
+    slide.background.fill.solid()
+    slide.background.fill.fore_color.rgb = RGBColor(12, 34, 56)
+    native = slide.shapes.add_textbox(Inches(.2), Inches(7), Inches(3), Inches(.3))
+    native.text = "Template footer"
+    picture = slide.shapes.add_picture(io.BytesIO(png.getvalue()), Inches(1), Inches(1), Inches(10), Inches(5))
+    source = io.BytesIO()
+    source_prs.save(source)
+    original = source.getvalue()
+    ref = list_slide_images(original)[0]
+    analyses = [{
+        "media_path": ref.media_path, "index": 0, "width": 640, "height": 360,
+        "words": [{"left": 98, "top": 77, "width": 90, "height": 22, "text": "Original"}],
+    }]
+    result = build_editable_pptx(original, analyses, [])
+
+    with zipfile.ZipFile(io.BytesIO(original)) as before, zipfile.ZipFile(io.BytesIO(result)) as after:
+        assert before.read("ppt/theme/theme1.xml") == after.read("ppt/theme/theme1.xml")
+        assert before.read("ppt/slideMasters/slideMaster1.xml") == after.read("ppt/slideMasters/slideMaster1.xml")
+        assert "ppt/slideLayouts/slideLayout6.xml" in after.namelist()
+    reopened = Presentation(io.BytesIO(result))
+    assert len(reopened.slides) == 1
+    texts = [shape.text for shape in reopened.slides[0].shapes if getattr(shape, "has_text_frame", False)]
+    assert "Template footer" in texts
+    assert "Original" in texts
+    fill = reopened.slides[0].background.fill.fore_color.rgb
+    assert fill == RGBColor(12, 34, 56)
