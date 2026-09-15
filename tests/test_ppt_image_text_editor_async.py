@@ -38,6 +38,21 @@ def test_selected_text_has_matching_number_and_strong_highlight():
     assert "box.dataset.label=`#${wi+1}`" in TEMPLATE
     assert ".pite-box.active" in TEMPLATE
     assert "border:4px solid #dc2626" in TEMPLATE
+    assert "list.prepend(row)" in TEMPLATE
+    assert "list.scrollTop=0" in TEMPLATE
+
+
+def test_each_fragment_supports_font_size_color_and_bold():
+    assert "async function loadFonts()" in TEMPLATE
+    assert 'class="font"' in TEMPLATE
+    assert 'class="size pite-size"' in TEMPLATE
+    assert 'class="bold"' in TEMPLATE
+    assert 'class="color-auto"' in TEMPLATE
+    assert "draftStyles=new Map()" in TEMPLATE
+    assert "font_family:s.font_family" in TEMPLATE
+    assert "font_size:s.font_size" in TEMPLATE
+    assert "text_color:s.text_color" in TEMPLATE
+    assert "bold:s.bold" in TEMPLATE
 
 def test_every_analysis_endpoint_checks_upload_owner():
     start = ROUTER.index('async def start_analysis')
