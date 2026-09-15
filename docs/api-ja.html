@@ -120,7 +120,7 @@
             <a class="nav-ep" href="#pdf-頁面加框">PDF のページへの枠線追加</a>
             <a class="nav-ep" href="#pdf-書籤與目錄">PDF のしおりと目次</a>
             <a class="nav-ep" href="#pdf-騎縫章">PDF の割印</a>
-            <a class="nav-ep" href="#文件擺正">文書のまっすぐ補正</a>
+            <a class="nav-ep" href="#文件擺正">文書の傾き補正</a>
             <a class="nav-ep" href="#pdf-頁面尺寸統一">PDF のページサイズの統一</a>
             <a class="nav-ep" href="#pdf-多頁合一n-up">PDF の複数ページ結合（N-up）</a>
             <a class="nav-ep" href="#pdf-壓縮">PDF の圧縮</a>
@@ -568,12 +568,12 @@ curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span c
   <span class="hl-flag">--output</span> contract_seam.pdf</code></pre>
 <p>レスポンス：割印を押した PDF。</p>
       </section>
-      <section class="doc-section" data-sec="文件擺正" data-title="文書のまっすぐ補正" hidden>
+      <section class="doc-section" data-sec="文件擺正" data-title="文書の傾き補正" hidden>
 <div class="doc-crumb">4. PDF 編集 API</div>
-<h4 id="文件擺正">文書のまっすぐ補正</h4>
+<h4 id="文件擺正">文書の傾き補正</h4>
 <p>傾いて撮影・傾いてスキャンされた文書をまっすぐにし、黒い縁を切り取り、むらのある下地を除きます。スマートフォンでの撮影では紙の 四隅を検出して透視補正します。<strong>AI も GPU もまったく使いません</strong>（従来型の画像処理で、CPU で約 0.8 秒／ページ @200 dpi）。</p>
 <pre><code class="lang-text"><span class="hl-method">POST</span> /tools/doc-straighten/api/doc-straighten</code></pre>
-<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF、画像（スマートフォンで撮影した HEIC を含む）、または文書ファイル</td></tr><tr><td><code>dpi</code></td><td>int</td><td></td><td>処理解像度。150 / 200（既定）/ 300</td></tr><tr><td><code>binarize</code></td><td>bool</td><td></td><td>白黒に変換します。<strong>既定は無効</strong> —— 実測では中国語の細い画が失われ、文字認識率が明らかに下がります。用途はファイルを小さくすることです</td></tr><tr><td><code>detect_quad</code></td><td>bool</td><td></td><td>紙の境界を検出して透視補正します（既定は有効）。検出できない場合は自動的にまっすぐ補正のみに戻ります</td></tr><tr><td><code>enhance</code></td><td>bool</td><td></td><td>クリーンアップ：むらのある下地と影を平坦にします（<strong>既定は有効</strong>）。スマートフォンで撮影した片側の強い影で実測したところ、文字認識率が 0.472 → 0.982 になりました。すでに平坦なスキャン文書では、有効にしても変化はありません</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>種類</th><th>必須</th><th>説明</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF、画像（スマートフォンで撮影した HEIC を含む）、または文書ファイル</td></tr><tr><td><code>dpi</code></td><td>int</td><td></td><td>処理解像度。150 / 200（既定）/ 300</td></tr><tr><td><code>binarize</code></td><td>bool</td><td></td><td>白黒に変換します。<strong>既定は無効</strong> —— 実測では中国語の細い画が失われ、文字認識率が明らかに下がります。用途はファイルを小さくすることです</td></tr><tr><td><code>detect_quad</code></td><td>bool</td><td></td><td>紙の境界を検出して透視補正します（既定は有効）。検出できない場合は自動的に傾き補正のみに戻ります</td></tr><tr><td><code>enhance</code></td><td>bool</td><td></td><td>クリーンアップ：むらのある下地と影を平坦にします（<strong>既定は有効</strong>）。スマートフォンで撮影した片側の強い影で実測したところ、文字認識率が 0.472 → 0.982 になりました。すでに平坦なスキャン文書では、有効にしても変化はありません</td></tr></tbody></table></div>
 <pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/doc-straighten/api/doc-straighten</span> \
   <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
   <span class="hl-flag">-F</span> <span class="hl-str">&quot;file=@scan.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;dpi=200&quot;</span> \
