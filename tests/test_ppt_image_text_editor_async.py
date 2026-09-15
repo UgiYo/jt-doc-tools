@@ -17,6 +17,28 @@ def test_ocr_ui_polls_progress_and_prevents_duplicate_clicks():
     assert "job.completed" in TEMPLATE
     assert "/ppt-image-text-editor/analysis/" in TEMPLATE
 
+
+def test_editor_uses_single_large_page_with_navigation_and_zoom():
+    assert "currentPage=0" in TEMPLATE
+    assert 'id="pitePrev"' in TEMPLATE
+    assert 'id="piteNext"' in TEMPLATE
+    assert 'id="piteZoomIn"' in TEMPLATE
+    assert "analyzed[currentPage]" in TEMPLATE
+    assert "analyzed.forEach(img=>" not in TEMPLATE
+
+
+def test_cross_page_edits_are_kept_and_exported_together():
+    assert "draftValues=new Map()" in TEMPLATE
+    assert "function collectAllEdits()" in TEMPLATE
+    assert "edits=collectAllEdits()" in TEMPLATE
+    assert "draftValues.set(draftKey(img,wi),input.value)" in TEMPLATE
+
+
+def test_selected_text_has_matching_number_and_strong_highlight():
+    assert "box.dataset.label=`#${wi+1}`" in TEMPLATE
+    assert ".pite-box.active" in TEMPLATE
+    assert "border:4px solid #dc2626" in TEMPLATE
+
 def test_every_analysis_endpoint_checks_upload_owner():
     start = ROUTER.index('async def start_analysis')
     status = ROUTER.index('async def analysis_status')
