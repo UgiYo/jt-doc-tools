@@ -163,3 +163,24 @@ def test_cleaned_background_has_no_dark_text_fragments_and_preserves_neighbours(
     pixels = np.asarray(cleaned)
     assert ((pixels[57:82, 98:190].mean(axis=2)) < 100).sum() == 0
     assert tuple(pixels[75, 45]) == (230, 55, 90)
+
+
+def test_export_sets_cjk_typeface_and_keeps_fixed_font_size():
+    import zipfile
+    from app.tools.editable_slides.pptx_io import export_pptx
+
+    deck = {"size": {"width": 13.333, "height": 7.5}, "slides": [{
+        "background": "#ffffff", "elements": [{
+            "type": "text", "x": 1, "y": 1, "width": 5, "height": .5,
+            "text": "繁體中文 DevOps", "fontFamily": "Microsoft JhengHei",
+            "fontSize": 24, "source": "ocr", "fitText": False,
+        }]
+    }]}
+    raw = export_pptx(deck)
+    with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+        xml = archive.read("ppt/slides/slide1.xml").decode("utf-8")
+    assert '<a:ea typeface="Microsoft JhengHei"' in xml
+    assert '<a:latin typeface="Microsoft JhengHei"' in xml
+    assert 'lang="zh-TW"' in xml
+    assert "normAutofit" not in xml and "spAutoFit" not in xml
+    assert 'sz="2400"' in xml

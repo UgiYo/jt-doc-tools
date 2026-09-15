@@ -7,7 +7,9 @@ import uuid
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE, MSO_SHAPE_TYPE
-from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
+from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
+from pptx.oxml import OxmlElement
+from pptx.oxml.ns import qn
 from pptx.util import Inches, Pt
 
 EMU_PER_INCH = 914400
@@ -18,18 +20,30 @@ def _rgb(value: str | None, fallback="000000") -> RGBColor:
 
 def _inch(value): return round(value / EMU_PER_INCH, 4)
 
+def _set_run_typeface(run, name):
+    """Set Latin, East Asian and complex-script fonts; font.name alone misses CJK."""
+    run.font.name = name
+    rpr = run._r.get_or_add_rPr()
+    for tag in ("a:latin", "a:ea", "a:cs"):
+        node = rpr.find(qn(tag))
+        if node is None:
+            node = OxmlElement(tag)
+            rpr.append(node)
+        node.set("typeface", name)
+    rpr.set("lang", "zh-TW")
+
 def _set_text(shape, el):
     tf = shape.text_frame; tf.clear(); tf.vertical_anchor = MSO_ANCHOR.MIDDLE
     if el.get("source") == "ocr":
         tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
         tf.word_wrap = False
-        if el.get("fitText"): tf.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
     else:
         tf.word_wrap = True
     p = tf.paragraphs[0]
+    p.space_before = Pt(0); p.space_after = Pt(0); p.line_spacing = 1.0
     p.alignment = {"left": PP_ALIGN.LEFT, "right": PP_ALIGN.RIGHT}.get(el.get("align"), PP_ALIGN.CENTER)
     run = p.add_run(); run.text = str(el.get("text", ""))
-    run.font.name = el.get("fontFamily", "Microsoft JhengHei")
+    _set_run_typeface(run, el.get("fontFamily", "Microsoft JhengHei"))
     run.font.size = Pt(float(el.get("fontSize", 20))); run.font.bold = bool(el.get("bold", False))
     run.font.italic = bool(el.get("italic", False)); run.font.underline = bool(el.get("underline", False))
     run.font.color.rgb = _rgb(el.get("color"), "111827")

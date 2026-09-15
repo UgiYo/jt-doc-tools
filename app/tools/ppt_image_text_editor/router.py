@@ -10,7 +10,7 @@ from .editable_bridge import build_editable_deck
 from app.tools.editable_slides.pptx_io import export_pptx
 from .image_edit import available_fonts,edit_text,image_format_for_path,to_png
 from .pptx_core import list_slide_images,read_media,replace_media
-router=APIRouter();_ID_RE=re.compile(r"^[a-f0-9]{32}$");_EDITABLE_CONVERSION_VERSION="3"
+router=APIRouter();_ID_RE=re.compile(r"^[a-f0-9]{32}$");_EDITABLE_CONVERSION_VERSION="4"
 _OCR_LIMIT=asyncio.Semaphore(1);_CONVERT_LIMIT=_OCR_LIMIT;_jobs={};_convert_jobs={};_tasks=set();_analysis_tasks={}
 def _job_view(uid):
  job=_jobs.get(uid)

@@ -170,21 +170,23 @@ def build_editable_deck(pptx_bytes: bytes, analyses: list[dict], edits: list[dic
                 bottom = max(word["top"] + word["height"] for word in segment)
                 x = image["x"] + left / pw * image["width"]
                 y = image["y"] + top / ph * image["height"]
-                width = max(.12, (right - left) / pw * image["width"] * 1.04)
+                measured_width = max(.12, (right - left) / pw * image["width"] * 1.10)
                 height = max(.12, (bottom - top) / ph * image["height"] * 1.18)
                 height_points = height * 72 * .78
-                width_points = width * 72 / (_display_width(text) * .58)
+                requested_size = float(next((edit_map.get((analysis_index, word["_index"]), {}).get("font_size") for word in segment if edit_map.get((analysis_index, word["_index"]), {}).get("font_size")), 0) or height_points)
+                estimated_width = _display_width(text) * requested_size * .58 / 72
+                width = min(max(measured_width, estimated_width), image["x"] + image["width"] - x)
                 first_edit = next((edit_map.get((analysis_index, word["_index"])) for word in segment if edit_map.get((analysis_index, word["_index"]))), {})
                 colors = [analysis["colors"].get(word["_index"], "#111827") for word in segment]
                 overlays.append({
                     "id": f"ocr-{analysis_index}-{si}-{len(overlays)}", "type": "text",
                     "x": round(x, 4), "y": round(y - height * .06, 4),
                     "width": round(width, 4), "height": round(height, 4),
-                    "text": text, "fontSize": round(float(first_edit.get("font_size") or max(7, min(54, height_points, width_points))), 1),
+                    "text": text, "fontSize": round(max(7, min(54, requested_size)), 1),
                     "fontFamily": first_edit.get("font_family") or "Microsoft JhengHei",
                     "color": first_edit.get("text_color") or statistics.mode(colors),
                     "bold": bool(first_edit.get("bold", False)), "align": "left",
-                    "source": "ocr", "fitText": True,
+                    "source": "ocr", "fitText": False,
                 })
         slide["elements"].extend(overlays)
     deck["title"] = "OCR editable presentation"
