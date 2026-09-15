@@ -118,7 +118,7 @@
         b.className = 'spe-thumb';
         b.dataset.page = String(i);
         b.textContent = String(i + 1);
-        b.title = `第 ${i + 1} 頁`;
+        b.title = tr('第 {0} 頁').replace('{0}', i + 1);
         b.addEventListener('click', () => this.goToPage(i));
         this.$thumbs.appendChild(b);
       }

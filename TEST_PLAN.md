@@ -538,7 +538,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 
 <!-- BEGIN test-index (由 tools/build_test_plan_index.py 產生，不要手改) -->
 
-共 **285 支測試檔**。說明取自每支檔案自己的開頭說明，
+共 **286 支測試檔**。說明取自每支檔案自己的開頭說明，
 跑 `python tools/build_test_plan_index.py` 重建。
 
 > 這裡**刻意不列函式數** —— 那個數字每加一條測試就會變，
@@ -669,6 +669,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_job_priority.py` | 優先派送名單 —— 指定的使用者送出的作業會插到佇列最前面 |
 | `test_job_queue.py` | 背景工作的佇列 / 持久化 / 記憶體准入 |
 | `test_job_timestamps.py` | 作業的三個時間點：送出 / 開始 / 結束 |
+| `test_js_set_attributes_go_through_tr.py` | JS 設定的**顯示屬性**（title / placeholder / aria-label / alt）要走 `tr()` |
 | `test_json_error_handling.py` | 非 JSON / 壞掉的 request body 應回 400（而非 500） |
 | `test_latin_ext_garbled_recovery.py` | 擷取結果被映到拉丁擴充區、而且每個 span 都很短 —— 舊的判準抓不到 |
 | `test_ldap_attribute_portability.py` | LDAP 查詢的屬性清單不可以夾帶 AD 專屬屬性 |

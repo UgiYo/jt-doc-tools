@@ -507,7 +507,7 @@ function renderAllPages() {
     stage.style.width = (pg.width_pt * ratio) + 'px';
     const img = document.createElement('img');
     img.className = 'preview-img';
-    img.alt = `第 ${pg.index + 1} 頁`;
+    img.alt = tr('第 {0} 頁').replace('{0}', pg.index + 1);
     stage.appendChild(img);
     const layer = document.createElement('div');
     layer.className = 'overlay-layer';

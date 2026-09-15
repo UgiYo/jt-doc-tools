@@ -423,7 +423,7 @@ def hello():
       const card = document.createElement('div');
       card.className = 'md2-preview-card';
       const img = document.createElement('img');
-      img.src = url; img.alt = `第 ${idx + 1} 頁預覽`; img.loading = 'lazy';
+      img.src = url; img.alt = tr('第 {0} 頁預覽').replace('{0}', idx + 1); img.loading = 'lazy';
       img.dataset.idx = String(idx);
       img.addEventListener('click', () => openLightbox(idx));
       const lbl = document.createElement('div');

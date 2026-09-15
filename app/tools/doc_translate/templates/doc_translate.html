@@ -292,7 +292,7 @@ function showResult(job) {
         const fig = document.createElement('figure');
         const img = document.createElement('img');
         img.src = `/tools/doc-translate/preview/${dtUpload}/${i}?side=${side}`;
-        img.alt = `第 ${i} 頁（${label}）`;
+        img.alt = tr('第 {0} 頁（{1}）').replace('{0}', i).replace('{1}', label);
         const cap = document.createElement('figcaption');
         cap.textContent = m.total_pages
           ? tr('第 {0} 頁 / 共 {2} 頁 · {1}')

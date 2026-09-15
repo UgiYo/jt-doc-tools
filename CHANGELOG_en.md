@@ -11,6 +11,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.52] - 2026-09-16
+
+### Display attributes set from JS need `tr()` too
+
+`title` / `placeholder` / `aria-label` / `alt` come from two places: the
+template (`title="…"`, translated at render time — fine) and **JS at runtime**
+(`el.title = '…'`). The second is invisible to the template scan, and because
+it is not a text node the per-page scan only sees it if you hover.
+
+Four were left, all interpolated template literals (`` el.alt = `第 ${n} 頁` ``)
+— the same shape as last version's dialogs. Guarded by
+`tests/test_js_set_attributes_go_through_tr.py`.
+
+> The floor is **measured** (10 in practice, half of that as the minimum) —
+> a round number would either always hold or fail on every edit.
+
 ## [1.15.51] - 2026-09-16
 
 ### The result area after you submit was still Chinese in English and Japanese
