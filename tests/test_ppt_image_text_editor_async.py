@@ -40,6 +40,17 @@ def test_selected_text_has_matching_number_and_strong_highlight():
     assert "border:4px solid #dc2626" in TEMPLATE
     assert "list.prepend(row)" in TEMPLATE
     assert "list.scrollTop=0" in TEMPLATE
+    assert "moveToTop=true" in TEMPLATE
+    assert "selectWord(p,wi,false,false)" in TEMPLATE
+    assert "requestAnimationFrame(()=>row.querySelector('.new').focus())" in TEMPLATE
+
+
+def test_desktop_editor_keeps_preview_and_fields_side_by_side():
+    assert "grid-template-columns:minmax(480px,1.25fr) minmax(430px,1fr)" in TEMPLATE
+    assert "visual.className='pite-visual'" in TEMPLATE
+    assert ".pite-visual{position:sticky" in TEMPLATE
+    assert ".pite-words{height:min(72vh,760px)" in TEMPLATE
+    assert "@media(max-width:1100px){.pite-card{display:block}" in TEMPLATE
 
 
 def test_clean_page_preview_hides_ocr_overlays_in_a_dialog():
