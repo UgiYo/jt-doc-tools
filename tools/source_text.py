@@ -73,3 +73,35 @@ def strip_js_comments(text: str) -> str:
         out.append(c)
         i += 1
     return "".join(out)
+
+
+# ---------------------------------------------------------------------------
+# HTML 區塊（`<script>` / `<style>` / `<pre>` …）
+#
+# **全站只有這一份。** 原本十幾個掃描器各自寫一條 `</script>` 的正規式，
+# 其中好幾條**沒有允許結束標籤裡的空白** —— `</script  >` 是合法的 HTML，
+# 那幾條掃描器會把它**當成還沒結束**，於是整塊被當成 script 內容吞掉
+# （CodeQL 的 py/bad-tag-filter 報的就是這個；本專案 issue #15 也踩過同一個
+# 家族：註解裡的字面 `</script>` 讓瀏覽器提早關閉標籤）。
+#
+# 結束標籤照 HTML 規格是 `</` ＋ 標籤名 ＋（可有屬性，剖析器會略過）＋ `>`，
+# 所以判準是 `</tag\b[^>]*>`：
+#   * `</script>`、`</script >`、`</script\n>` 都吃得到
+#   * `</scriptfoo>` **不會**誤配（`script` 後面沒有詞邊界）
+# ---------------------------------------------------------------------------
+
+def block_re(tag: str) -> "re.Pattern[str]":
+    """`<tag …>內容</tag>` 的正規式，group(1) 是內容。"""
+    return re.compile(rf"<{tag}\b[^>]*>(.*?)</{tag}\b[^>]*>", re.S | re.I)
+
+
+def blocks(html: str, tag: str) -> "list[str]":
+    """該標籤每一段的**內容**。"""
+    return [m.group(1) for m in block_re(tag).finditer(html)]
+
+
+def strip_blocks(html: str, *tags: str, repl: str = " ") -> str:
+    """把整段（含標籤）換掉。不給 `tags` 時預設處理 script 與 style。"""
+    for tag in (tags or ("script", "style")):
+        html = block_re(tag).sub(repl, html)
+    return html

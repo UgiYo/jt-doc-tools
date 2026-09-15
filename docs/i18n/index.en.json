@@ -420,7 +420,6 @@
   "公司網路稽核看不到、SIEM 收不到，<b>合規無法追溯</b>": "Your network audit sees nothing and your SIEM receives nothing, so <b>there is no compliance trail</b>",
   "<b>檔案永遠不離開你的伺服器</b> — 沒有第三方 API、沒有 telemetry": "<b>Files never leave your server</b>; no third-party APIs, no telemetry",
   "<b>原始碼公開</b>（AGPL-3.0）— 想稽核什麼都看得到": "<b>Open source</b> (AGPL-3.0); audit anything you like",
-  "<b>稽核記錄寫在你的 SQLite</b>，可即時轉發到內部 SIEM （syslog / CEF / GELF）": "<b>Audit records are written to your own SQLite</b> and can be forwarded to an internal SIEM in real time (syslog / CEF / GELF)",
   "<b>角色與權限矩陣</b>：誰能用哪個工具，公司能控管": "<b>Roles and a permission matrix</b>: your organisation decides who may use which tool",
   "<b>個資法 / GDPR 合規</b>：資料留在自己機房 / 內網": "<b>Personal data law / GDPR compliance</b>: the data stays in your own server room or network",
   "<b>一行指令安裝</b>，跑在公司既有 Linux / macOS / Windows，省授權費": "<b>One-line install</b>, running on the Linux, macOS or Windows machines you already have; no licence fees",
@@ -505,13 +504,14 @@
   "別再把公司文件丟到線上 PDF 工具<br>\n      <span class=\"hero-title-accent\">這有 48 工具，自架、開源、可控</span>": "Stop uploading company documents to online PDF tools<br>\n      <span class=\"hero-title-accent\">48 tools, self-hosted, open source, under your control</span>",
   "Jason Tools 文件工具箱主介面 — 48 個工具一覽": "Jason Tools Document Toolbox main screen: all 48 tools",
   "48 個工具，分 5 大類": "48 tools in 5 categories",
-  "文件拉正": "Document straightening",
-  "把拍歪、掃歪的文件拉正，裁掉黑邊、去除不勻的底色；手機翻拍會抓出紙張四個角做透視校正，逐頁回報修正角度與殘留歪斜。收 PDF、圖片與文書檔（文書檔輸入時需引擎）": "Straightens documents photographed or scanned at an angle, trims dark borders and evens out the background; for phone photos it finds the four corners and corrects the perspective, reporting the correction angle and residual skew for every page. Takes PDF, images and office documents (office input needs the conversion engine)",
+  "文件擺正": "Document straightening",
+  "把拍歪、掃歪的文件擺正，裁掉黑邊、去除不勻的底色；手機翻拍會抓出紙張四個角做透視校正，逐頁回報修正角度與殘留歪斜。收 PDF、圖片與文書檔（文書檔輸入時需引擎）": "Straightens documents photographed or scanned at an angle, trims dark borders and evens out the background; for phone photos it finds the four corners and corrects the perspective, reporting the correction angle and residual skew for every page. Takes PDF, images and office documents (office input needs the conversion engine)",
   "27 個工具走背景作業": "27 tools run as background jobs",
   "使用者清單直接顯示<b>線上人數</b>（同一個人開三個瀏覽器算一位），每個帳號可以看目前的<b>登入裝置</b> —— 瀏覽器與作業系統、來源位址、最後活動時間 —— 並<b>個別或全部強制登出</b>，動作留在稽核記錄裡。帳號可能外洩時，不必改密碼就能先把所有裝置踢掉。": "The user list shows <b>how many people are online</b> (one person with three browsers counts once), and each account shows its current <b>signed-in devices</b>: browser and operating system, source address, last activity; which can be <b>signed out individually or all at once</b>, with the action recorded in the audit log. If an account may have been compromised, every device can be kicked out before the password is even changed.",
   "拉台鐵 / 高鐵 / Uber 乘車證明 PDF，自動整理日期 / 交通工具 / 來源-目的 / 費用成表格，欄位可自訂，匯出 7 種格式報帳": "Pulls a batch of Taiwan Railway, THSR and Uber ride receipts into one table — date, transport, route and fare — with configurable columns and export in seven formats for expense claims",
   "疑難排解": "Troubleshooting",
   "安裝與升級疑難排解": "Install & upgrade troubleshooting",
   "<b>⚠ 2026-09-13 之前用 git 安裝的，這一版升級前要先跑一行。</b>\n        專案改寫過 git 歷史（移除一筆誤入版控的資料），舊版的 <code>jtdt update</code>\n        會在 <code>git fetch --tags</code> 失敗（<code>would clobber existing tag</code>），\n        訊息只說 <code>git fetch failed</code>。先跑\n        <code>git -C &lt;安裝目錄&gt; fetch --tags --force origin</code> 一次即可永久解決\n        （<b>是大寫的 <code>-C</code></b>；小寫的 <code>-c</code> 是設定參數，\n        git 不會切到那個目錄，會回「<code>not a git repository</code>」，\n        看起來像安裝壞掉其實只是打錯一個字母）。\n        tarball 安裝與 Windows 安裝程式不受影響；v1.15.41 起已修正。": "<b>⚠ Installed with git before 2026-09-13? Run one line before upgrading to this version.</b>\n        The project's git history was rewritten (to remove a record that should never have been committed), so an older <code>jtdt update</code>\n        fails at <code>git fetch --tags</code> (<code>would clobber existing tag</code>)\n        and only reports <code>git fetch failed</code>. Running\n        <code>git -C &lt;install dir&gt; fetch --tags --force origin</code> once fixes it for good\n        (<b>that <code>-C</code> is upper case</b>; a lower-case <code>-c</code> is the config flag, so git never changes\n        into that directory and answers “<code>not a git repository</code>”,\n        which reads like a broken install when only one letter was mistyped).\n        Tarball installs and the Windows installer are unaffected; fixed since v1.15.41.",
-  "文件工具箱": "Document Toolbox"
+  "文件工具箱": "Document Toolbox",
+  "<b>稽核記錄寫在你的 SQLite</b>，可即時轉發到內部 SIEM": "<b>Audit records are written to your own SQLite</b> and can be forwarded to an internal SIEM in real time"
 }

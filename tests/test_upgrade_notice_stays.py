@@ -91,7 +91,7 @@ def test_no_copy_paste_block_uses_the_lowercase_flag():
     import re
 
     fenced = re.compile(r"```.*?```", re.S)
-    pre = re.compile(r"<pre\b.*?</pre>", re.S | re.I)
+    pre = re.compile(r"<pre\b.*?</pre\b[^>]*>", re.S | re.I)
     wrong = re.compile(r"git -c\s+[/\"'A-Za-z]")
     bad = []
     for f in list(PUB.rglob("*.md")) + list(PUB.rglob("*.html")):

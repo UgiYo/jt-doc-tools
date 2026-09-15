@@ -1,4 +1,4 @@
-"""文件拉正：**多頁 / 多檔的每一頁都要看得到**，而且模式切回去要真的切回去。
+"""文件擺正：**多頁 / 多檔的每一頁都要看得到**，而且模式切回去要真的切回去。
 
 兩件使用者 2026-09-14 回報的事：
 
@@ -360,6 +360,25 @@ def test_rotating_then_dragging_corners_still_lands_on_the_paper(page):
       });
       return hs.length})()""")
     assert moved == 4
+
+    # **拉到原位，座標就不該變。**
+    #
+    # 2026-09-15 實測：拉完第一個角之後整張圖往上跳 40~50 px（狀態那一行
+    # 從兩列縮回一列），剩下三個角因此全部落在低 19% 的位置 ——
+    # 拉出來的四邊形被 `quad_is_sane()` 判成不合理（內角極差 40.4° > 40°）
+    # 而**整組丟掉**，畫面卻還寫著「用的是你自己拉的四個角」。
+    #
+    # 只驗「暗像素少」抓不到這一條（被丟掉之後退回整頁，而整頁在這份合成
+    # 素材上剛好也不算暗）—— 這條才是直接的判準。
+    after = ev("document.getElementById('dsQuadLine').getAttribute('points')") or ""
+    got = [tuple(float(v) for v in pair.split(",")) for pair in after.split()]
+    was = [tuple(float(v) for v in pair.split(",")) for pair in pts.split()]
+    assert len(got) == 4, f"拖完之後四個角不見了：{after!r}"
+    drift = max(max(abs(a[0] - b[0]), abs(a[1] - b[1])) for a, b in zip(got, was))
+    assert drift < 1.5, (
+        f"把四個角拖到它們原本的位置，座標卻跑掉了 {drift:.1f} 個百分點"
+        f"（拖之前 {pts} / 拖之後 {after}）—— 拖曳途中版面有東西改變高度")
+
     for _ in range(45):
         time.sleep(1)
         if "自己拉的四個角" in (ev("document.getElementById('dsPvStat').textContent") or ""):

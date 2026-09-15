@@ -181,7 +181,11 @@ def test_every_pattern_declares_its_locale_intent():
     for pat in P.CATALOG:
         assert pat.locales is None or isinstance(pat.locales, tuple), pat.id
         if pat.locales:
-            assert set(pat.locales) <= {"zh-Hant", "en"}, (pat.id, pat.locales)
+            # **從 `DOC_LANGS` 實算，不要寫死** —— 加日文時這條就是靠寫死
+            # 的 `{"zh-Hant", "en"}` 才紅的（本專案「同一份清單寫兩個地方
+            # 一定會漂」）。
+            allowed = {c for c, _n in P.DOC_LANGS}
+            assert set(pat.locales) <= allowed, (pat.id, pat.locales, allowed)
 
 
 def test_the_doc_language_list_has_no_duplicates():

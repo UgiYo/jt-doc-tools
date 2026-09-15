@@ -81,7 +81,15 @@ def test_both_deident_tools_share_one_default():
 
 
 def test_the_shared_default_never_falls_back_to_taiwan_for_an_unknown_ui():
-    """介面語言沒有對應的式子時退到 `en`，**不可以退回台灣那組**。"""
+    """介面語言的預設**不可以退回台灣那組**。
+
+    台灣的市話 / 地址 / 統編式子套在別的語言的文件上是**抓錯**不是抓不到，
+    而畫面會顯示「已處理」—— 誤判比漏抓更危險。
+
+    **有那個語言的式子就用它**（v1.15.49 起日文有了 → `ja` 回 `ja`）；
+    沒有的話退到語言中立 ＋ 英美那一組（`en`）。判準寫成「不是 zh-Hant」
+    而不是寫死某個值 —— 加語言時這條不該跟著紅。
+    """
     from app.tools.doc_deident import patterns as P
 
     class _Req:
@@ -90,9 +98,25 @@ def test_the_shared_default_never_falls_back_to_taiwan_for_an_unknown_ui():
             self.headers: dict = {}
             self.scope: dict = {}
 
-    assert P.default_doc_lang(_Req("ja")) == "en"
     assert P.default_doc_lang(_Req("en")) == "en"
     assert P.default_doc_lang(_Req("zh-Hant")) == "zh-Hant"
+    # 有日文式子了 → 用日文那一組
+    assert P.default_doc_lang(_Req("ja")) == "ja"
+
+    # **每一個支援的介面語言都要驗一次**，而且非中文的介面絕不可以落到
+    # `zh-Hant`。不要拿沒支援的語言（例如 `ko`）當輸入 —— `ui_locale.resolve()`
+    # 會先把它正規化成預設語言，於是這裡看到的是 `zh-Hant`，
+    # 那是**正規化的結果不是退回台灣**，用它當判準會誤報（我第一版就是這樣）。
+    from app.core.ui_locale import SUPPORTED
+
+    for loc in SUPPORTED:
+        got = P.default_doc_lang(_Req(loc))
+        if loc.startswith("zh"):
+            assert got == "zh-Hant", (loc, got)
+        else:
+            assert got != "zh-Hant", (
+                f"{loc} 介面的預設文件語言落到台灣那一組 —— "
+                "台灣的式子套在別的語言上是抓錯不是抓不到")
 
 
 def test_a_non_chinese_address_is_not_masked_into_a_taiwanese_one():

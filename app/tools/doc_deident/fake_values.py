@@ -74,6 +74,29 @@ _ADDR_POOL_EN = [
 ]
 
 
+#: 日文的假姓名。**一望即知是範例** —— 「山田太郎」「鈴木花子」是日本的
+#: 教科書範例名（相當於中文的「王大明」）。
+_NAME_POOL_JA = ["山田　太郎", "鈴木　花子", "佐藤　一郎", "田中　美咲",
+                 "高橋　健太", "伊藤　さくら"]
+#: 日文的假住所。**不存在的番地** —— `例町` 是虛構的町名。
+_ADDR_POOL_JA = ["東京都千代田区例町{n}-{n}-{n}",
+                 "大阪府大阪市北区例町{n}-{n}",
+                 "愛知県名古屋市中区例町{n}-{n}-{n}"]
+
+
+def _looks_japanese(value: str) -> bool:
+    """原值看起來是日文嗎（有假名，或有全形空白隔開的漢字姓名）。
+
+    **判準看的是值本身不是文件語言** —— 同一份日文文件裡也可能出現
+    `Acer Incorporated`，那一條要換成英文的假名。
+    """
+    if not value:
+        return False
+    if any("\u3040" <= c <= "\u30ff" for c in value):      # 平假名 / 片假名
+        return True
+    return "\u3000" in value and any("\u4e00" <= c <= "\u9fff" for c in value)
+
+
 def _looks_latin(value: str) -> bool:
     """原值看起來是拉丁字母（英文姓名 / 公司名）嗎？
 
@@ -117,6 +140,13 @@ class Replacer:
         if key in self._map:
             return self._map[key]
         made = self._make(type_id or "", value or "")
+        # **假值不可以跟原值一樣** —— 池子裡剛好排到同一個名字時，那一筆
+        # 等於沒換，而畫面會顯示「已替換」（實測 `jp_name` 的第一個就是
+        # 「山田　太郎」，正好是日文最常見的範例名）。再取下一個。
+        for _ in range(8):
+            if made.strip() != (value or "").strip():
+                break
+            made = self._make(type_id or "", value or "")
         self._map[key] = made
         return made
 
@@ -158,11 +188,13 @@ class Replacer:
         if type_id == "mac":
             return f"00:00:5E:00:53:{n % 256:02X}"   # RFC 7042 文件用保留段
 
-        if type_id == "person_name":
+        if type_id in ("person_name", "jp_name"):
             # 原值是拉丁字母 → 回英文假名。中文文件換出 John Doe（或反過來）
             # 都會讓產出一眼看得出被動過，而替換模式的目的正好相反。
             if _looks_latin(value):
                 return _NAME_POOL_EN[(n - 1) % len(_NAME_POOL_EN)]
+            if type_id == "jp_name" or _looks_japanese(value):
+                return _NAME_POOL_JA[(n - 1) % len(_NAME_POOL_JA)]
             return _NAME_POOL[(n - 1) % len(_NAME_POOL)]
         if type_id in ("company", "account_name"):
             if _looks_latin(value):
@@ -170,6 +202,35 @@ class Replacer:
             return _COMPANY_POOL[(n - 1) % len(_COMPANY_POOL)]
         if type_id == "addr":
             return f"台北市中正區範例路 {n} 號"
+
+        # --- 日文專屬型別 -------------------------------------------
+        # 號碼一律用**過不了檢查碼**的 —— 驗得過的假號碼可能真的屬於某個人
+        # 或某家公司（同 SSN 9xx / IBAN 那條原則）。
+        if type_id == "jp_mynumber":
+            # **刻意過不了檢查碼** —— 「末碼 +1」是錯的做法：全 0 的本體算出來
+            # 的檢查碼剛好就是 9，隨手加一碼反而做出一個**合法**的個人番号
+            #（實測踩到）。正確做法是算出真正的檢查碼再避開它。
+            body = f"{n % 100000000000:011d}"
+            real = sum(int(body[-i]) * (i + 1 if i <= 6 else i - 5)
+                       for i in range(1, 12)) % 11
+            real = 0 if real <= 1 else 11 - real
+            wrong = (real + 1) % 10
+            return f"{body[:4]} {body[4:8]} {body[8:]}{wrong}"
+        if type_id == "jp_corp_no":
+            # 首碼是檢查碼；算出真的那一個再避開
+            body = f"{n % 1000000000000:012d}"
+            real = 9 - (sum(int(body[11 - i]) * (2 if i % 2 else 1)
+                            for i in range(12)) % 9)
+            return f"{(real + 1) % 10}{body}"
+        if type_id == "jp_phone":
+            # 0120-000-xxx 是日本的免付費號段，000 段未指派
+            return f"0120-000-{n % 1000:03d}"
+        if type_id == "jp_postcode":
+            # 000 開頭的郵便番号未指派 —— 保證撞不到真的地址
+            return f"〒000-{n % 10000:04d}"
+        if type_id == "jp_addr":
+            tpl = _ADDR_POOL_JA[(n - 1) % len(_ADDR_POOL_JA)]
+            return tpl.format(n=(n % 9) + 1)
 
         # --- 英文 / 英美專屬型別 ------------------------------------
         if type_id == "us_addr":

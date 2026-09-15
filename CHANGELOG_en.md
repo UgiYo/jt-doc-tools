@@ -11,6 +11,151 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.49] - 2026-09-15
+
+### A red frame along all four edges of the corrected page (customer report)
+
+It looked like the corner detection had swallowed some desk. **It was not the
+desk — it was a colour we painted ourselves.** Rotation filled the newly
+exposed edge with
+
+    cv2.warpAffine(..., borderValue=255)
+
+and OpenCV's `borderValue` is a four-number `Scalar`: writing `255` alone
+expands to `(255, 0, 0, 0)` — white on a 1-channel image (correct), **pure red
+on a 3-channel one**. When v1.15.47 moved the geometry from grayscale onto the
+colour image, that line quietly changed meaning.
+
+Measured on the reported business card: **5,628 pure-red pixels → 0**, and the
+mean chroma of the outer two-pixel ring **43.8 → 2.8** (the paper itself is
+4.2). The four corners were right all along (ink coverage 1.000, purity 1.000).
+
+The same thread uncovered an older ordering mistake: **flatten the illumination
+before rotating, not after.** Rotation pads the corners, and that padding is not
+photographed content — yet the background estimator treats it as "this area is
+genuinely bright", which drags the gain field down and darkens everything else:
+**6.9% → 64.7% dark pixels** on the same photo. The padding used to be red
+(luminance 54), which happened to be masked as a dark region, so the wrong order
+never showed.
+
+### Dragging the four corners: the image jumped after the first one
+
+The status line sits directly above the "before" image and wraps onto a second
+row when the text is long. Every recompute reset it to a short "rendering
+preview…", so **the image jumped 40–50 px upwards after each corner**, landing
+the remaining three 19% too low.
+
+The resulting quadrilateral was then rejected as implausible (interior-angle
+spread 40.4°, limit 40°) and **dropped entirely** — while the screen still said
+"using the corners you dragged". The status row now only ever grows, and it
+remembers the tallest it has been rather than hard-coding a height (Chinese,
+English and Japanese differ, and so does the window width).
+
+### The installer: Japanese, and no more mojibake
+
+**Mojibake** (customer report, Win11 25H2): `winget` writes UTF-8 while NSIS's
+`nsExec::ExecToLog` decodes with the **system ANSI code page** — CP950 for
+Traditional Chinese, **CP932 for Japanese**, CP1252 for English. All three
+garble. That output was never meaningful to the reader, so it now goes to
+`installer.log` and the pane keeps only our own one-line status.
+
+**Japanese**: only Traditional Chinese and English language tables were
+declared, and NSIS falls back to the **first declared** one, so a Japanese
+Windows got a Chinese installer. Japanese now covers the component list, the
+finish page, the failure message and **the three uninstall prompts** (that path
+returns before the language dialog, so it is the easiest one to miss).
+
+### Other
+
+* The **document straightening** tool is now called `文件擺正` in Chinese; its
+  URL and API path (`doc-straighten`) are unchanged.
+* The changelog no longer quotes what a person said. The symptom stays — the
+  quotation marks and the attribution go.
+
+### Redaction now handles **Japanese documents**
+
+"Japanese" joins the document-language list, with six Japanese-only categories:
+**My Number**, **Corporate Number**, **phone**, **postcode**, **address** and
+**name**. A Japanese interface now defaults to Japanese documents.
+
+* **Anything with a check digit is verified.** Both My Number and the Corporate
+  Number have one — without it every 12- or 13-digit string matches, so part
+  numbers and order numbers are flagged in bulk while the screen says "done".
+* **A false-positive corpus is part of the acceptance.** A Japanese document
+  full of part numbers, order numbers, ISBNs and version strings must produce
+  **zero** sensitive hits. Testing only that detection *works* would pass even
+  if the patterns matched everything.
+* **Replacement values are Japanese and never valid.** A fake number that
+  passes its own checksum may belong to a real person (the same reason SSNs use
+  the unassigned `9xx` range and the fake IBAN deliberately fails mod-97).
+* **Taiwan and English did not regress** — the real corpora were scanned before
+  and after and compared.
+
+> **⚠ The separators a PDF gives you are not the ones you typed.** PyMuPDF
+> returned a non-breaking space `\xa0` and a **non-breaking hyphen `\u2011`**
+> (not `-`) for the very same file — matching on `[ \-]` found 3 of the 7
+> categories, **while the screen said "done"**. This project already recorded
+> the space half of this ("the whitespace a PDF yields is not an ASCII space");
+> this is the hyphen half.
+>
+> Loosening the separators then introduced one false positive
+> (`社内コード：03-1234-5678-X-99` read as a phone number) — the
+> "must not be adjacent to a hyphen" half cannot be dropped along with it.
+> Both are pinned as acceptance checks, each mutation-verified.
+
+### ⚠ A dozen scanners' `</script>` regexes could skip a whole file
+
+`</script  >` is valid HTML, and a regex that hard-codes `</script>` treats it
+as *not yet closed* — **swallowing the rest of the file as script content**, so
+that scanner silently stops checking. That is what CodeQL's `py/bad-tag-filter`
+was reporting (11 High alerts).
+
+There is now one shared implementation in `tools/source_text` (`</tag\b[^>]*>`),
+and all 14 sites use it.
+
+> This project hit the same family in issue #15: a literal `</script>` inside a
+> comment closed the tag early and turned a page of JavaScript into plain text.
+
+### PDF editor: your work survives a disconnect or a closed tab
+
+The edit state used to live only in that browser tab. What the server holds is
+an **already-flattened PDF**, not the edit state — and temp cleanup removes it
+after two hours anyway, so getting it back would not let you move a text box.
+
+Edits are now kept in the browser, and reopening **the same file** offers to
+pick up where you left off.
+
+> **It does not follow you to another computer** — the notice says so, because
+> everything else this tool produces does live on the server.
+>
+> **An empty edit state must never overwrite a real draft.** Reopening a file
+> snapshots the still-empty canvas, and 1.5 seconds later that snapshot wiped
+> the previous draft — **before the user could click "resume"** (measured: one
+> object saved, zero read back). Only running it in a real browser shows this;
+> static checks see the code and call it present.
+
+### PDF to Word: per-page progress
+
+`Converter.convert()` is a single opaque call, and this tool routinely takes
+minutes — the bar simply did not move. It is now split into the four steps that
+call already performs, with per-page granularity taken from pdf2docx's **own**
+log line rather than its internals. A four-page file now reports ten times.
+
+> If upstream changes that line we **silently fall back** to stage progress —
+> which is exactly why there is a check watching the format.
+>
+> **Broken progress must never fail a conversion**: it is an accessory, not the
+> output.
+
+### The site's screenshots are no longer empty states
+
+"User management" and the permission matrix showed "no users or groups yet".
+The demo data now has 6 accounts, 3 groups, and **the same account name in both
+the local and ldap realms** — which is the whole point of that screenshot. All
+of it is invented.
+
+---
+
 ## [1.15.48] - 2026-09-14
 
 ### The site's top-left title wrapped in English and Japanese

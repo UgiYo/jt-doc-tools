@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}{{ tr('文件拉正') }} · {{ app_name }}{% endblock %}
+{% block title %}{{ tr('文件擺正') }} · {{ app_name }}{% endblock %}
 
 {% block content %}
-<h1>{{ icon('crop') }} {{ tr('文件拉正') }}</h1>
-<p class="muted">{{ tr('把拍歪、掃歪的文件拉正，裁掉黑邊、去除不勻的底色，輸出端正的 PDF。收 PDF、手機拍的照片與文書檔。') }}</p>
+<h1>{{ icon('crop') }} {{ tr('文件擺正') }}</h1>
+<p class="muted">{{ tr('把拍歪、掃歪的文件擺正，裁掉黑邊、去除不勻的底色，輸出端正的 PDF。收 PDF、手機拍的照片與文書檔。') }}</p>
 {# 原生 PDF 丟進來會被整頁轉成圖片 → 文字選不到、搜尋不到，而畫面上看起來
    一模一樣。所以核心會把「已經是正的、而且有文字層」的頁面原樣保留，
    **並且要在這裡先講出來**，不然使用者會以為工具沒作用。 #}
@@ -519,6 +519,32 @@
   //: 只把某一格切成「處理中 ＋ spinner」（還沒有圖可以放的時候用）。
   //  `showImg` 要有 URL 才能用 —— 而重新計算的那幾秒正好是**還沒有 URL**
   //  的時候，所以需要這一支。
+  //: 狀態文字**只會把那一行撐高，不會讓它縮回去**。
+  //
+  //  這一行就在「修正前」那張圖的上面。原本每次重算都先換成「產生預覽中…」
+  //  （一行），算完再換回長長的那一句（在窄一點的視窗會折成三行）——
+  //  於是**每拉完一個角，圖就往上跳一次**。實測：拉第一個角之前
+  //  `#dsArt` 的 top 是 850，拉完變 800（高度都是 260）——
+  //  **剩下三個角因此全部落在低 19% 的位置**，拉出來的四邊形被
+  //  `quad_is_sane()` 判成不合理（內角極差 40.4° > 40°）而**整組丟掉**，
+  //  畫面卻還寫著「用的是你自己拉的四個角」。
+  //
+  //  **不寫死一個高度**：中文 / 英文 / 日文長度不同，視窗寬度也會變。
+  //  記住目前為止最高的那一次就好；視窗大小改變時重新量。
+  let statMinH = 0;
+  function setStat(text) {
+    const el = $('dsPvStat');
+    if (!el) return;
+    el.textContent = text;
+    // **要保留的是整條 `.ds-pagebar` 的高度，不是這一行文字的高度。**
+    //  那條是 flex-wrap：狀態短的時候跟頁碼擠在同一列（40px），
+    //  長的時候整條折到第二列（80px）—— 只把 `min-height` 設在文字上
+    //  擋不住那個「折行 / 不折行」的切換（實測改完仍然 80 → 40）。
+    const bar = el.closest('.ds-pagebar') || el;
+    const h = bar.offsetHeight;
+    if (h > statMinH) { statMinH = h; bar.style.minHeight = h + 'px'; }
+  }
+
   function showBusy(imgId, phId, text) {
     const img = $(imgId), ph = $(phId);
     if (!img || !ph) return;
@@ -536,7 +562,7 @@
     const ac = new AbortController();
     pvAbort = ac;
     $('dsPvPanel').hidden = false;
-    $('dsPvStat').textContent = tr('產生預覽中…');
+    setStat(tr('產生預覽中…'));
     // **右邊要立刻進處理中** —— 不然拖完四個角之後，畫面上還掛著**上一次**
     // 的結果好幾秒，看起來像「拉了沒反應」，而使用者會再拖一次
     // （2026-09-13 使用者回報）。
@@ -567,7 +593,7 @@
                             { method: 'POST', body: fd, signal: ac.signal });
       if (token !== pvToken) return;          // 已經有更新的請求了
       if (!r.ok) {
-        $('dsPvStat').textContent = await window.friendlyServerError(r, tr('預覽失敗'));
+        setStat(await window.friendlyServerError(r, tr('預覽失敗')));
         return;
       }
       const d = await r.json();
@@ -575,12 +601,12 @@
               tr('產生預覽中…'), tr('預覽產生失敗'));
       // **殘留角是驗收指標**：轉錯方向時角度看起來「有動」，只有殘留角會現形
       const ovNow = overrides[page] || {};
-      $('dsPvStat').textContent =
+      setStat(
         tr('轉了 {0}°，修正後殘留 {1}°（越接近 0 越好）')
           .replace('{0}', d.angle).replace('{1}', d.residual)
         + (d.quad_found ? '　' + tr('（抓到紙張邊界，已做透視校正）') : '')
         + (ovNow.rotate ? '　' + tr('（這一頁另外轉了 {0}°）').replace('{0}', ovNow.rotate) : '')
-        + (quadEditOn() && ovNow.quad ? '　' + tr('（用的是你自己拉的四個角）') : '');
+        + (quadEditOn() && ovNow.quad ? '　' + tr('（用的是你自己拉的四個角）') : ''));
       fillAutoSize(d);
       // 自動抓到的四角回來了就當作拖曳的起點 —— 使用者只要修不準的那幾個。
       if (d.quad && !(quadEditOn() && ovNow.quad)) autoQuad = d.quad;
@@ -590,7 +616,7 @@
       // 被新的取代**不是失敗** —— 顯示「預覽失敗」會讓人以為壞掉了，
       // 而其實下一張正在算。
       if (e && e.name === 'AbortError') return;
-      if (token === pvToken) $('dsPvStat').textContent = tr('預覽失敗');
+      if (token === pvToken) setStat(tr('預覽失敗'));
     }
   }
 
@@ -696,7 +722,14 @@
     art.style.width = dw + 'px';
     art.style.height = dh + 'px';
   }
-  window.addEventListener('resize', () => { layoutArt(); });
+  window.addEventListener('resize', () => {
+    layoutArt();
+    // 寬度變了，原本保留的高度就不對了 —— 重新量一次
+    statMinH = 0;
+    const st = $('dsPvStat');
+    const bar = st && (st.closest('.ds-pagebar') || st);
+    if (bar) bar.style.minHeight = '';
+  });
 
   function wireDrag(h) {
     let loupe = null;

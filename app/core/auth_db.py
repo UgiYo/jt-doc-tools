@@ -742,7 +742,7 @@ def _m25_grant_doc_translate(conn: sqlite3.Connection) -> None:
 
 
 def _m26_grant_doc_straighten(conn: sqlite3.Connection) -> None:
-    """v26：把 `doc-straighten`（文件拉正，v1.15.33 新增）補給既有角色。
+    """v26：把 `doc-straighten`（文件擺正，v1.15.33 新增）補給既有角色。
 
     理由同 `_m18`~`_m25`（seed 快照的 bootstrap 缺口）：從舊版升上來的安裝，
     角色早就存在，而 `seed_builtin_roles()` 的差集 top-up 以快照為基準 ——

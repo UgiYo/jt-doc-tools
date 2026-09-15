@@ -1,4 +1,4 @@
-"""文件拉正的核心：裁邊、拉正、去除不勻底色（選用：透視校正、二值化）。
+"""文件擺正的核心：裁邊、拉正、去除不勻底色（選用：透視校正、二值化）。
 
 **完全不用 AI、不用 GPU** —— 傳統影像處理，單執行緒 CPU 實測
 200 dpi 0.83 秒/頁、300 dpi 1.4 秒/頁。
@@ -87,10 +87,23 @@ def deskew_angle(g: np.ndarray, limit: float = 6.0, step: float = 0.1) -> float:
     return best_a
 
 
+#: 旋轉 / 透視之後補在邊緣的顏色。
+#:
+#: **一定要給滿四個通道。** OpenCV 的 `borderValue` 收的是 `Scalar`：只寫
+#: `255` 等於 `(255, 0, 0, 0)` —— 灰階時那是白色，**彩色時那是純紅**。
+#: v1.15.47 把幾何從灰階改成套在彩色上之後，每一張修正後的圖就沿著四個邊
+#: 多了一圈紅線（2026-09-15 使用者回報「四邊都有截到背景一些」——
+#: 那不是背景，是我們自己填上去的紅色）。
+#:
+#: 實測那張名片：純紅畫素 **5,628 個**；修正後 **0 個**。
+_BORDER_WHITE = (255, 255, 255, 255)
+
+
 def rotate(img: np.ndarray, a: float) -> np.ndarray:
     h, w = img.shape[:2]
     return cv2.warpAffine(img, cv2.getRotationMatrix2D((w / 2, h / 2), a, 1.0),
-                          (w, h), flags=cv2.INTER_CUBIC, borderValue=255)
+                          (w, h), flags=cv2.INTER_CUBIC,
+                          borderValue=_BORDER_WHITE)
 
 
 def _paper_mask(g: np.ndarray, rgb=None):
@@ -328,8 +341,11 @@ def warp_quad(g: np.ndarray, quad: np.ndarray) -> np.ndarray:
     W = int(max(np.linalg.norm(o[2] - o[3]), np.linalg.norm(o[1] - o[0])))
     H = int(max(np.linalg.norm(o[1] - o[2]), np.linalg.norm(o[0] - o[3])))
     dst = np.float32([[0, 0], [W - 1, 0], [W - 1, H - 1], [0, H - 1]])
+    # 四個角拉到圖外時會取樣到範圍外 —— 補白，不要留 OpenCV 預設的黑
+    # （跟 `rotate()` 同一個道理，理由見 `_BORDER_WHITE`）。
     return cv2.warpPerspective(g, cv2.getPerspectiveTransform(o, dst), (W, H),
-                               flags=cv2.INTER_CUBIC)
+                               flags=cv2.INTER_CUBIC,
+                               borderValue=_BORDER_WHITE)
 
 
 def binarize(g: np.ndarray, dpi: int = 200) -> np.ndarray:
@@ -579,13 +595,20 @@ def straighten_page(gray: "np.ndarray", *, quad=None, rgb=None,
         base = crop_page(gray, work)
         base_g = crop_page(gray) if rgb is not None else base
     ang = deskew_angle(base_g)
-    out = rotate(base, ang)
     # 順序：壓平底色在二值化之前。**這一步不是為了二值化** ——
     # `binarize()` 自己就會先跑 `normalize_illum()`，對陰影本來就有抵抗力
     # （實測把兩者對調，黑像素比例不變）。壓平是為了**二值化關掉時
     # 使用者拿到的那張圖**，那才是預設的情況。
+    #
+    # **而且要在旋轉「之前」壓平。** 旋轉會在四個角補白，那片白不是拍到的
+    # 內容，卻會被背景估計當成「這一區本來就很亮」——
+    # 估出來的增益場跟著被拉低，整張圖反而變暗：實測同一張照片
+    # **暗像素 6.9% → 64.7%**（2026-09-15，補白從紅色改成白色時現形；
+    # 原本是紅色，亮度只有 54，剛好被當成深色區遮掉才沒事，
+    # 也就是這個順序一直是錯的，只是被另一個 bug 蓋住）。
     if enhance:
-        out = flatten_shading(out, dpi=dpi)
+        base = flatten_shading(base, dpi=dpi)
+    out = rotate(base, ang)
     if do_binarize:
         # 二值化本來就是「轉成黑白」—— 彩色先降成灰階再做。
         out = binarize(cv2.cvtColor(out, cv2.COLOR_RGB2GRAY)

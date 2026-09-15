@@ -25,8 +25,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE_GLOBS = ("app/**/templates/**/*.html",)
 
 # Inline <script> with no src= attribute. Greedy across newlines.
+# 結束標籤要用 `</script\b[^>]*>` —— `</script  >` 是合法 HTML，寫死 `</script>`
+# 的話那一塊會被當成「還沒結束」，於是**這支語法檢查就少看了一整片檔案**
+# （CodeQL py/bad-tag-filter；判準與 `tools.source_text` 一致）。
 _SCRIPT_RE = re.compile(
-    r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>",
+    r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script\b[^>]*>",
     re.DOTALL | re.IGNORECASE,
 )
 # Tag a Jinja directive — used to skip mostly-Jinja blocks; node can't parse Jinja.

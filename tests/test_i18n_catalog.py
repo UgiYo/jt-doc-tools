@@ -46,6 +46,23 @@ def test_every_template_key_is_translated():
     assert missing == [], f"這些字串還沒有英文：{missing}"
 
 
+#: 語言的**自稱**（endonym）—— 這幾條在任何語言底下都保持原樣。
+#: 英文使用者看到「Japanese」不知道那是不是他要的，看到「日本語」才認得；
+#: 這跟 `ui_locale.LOCALE_NAMES` 是同一條原則（那一份不經過語系檔，
+#: 所以只有文件語言下拉會撞到這條守門）。
+_ENDONYMS = {"日本語"}
+
+
+def test_the_endonym_exemptions_have_not_gone_stale():
+    """豁免清單裡的每一條都還要真的在語系檔裡。
+
+    留著沒必要的豁免比沒有豁免更糟 —— 下一個人會以為那裡有一個已知的例外。
+    """
+    en = catalog("en")
+    stale = [k for k in _ENDONYMS if k not in en]
+    assert not stale, f"豁免清單過期了：{stale}"
+
+
 def test_catalog_entries_are_all_traditional_chinese_keys():
     """key 必須是**繁體中文原文**（gettext 的 msgid 做法）。
 
@@ -59,7 +76,7 @@ def test_catalog_entries_are_all_traditional_chinese_keys():
             continue
         for k, v in catalog(locale).items():
             assert cjk.search(k), f"[{locale}] key 不是中文原文：{k!r}"
-            if locale == "en":
+            if locale == "en" and k not in _ENDONYMS:
                 # 譯文只擋**漢字**：`…` 這類標點在英文裡也用得到
                 # （"Search tools…"），用同一個寬鬆的字元集去擋會誤報。
                 assert not re.search(r"[㐀-鿿]", v), \
@@ -218,7 +235,7 @@ def test_translation_keeps_the_trailing_colon_or_ellipsis():
                      + "\n  ".join(f"{k[:34]!r} -> {v[:40]!r}" for k, v in bad[:6]))
 
 
-_JS_BLOCK = re.compile(r"<script\b[^>]*>(.*?)</script\s*>", re.S | re.I)
+_JS_BLOCK = re.compile(r"<script\b[^>]*>(.*?)</script\b[^>]*>", re.S | re.I)
 _JS_CALL = re.compile(r"(?<![\w.])tr\((['\"])((?:(?!\1)[^\\])*)\1\)")
 
 

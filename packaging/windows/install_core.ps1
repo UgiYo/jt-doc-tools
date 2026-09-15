@@ -75,6 +75,46 @@ function Die  ($m, $code) {
     exit $code
 }
 
+# --- winget：**輸出一律導進記錄檔，不要流進安裝畫面** ----------------
+# winget 送出的是 **UTF-8**，而 NSIS 的 `nsExec::ExecToLog` 是用**系統的
+# ANSI 字碼頁**去解（繁中 Windows 是 CP950）—— 於是安裝畫面上出現一整片
+# 亂碼（2026-09-15 客戶回報，Win11 25H2 的截圖）。
+#
+# **修法不是去轉編碼**：那一片內容本來就是 winget 的授權條款與進度動畫，
+# 對使用者沒有意義，能讀也只是雜訊。改成全部寫進 `installer.log`
+# （要查的時候還在），畫面上只留我們自己的一行英文狀態。
+#
+# 回傳 winget 的離開碼。
+function Invoke-Winget([string]$PackageId, [string]$What) {
+    $out = Join-Path $env:TEMP ("jtdt-winget-{0}.log" -f [guid]::NewGuid())
+    $err = "$out.err"
+    try {
+        $args = "install --id $PackageId -e --silent " +
+                "--accept-package-agreements --accept-source-agreements"
+        $proc = Start-Process winget -ArgumentList $args -Wait -PassThru -NoNewWindow `
+                    -RedirectStandardOutput $out -RedirectStandardError $err `
+                    -ErrorAction SilentlyContinue
+        foreach ($f in @($out, $err)) {
+            if (Test-Path $f) {
+                try {
+                    # winget 寫的是 UTF-8 —— 讀的時候就要照 UTF-8 讀，
+                    # 不然存進記錄檔的也是亂碼。
+                    $txt = [System.IO.File]::ReadAllText($f, [System.Text.Encoding]::UTF8)
+                    if ($txt.Trim()) {
+                        Add-Content -Path $InstallLog -Encoding UTF8 `
+                            -Value ("--- winget $PackageId ($(Split-Path $f -Leaf)) ---`r`n$txt")
+                    }
+                } catch {}
+            }
+        }
+        return $(if ($proc) { $proc.ExitCode } else { 1 })
+    } finally {
+        foreach ($f in @($out, $err)) {
+            Remove-Item $f -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 # --- preflight ------------------------------------------------------
 $ident = [Security.Principal.WindowsIdentity]::GetCurrent()
 $prin  = New-Object Security.Principal.WindowsPrincipal($ident)
@@ -158,7 +198,8 @@ function Install-LibreOffice {
     Log 'Falling back to LibreOffice via winget ...'
     try {
         if (Get-Command winget -ErrorAction SilentlyContinue) {
-            $proc = Start-Process winget -ArgumentList 'install --id TheDocumentFoundation.LibreOffice -e --silent --accept-package-agreements --accept-source-agreements' -Wait -PassThru -NoNewWindow
+            $code = Invoke-Winget 'TheDocumentFoundation.LibreOffice' 'LibreOffice'
+            $proc = [pscustomobject]@{ ExitCode = $code }
             if ($proc.ExitCode -eq 0) { return Test-Office }
         }
         return $false
@@ -236,7 +277,8 @@ function Install-Tesseract {
     Log 'Installing tesseract OCR (optional) ...'
     try {
         if (Get-Command winget -ErrorAction SilentlyContinue) {
-            $proc = Start-Process winget -ArgumentList 'install --id UB-Mannheim.TesseractOCR -e --silent --accept-package-agreements --accept-source-agreements' -Wait -PassThru -NoNewWindow -ErrorAction SilentlyContinue
+            $code = Invoke-Winget 'UB-Mannheim.TesseractOCR' 'Tesseract'
+            $proc = [pscustomobject]@{ ExitCode = $code }
             if ($proc.ExitCode -eq 0) {
                 Add-TesseractToPath; Ensure-TesseractChiTra
                 if (Test-Tesseract) { Ok 'tesseract installed via winget'; return }
@@ -288,7 +330,8 @@ function Install-Git {
         Warn 'winget not available; jtdt update needs git installed manually later'; return
     }
     try {
-        $proc = Start-Process winget -ArgumentList 'install --id Git.Git -e --silent --accept-package-agreements --accept-source-agreements' -Wait -PassThru -NoNewWindow -ErrorAction SilentlyContinue
+        $code = Invoke-Winget 'Git.Git' 'git'
+        $proc = [pscustomobject]@{ ExitCode = $code }
         if ($proc.ExitCode -eq 0) {
             $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
             if (Get-Command git -ErrorAction SilentlyContinue) { Ok 'git installed via winget'; return }

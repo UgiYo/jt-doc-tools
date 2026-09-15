@@ -18,7 +18,7 @@ import pathlib
 import re
 import sys
 
-SCRIPT = re.compile(r"(<script\b[^>]*>)(.*?)(</script\s*>)", re.S | re.I)
+SCRIPT = re.compile(r"(<script\b[^>]*>)(.*?)(</script\b[^>]*>)", re.S | re.I)
 COMMENT = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
 CJK = re.compile("[㐀-鿿]")
 #: 單引號字串（JS 裡最常見的寫法；雙引號的留給下一輪，混著改容易接錯）

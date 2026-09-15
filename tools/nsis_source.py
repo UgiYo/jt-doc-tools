@@ -48,3 +48,51 @@ def code_lines(text: str) -> list[tuple[int, str]]:
 
 def code_text(text: str) -> str:
     return "\n".join(c for _, c in code_lines(text))
+
+
+# ---------------------------------------------------------------- 語言表
+
+#: 譯文裡出現漢字是**正確的**那幾種語言。
+#:
+#: 日文的「文書」「必須」「変換」都是正確的日文，只是剛好也是漢字 ——
+#: 一律用「有沒有漢字」判斷的話整份日文都是誤報，而**誤報一多這份檢查就會
+#: 被當雜訊忽略**（用詞守門那次的教訓）。
+CJK_IS_NATIVE = frozenset({"TRADCHINESE", "SIMPCHINESE", "JAPANESE", "KOREAN"})
+
+#: 中文與日文都用漢字，靠「現代日文不會用的中文詞」分辨「整條忘了翻」。
+#: 與語系檔那條守門**共用同一份清單**，不要在這裡另抄一份。
+def _not_japanese() -> tuple[str, ...]:
+    from .i18n_untranslated_scan import NOT_JAPANESE
+    return tuple(NOT_JAPANESE)
+
+
+def declared_languages(text: str) -> set[str]:
+    """`.nsi` 裡宣告了哪些語言表。
+
+    **不要在測試裡寫死語言清單** —— 加第三種語言之後，寫死的守門會
+    「照樣全綠，只是沒在驗那個語言」（本專案在 i18n 上踩過八次）。
+    """
+    import re
+    # **一律大寫** —— 宣告寫的是 `"TradChinese"`，而 LangString 用的是
+    # `${LANG_TRADCHINESE}`。兩邊不正規化的話比對永遠對不上，而那看起來
+    # 會像「這個語言沒宣告」。
+    return {m.upper() for m in
+            re.findall(r'!insertmacro\s+MUI_LANGUAGE\s+"(\w+)"', text)}
+
+
+def langstring_language(code_line: str) -> "str | None":
+    """這一行是某個語言的 LangString 嗎？是的話回語言名稱。"""
+    import re
+    m = re.match(r'\s*LangString\s+\w+\s+\$\{LANG_(\w+)\}', code_line)
+    return m.group(1) if m else None
+
+
+def looks_like_untranslated_chinese(code_line: str, lang: str) -> bool:
+    """這一行的譯文看起來是「整段忘了翻的中文」嗎？
+
+    只對**漢字圈**的語言有意義（其他語言用「不可以有漢字」那條更嚴的判準）。
+    這是**啟發式**：抓得到「整段留著中文」，抓不到「翻得不好」。
+    """
+    if lang != "JAPANESE":
+        return False
+    return any(w in code_line for w in _not_japanese())

@@ -103,6 +103,12 @@ RECIPES: dict[str, dict] = {
     # 逐句翻譯沒有用共用的上傳元件（它自己一個 `#fileInput`）。
     "translate-doc": {"file": "doc", "input": "#fileInput",
                       "submit": False, "wait": 8},
+    # 權限矩陣右邊要先選一位 subject，不然只有一句「從左側選一位…」。
+    "premissions": {"before": """(() => {
+        const it = document.querySelector('#permList .perm-row');
+        if (it) { it.click(); return true; }
+        return false;
+      })()""", "submit": False, "wait": 5, "scroll": False},
     "deident-1": {"file": "deident", "submit": True, "wait": 14},
     # 文字去識別化沒有檔案可放 —— 直接把範例文字貼進去（**內容全部虛構**，
     # 跟 `seed_demo_data.py` 那份是同一批假資料）。空白的輸入框當產品截圖

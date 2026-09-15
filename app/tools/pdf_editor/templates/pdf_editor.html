@@ -472,6 +472,20 @@ body.pe-pan-active { cursor: grabbing !important; }
   {{ tr('需要保留簽章的話，請改用原檔，或在編輯完成後重新請人簽章。') }}
 </div>
 
+{# 上一次沒編輯完的草稿。**編輯狀態原本只活在這個分頁裡** —— 關掉分頁、
+   當掉、斷線就全沒了（伺服器上那份是「已經燒進去的 PDF」，不是編輯狀態，
+   而且 2 小時後就被暫存清理掃掉）。草稿存在瀏覽器裡：換電腦就沒有，
+   **這件事要講出來**，不要讓人以為它在伺服器上。 #}
+<div class="info-box" id="peDraftBar" hidden>
+  {{ icon('clock', size=16) }}
+  <b>{{ tr('上次有一份沒編輯完的草稿。') }}</b>
+  <span id="peDraftInfo"></span>
+  <button class="btn btn-primary btn-small" type="button" id="peDraftResume">{{ tr('接續上次的編輯') }}</button>
+  <button class="btn btn-small" type="button" id="peDraftDrop">{{ tr('不用，重新開始') }}</button>
+  {# `.info-box` 裡不可以放區塊元素（圖示會被擠到自己一行）—— 要換行用 `<br>`。 #}
+  <br><span class="muted">{{ tr('草稿只存在這台電腦的瀏覽器裡（換電腦或清掉瀏覽資料就沒有了），存檔或下載之後會自動清除。') }}</span>
+</div>
+
 <div class="panel" id="editor-panel" hidden>
   <div class="pe-top">
     <button class="btn btn-primary" type="button" id="btnSave">{{ icon('save') }} {{ tr('儲存並預覽') }}</button>
@@ -1003,6 +1017,8 @@ async function handleUpload(file) {
     buildCanvases();
     clearHistory();
     snapshotHistory();
+    peDraftFileName = (file && file.name) || '';
+    peDraftOffer();             // 同一份檔案才會出現那條提示
     // Default to "fit to view" on load so the first page is fully
     // visible without scrolling. Use setTimeout so layout is settled
     // before we measure canvasWrap's clientWidth/Height.
@@ -2714,6 +2730,99 @@ $('prefSnapDist').addEventListener('input', (e) => {
 });
 
 // ============ Undo/Redo via snapshots ============
+// ============ 未完成的草稿（只存在這個瀏覽器裡）============
+// **編輯狀態原本只活在這個分頁**：關掉分頁、當掉、斷線就全沒了。伺服器上
+// 那份 `pe_<id>_out.pdf` 是「已經燒進去的 PDF」不是編輯狀態，而且 2 小時
+// 後被暫存清理掃掉 —— 拿回來也不能再拖動文字框。
+//
+// 這一層只做瀏覽器端：實作小、斷線 / 當掉 / 誤關分頁都救得回來。
+// **換電腦就沒有** —— 畫面上要講出來，不要讓人以為它在伺服器上。
+const PE_DRAFT_KEY = 'jtdt-pe-draft-v1';
+let peDraftTimer = null;
+let peDraftQuotaWarned = false;
+
+function peDraftRead() {
+  try {
+    const raw = localStorage.getItem(PE_DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }   // 隱私視窗 / 關掉站台資料時 getItem 會丟
+}
+
+function peDraftClear() {
+  try { localStorage.removeItem(PE_DRAFT_KEY); } catch (e) { /* 同上 */ }
+  const bar = $('peDraftBar');
+  if (bar) bar.hidden = true;
+}
+
+function peDraftSave() {
+  if (!uploadId || !pageCanvases.length) return;
+  const snap = canvasSnapshot();
+  // **空的編輯狀態不可以蓋掉既有的草稿。**
+  // 重新開檔時 `snapshotHistory()` 會先對「還沒編輯的空畫布」拍一張 ——
+  // 那一張在 1.5 秒後就把上一次的草稿洗掉了，**使用者根本來不及按「接續」**
+  //（實測：草稿存的時候有 1 個物件，重整後讀回來是 0 個）。
+  // 空的狀態本來就沒有資訊，永遠不值得覆寫一份真的草稿。
+  // 真的想丟掉的話有兩條路：按「不用，重新開始」，或存檔 / 下載。
+  const empty = snap.pages.every(pg => !(pg.objects || []).length)
+                && !Object.keys(snap.deletedOrigs || {}).length;
+  if (empty) return;
+  try {
+    localStorage.setItem(PE_DRAFT_KEY, JSON.stringify({
+      v: 1,
+      savedAt: Date.now(),
+      fileName: peDraftFileName,
+      pageCount: pageCanvases.length,
+      snap,
+    }));
+  } catch (e) {
+    // **配額爆掉時只講一次**：貼了幾張大圖就會超過（localStorage 約 5 MB）。
+    // 安靜失敗最糟 —— 使用者會以為草稿存著，斷線之後才發現沒有。
+    if (!peDraftQuotaWarned) {
+      peDraftQuotaWarned = true;
+      setStatus(tr('這份編輯太大，瀏覽器存不下草稿 —— 請記得按「儲存並預覽」。'));
+    }
+  }
+}
+
+function peDraftSchedule() {
+  if (peDraftTimer) clearTimeout(peDraftTimer);
+  peDraftTimer = setTimeout(() => { peDraftTimer = null; peDraftSave(); }, 1500);
+}
+
+let peDraftFileName = '';
+
+function peDraftOffer() {
+  const d = peDraftRead();
+  const bar = $('peDraftBar');
+  if (!bar || !d || !d.snap) return;
+  // **同一份檔案才提議**：檔名與頁數都要對得上 —— 把 A 檔的編輯套到 B 檔
+  // 上，版面看起來「好像可以」但位置全錯，而且使用者不會發現。
+  if (d.fileName !== peDraftFileName || d.pageCount !== pageCanvases.length) {
+    return;
+  }
+  const info = $('peDraftInfo');
+  if (info) {
+    const mins = Math.max(1, Math.round((Date.now() - (d.savedAt || 0)) / 60000));
+    info.textContent = tr('（{0}，約 {1} 分鐘前）')
+      .replace('{0}', d.fileName || '').replace('{1}', mins);
+  }
+  bar.hidden = false;
+}
+
+(function wireDraftBar() {
+  const resume = $('peDraftResume'), drop = $('peDraftDrop');
+  if (resume) resume.addEventListener('click', () => {
+    const d = peDraftRead();
+    if (!d || !d.snap) { peDraftClear(); return; }
+    restoreSnapshot(d.snap);
+    clearHistory();
+    setTimeout(() => snapshotHistory(), 60);
+    $('peDraftBar').hidden = true;
+    setStatus(tr('已接續上次的編輯。'));
+  });
+  if (drop) drop.addEventListener('click', () => peDraftClear());
+})();
+
 function canvasSnapshot() {
   // 把每一頁畫布內容 + deletedOrigs 一起存。後者是「使用者標記為刪除的
   // 原 PDF 物件 bbox」，存檔時會被 redact，回 undo 時必須一起還原，否則
@@ -2770,6 +2879,7 @@ function snapshotHistory() {
     if (history.length > 50) history = history.slice(-50);
     histIdx = history.length - 1;
     updateHistoryButtons();
+    peDraftSchedule();          // 草稿跟著編輯走
   }, SNAPSHOT_DELAY);
 }
 // Undo/redo should see the latest state even if a snapshot is pending.
@@ -3377,6 +3487,10 @@ async function savePdf(isAuto, opts) {
       });
     }
     setStatus(isAuto ? '已自動儲存。' : tr('已儲存。預覽已更新，點「下載 PDF」取回。'), 'saved');
+    // **手動存檔成功就把草稿清掉**：已經有產出了，留著只會讓人下次開檔時
+    // 看到一條「上次沒編輯完」的提示，而其實那一份已經存好了。
+    // 自動預覽不算 —— 它每動一下就跑一次，那時編輯根本還沒完成。
+    if (!isAuto) peDraftClear();
   } catch (e) {
     setStatus(tr('儲存錯誤：') + e.message, 'error');
     // Save failed — restore dirty pages so next save retries those pages

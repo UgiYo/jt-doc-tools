@@ -27,7 +27,7 @@ import re
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
-SCRIPT = re.compile(r"(<script\b[^>]*>)(.*?)(</script\s*>)", re.S | re.I)
+SCRIPT = re.compile(r"(<script\b[^>]*>)(.*?)(</script\b[^>]*>)", re.S | re.I)
 COMMENT = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
 BAD_BEFORE = re.compile(r"(===|!==|==|!=|querySelector(All)?\(|"
                         r"getAttribute\(|setAttribute\(|classList\.[a-z]+\()\s*$")

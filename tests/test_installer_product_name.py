@@ -55,7 +55,12 @@ def test_the_add_remove_programs_name_uses_a_language_string():
 
 def test_the_display_name_exists_in_both_languages():
     code = _nsi_code()
-    for lang in ("TRADCHINESE", "ENGLISH"):
+    # **語言清單要從宣告實算** —— 寫死的話，加第三種語言之後這條會
+    # 「照樣全綠，只是沒在驗那個語言」（本專案在 i18n 上踩過八次）。
+    from tools.nsis_source import declared_languages
+    langs = declared_languages(_nsi())
+    assert len(langs) >= 2, f"只看到 {langs}，語言宣告大概解析錯了"
+    for lang in sorted(langs):
         assert re.search(rf'LangString APP_DISPLAY\s+\$\{{LANG_{lang}\}}', code), \
             f"APP_DISPLAY 少了 {lang}"
 
@@ -113,14 +118,25 @@ def test_paths_and_identity_still_use_the_fixed_short_name():
 
 
 def test_no_hard_coded_chinese_is_left_outside_language_strings():
-    """這一批做完，`_DEFERRED` 應該是空的。"""
-    from tools.nsis_source import code_lines
+    """這一批做完，`_DEFERRED` 應該是空的。
+
+    判準依「這一行屬於哪個語言表」分流，**不是一律看有沒有漢字** ——
+    日文的譯文本來就有漢字。邏輯收在 `tools.nsis_source`，
+    與 `test_installer_languages.py` **共用同一份**（v1.15.49 加日文時
+    只改了其中一支，另一支當場紅 —— 同一個家族要一次掃完）。
+    """
+    from tools.nsis_source import (CJK_IS_NATIVE, code_lines,
+                                   langstring_language,
+                                   looks_like_untranslated_chinese)
     cjk = re.compile(r"[　-〿一-鿿＀-￯]")
     bad = []
     for n, ln in code_lines(_nsi()):
-        if not cjk.search(ln):
+        lang = langstring_language(ln)
+        if lang in CJK_IS_NATIVE:
+            if looks_like_untranslated_chinese(ln, lang):
+                bad.append(f"{n}: {lang} 的條目裡留著中文 —— {ln.strip()[:50]}")
             continue
-        if re.match(r'\s*LangString\s+\w+\s+\$\{LANG_TRADCHINESE\}', ln):
+        if not cjk.search(ln):
             continue
         if "LEGACY_SM_FOLDER" in ln or "!define APPNAME" in ln:
             continue        # 舊版相容用的字面值，刻意保留

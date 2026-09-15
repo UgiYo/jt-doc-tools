@@ -86,17 +86,35 @@ def test_component_names_are_not_hard_coded_chinese():
     assert not bad, "元件名稱要走 SectionSetText + LangString：\n" + "\n".join(bad)
 
 
+#: 判準收在 `tools.nsis_source` —— `test_installer_product_name.py`
+#: 用的是**同一份**。分開寫兩份的話，加語言時一定只改到其中一支
+#: （v1.15.49 就是這樣紅的）。
+from tools.nsis_source import (CJK_IS_NATIVE as _CJK_IS_NATIVE,  # noqa: E402
+                               langstring_language as _lang_of,
+                               looks_like_untranslated_chinese as _untranslated)
+
+
 def test_the_deferred_places_are_the_only_hard_coded_chinese_left():
     """剩下的中文只能是那兩處**路徑**；新增第三處就要紅。
 
     這條的用意是**不讓下一個人再寫死一句中文**，而不是要求現在就全部改完。
+
+    判準依「這一行屬於哪個語言表」分流，**不是一律看有沒有漢字**：
+
+    * 程式碼與 `${LANG_ENGLISH}` 的譯文 —— 一個漢字都不可以有。
+    * 漢字圈語言的譯文（繁中 / 日文…）—— 漢字本來就是對的，改抓
+      **「整段是中文沒翻」** 的訊號（日文用 `NOT_JAPANESE`，
+      與語系檔那條共用同一份清單，不另抄一份）。
     """
     bad = []
     for n, ln in _code_lines():
+        lang = _lang_of(ln)
+        if lang in _CJK_IS_NATIVE:
+            if _untranslated(ln, lang):
+                bad.append(f"{n}: {lang} 的條目裡留著中文 —— {ln.strip()[:60]}")
+            continue
         if not _CJK.search(ln):
             continue
-        if re.match(r'\s*LangString\s+\w+\s+\$\{LANG_TRADCHINESE\}', ln):
-            continue          # 繁中的譯文本來就是中文
         if any(k in ln for k in _DEFERRED):
             continue
         bad.append(f"{n}: {ln.strip()[:80]}")

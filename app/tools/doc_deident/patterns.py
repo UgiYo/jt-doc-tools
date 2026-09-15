@@ -694,6 +694,97 @@ def _nanp_valid(v: str) -> bool:
     return True
 
 
+# --- 日文文件 -------------------------------------------------------------
+# **加式子只是一半**：日文文件套台灣 / 英美的式子是**抓錯**不是抓不到
+#（台灣市話式子會把日本電話吃掉一半、美式地址式子對日文地址完全不成立），
+# 所以這些一律標 `locales=("ja",)`，由 `catalog_for()` 依文件語言取用。
+#
+# **有檢查碼的一律驗**：マイナンバー（個人番号）與法人番号都有 —— 不驗的話
+# 任何 12 / 13 碼數字都會中（型號、注文番号會被大量誤判，而畫面會顯示
+# 「已處理」，那比漏抓更危險）。
+
+#: **PDF 抽出來的分隔符不是你打的那一個。** 實測 PyMuPDF 對同一份 PDF 給的是
+#: 不斷行空白 `\xa0` 與**不斷行連字號** `\u2011`（不是 `-`）—— 用 `[ \-]` 去配
+#: 一條都抓不到，而畫面會顯示「已處理」。本專案在中文地址上記過同一條
+#:（「PDF 抽出來的空白不是半形空白」），這裡是它的連字號版。
+#: 橫向空白用 `[^\S\n]`（含 `\xa0`），**不可以用 `\s`**（含換行 → 遮蔽框會跨行畫）。
+_SEP = r"[^\S\n]"
+#: 各種「看起來像連字號」的字元：半形、不斷行、圖形短橫、連接號、破折號、
+#: 減號、片假名長音、全形。
+_DASH = r"[\-\u2010-\u2015\u2212\u30fc\uff0d]"
+#: 前後**不可以**緊接數字或連字號 —— 少了連字號那一半，
+#: `社内コード：03-1234-5678-X-99` 會被當成一支電話（實測誤判語料抓到）。
+_NOT_ADJ = r"[0-9\-\u2010-\u2015\u2212\u30fc\uff0d]"
+
+#: 個人番号（マイナンバー）12 碼。常見寫法有空白或連字號分成 4-4-4。
+RE_JP_MYNUMBER = re.compile(
+    rf"(?<!{_NOT_ADJ})(\d{{4}})(?:{_SEP}|{_DASH})?(\d{{4}})(?:{_SEP}|{_DASH})?"
+    rf"(\d{{4}})(?!{_NOT_ADJ})")
+#: 法人番号 13 碼（前面 1 碼是檢查碼）。
+RE_JP_CORP_NO = re.compile(rf"(?<!{_NOT_ADJ})(\d{{13}})(?!{_NOT_ADJ})")
+#: 郵便番号 〒123-4567（**要求前面有 〒 或標籤**，否則會吃掉一般的 3-4 碼數字）
+RE_JP_POSTCODE = re.compile(rf"〒{_SEP}*\d{{3}}{_DASH}\d{{4}}")
+#: 日本の電話番号：市外局番は 0 で始まる。固定 0X-XXXX-XXXX / 0XX-XXX-XXXX、
+#: 携帯 0[789]0-XXXX-XXXX。**連字號或全形空白**是必要的 —— 純 10~11 碼數字
+#: 不加分隔的話會跟型號、注文番号撞在一起。
+RE_JP_PHONE = re.compile(
+    rf"(?<!{_NOT_ADJ})0\d{{1,4}}{_DASH}\d{{1,4}}{_DASH}\d{{3,4}}(?!{_NOT_ADJ})")
+#: 住所：都道府県 → 市区町村 → 丁目番地。**不可以用 `\s`**（含換行）——
+#: 跨換行的遮蔽框會跟著跨行畫（本專案在中文地址上踩過）。
+RE_JP_ADDR = re.compile(
+    r"(?:北海道|東京都|京都府|大阪府|"
+    r"[^\S\n]{0,2}(?:青森|岩手|宮城|秋田|山形|福島|茨城|栃木|群馬|埼玉|千葉|"
+    r"神奈川|新潟|富山|石川|福井|山梨|長野|岐阜|静岡|愛知|三重|滋賀|兵庫|奈良|"
+    r"和歌山|鳥取|島根|岡山|広島|山口|徳島|香川|愛媛|高知|福岡|佐賀|長崎|熊本|"
+    r"大分|宮崎|鹿児島|沖縄)県)"
+    r"[^\S\n]{0,2}[^\s、。]{1,12}?[市区町村郡]"
+    rf"(?:[^\s、。]{{0,20}}?[0-9０-９丁目番地号]|{_DASH}){{1,20}}")
+#: 氏名：漢字姓 ＋ 全形空白 ＋ 漢字名（日本的表單慣例）。**要有標籤**才啟用，
+#: 不然一般內文的漢字詞會被大量誤判。
+RE_JP_NAME = re.compile(
+    r"(?:氏名|名前|お名前|申請者|担当者)\s*[:：]?\s*"
+    r"([\u4e00-\u9fff]{1,5}[ \u3000][\u4e00-\u9fff]{1,5})")
+
+
+def _jp_mynumber_valid(v: str) -> bool:
+    """マイナンバーの検査用数字（総務省令の算式）。
+
+    11 桁目までに重み（6,5,4,3,2,7,6,5,4,3,2）を掛けて 11 で割った余り r から
+    検査用数字を求める：r <= 1 なら 0、それ以外は 11 - r。
+
+    **不驗的話任何 12 碼數字都會中** —— 型號、注文番号、社員番号が大量に
+    誤検出され、画面には「処理しました」と出ます（漏れより危険）。
+    """
+    d = re.sub(r"\D", "", v)
+    if len(d) != 12 or len(set(d)) == 1:      # 000000000000 這種不是真的號碼
+        return False
+    body = d[:11]
+    # P_n ＝右から n 番目（n = 1..11）、Q_n ＝ n+1（n<=6）／ n-5（n>=7）
+    s = sum(int(body[-n]) * (n + 1 if n <= 6 else n - 5) for n in range(1, 12))
+    r = s % 11
+    return (0 if r <= 1 else 11 - r) == int(d[11])
+
+
+def _jp_corp_no_valid(v: str) -> bool:
+    """法人番号の検査用数字（国税庁）。
+
+    先頭 1 桁が検査用数字、残り 12 桁に 2,1,2,1… の重みを掛ける。
+    """
+    d = re.sub(r"\D", "", v)
+    if len(d) != 13 or len(set(d)) == 1:
+        return False
+    body = d[1:]
+    s = sum(int(body[11 - i]) * (2 if i % 2 else 1) for i in range(12))
+    return int(d[0]) == 9 - (s % 9)
+
+
+def _mask_jp_addr(v: str) -> str:
+    """日本の住所：都道府県だけ残して以降を伏せる。形は保ったまま中身を隠す。"""
+    m = re.match(r"(北海道|東京都|京都府|大阪府|[^\s]{2,4}県)", v)
+    head = m.group(1) if m else ""
+    return head + "〇〇市〇〇町〇-〇"
+
+
 def _mask_postcode(v: str) -> str:
     t = v.strip()
     return t[:2] + "*" * max(1, len(t) - 2)
@@ -757,6 +848,22 @@ CATALOG: list[Pattern] = [
             False, group="聯絡方式", icon="map-pin", locales=("en",)),
     Pattern("iban", "IBAN 國際帳號", RE_IBAN, _iban_valid, _mask_bank_account,
             True, group="金融資訊", icon="credit-card", locales=("en",)),
+    # --- 日文文件 ---------------------------------------------------
+    # 一律標 `locales=("ja",)` —— 台灣 / 英美的式子套在日文文件上是**抓錯**
+    # 不是抓不到（v1.15.32 記過同一條）。有檢查碼的一律驗。
+    Pattern("jp_mynumber", "個人番號（日本）", RE_JP_MYNUMBER,
+            _jp_mynumber_valid, _mask_id, True, group="個人身分",
+            icon="id-card", locales=("ja",)),
+    Pattern("jp_corp_no", "法人番號（日本）", RE_JP_CORP_NO, _jp_corp_no_valid,
+            _mask_twbiz, True, group="企業資料", icon="hash", locales=("ja",)),
+    Pattern("jp_phone", "電話（日本）", RE_JP_PHONE, _always, _mask_phone,
+            True, group="聯絡方式", icon="phone", locales=("ja",)),
+    Pattern("jp_postcode", "郵遞區號（日本）", RE_JP_POSTCODE, _always, _mask_postcode,
+            True, group="聯絡方式", icon="map-pin", locales=("ja",)),
+    Pattern("jp_addr", "地址（日本）", RE_JP_ADDR, _always, _mask_jp_addr,
+            True, group="聯絡方式", icon="map-pin", locales=("ja",)),
+    Pattern("jp_name", "姓名（日本）", RE_JP_NAME, _always, _mask_name,
+            False, value_group=1, group="其他", icon="user", locales=("ja",)),
     Pattern("ip",        "IP 位址",       RE_IP,        _always,       _mask_ip,    False, group="IT 資料", icon="globe"),
     Pattern("plate",     "車牌",          RE_PLATE,     _always,       _mask_plate, False, group="其他", icon="car", locales=("zh-Hant",)),
     Pattern("vin",       "車輛 VIN 碼",   RE_VIN,       _always,
@@ -841,6 +948,7 @@ def default_ids_for(doc_lang: str) -> set[str]:
 DOC_LANGS: tuple[tuple[str, str], ...] = (
     ("zh-Hant", "中文（台灣）"),
     ("en", "English"),
+    ("ja", "日本語"),
 )
 
 
@@ -871,4 +979,6 @@ def default_doc_lang(request) -> str:
         return "en"
     if ui.startswith("zh"):
         return "zh-Hant"
+    if ui.startswith("ja"):
+        return "ja"
     return "en"

@@ -84,8 +84,10 @@ _SRC = re.compile(r'class="([^"]*)"')
 
 
 def _strip_blocks(text: str) -> str:
-    text = re.sub(r"<script\b.*?</script>", " ", text, flags=re.S)
-    return re.sub(r"<style\b.*?</style>", " ", text, flags=re.S)
+    # **結束標籤裡可以有空白**（`</script  >` 是合法 HTML）——
+    # 自己寫的話很容易漏掉那一段，整塊就會被當成還沒結束。全站一份。
+    from tools.source_text import strip_blocks
+    return strip_blocks(text, "script", "style")
 
 
 def _classes(text: str, strip: bool = True) -> set[str]:
@@ -160,9 +162,10 @@ def test_the_scan_has_a_sane_baseline():
 @pytest.mark.parametrize("page", PAGES, ids=_rel)
 def test_every_class_in_the_page_actually_gets_styled(page: pathlib.Path):
     text = page.read_text(encoding="utf-8")
-    own_css = " ".join(re.findall(r"<style[^>]*>(.*?)</style>", text, re.S))
+    from tools.source_text import blocks
+    own_css = " ".join(blocks(text, "style"))
     own = set(re.findall(r"\.([A-Za-z][\w-]*)", own_css))
-    inline_js = " ".join(re.findall(r"<script\b[^>]*>(.*?)</script>", text, re.S))
+    inline_js = " ".join(blocks(text, "script"))
     own_hooks = set(re.findall(r"querySelector(?:All)?\(['\"]\.([\w-]+)", inline_js))
     own_hooks |= set(re.findall(
         r"classList\.(?:add|remove|toggle|contains)\(['\"]([\w-]+)", inline_js))

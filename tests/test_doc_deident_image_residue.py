@@ -212,7 +212,14 @@ def test_the_extracted_image_cannot_be_ocred_back(tmp_path):
         cv2.imwrite(str(f), arr)
         texts.append(subprocess.run(["tesseract", str(f), "-", "--psm", "6"],
                                     capture_output=True, text=True,
-                                    timeout=180).stdout)
+                                    # **這台機器是共用的**（另一個專案也會起
+                                    # 一堆 headless 瀏覽器）—— 180 秒在滿載時
+                                    # 不夠，tesseract 會被 timeout 殺掉（-9），
+                                    # 而那**不是證據**：它既沒證明 OCR 讀得到、
+                                    # 也沒證明讀不到，只是機器忙。
+                                    # 放寬時間不會讓判準變鬆（判準是 OCR 的
+                                    # 文字內容，不是花多久）。
+                                    timeout=900).stdout)
     doc.close()
     joined = "".join(texts).replace(" ", "")
     for frag in ("123-45-6789", "12345-6789", "123456789"):

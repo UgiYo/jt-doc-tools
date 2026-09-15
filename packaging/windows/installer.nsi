@@ -93,54 +93,75 @@ Var UN_DIR
 !define MUI_FINISHPAGE_LINK_LOCATION "${WEBSITE}"
 !insertmacro MUI_PAGE_FINISH
 
-; ---- languages (Traditional Chinese first, then English) ------------
+; ---- languages -------------------------------------------------------
+; NSIS 依**系統語系**挑語言表；挑不到就用**第一個宣告的**。所以第一個是
+; 繁中（本地客戶最多），而**每多一種介面語言就要在這裡多宣告一個** ——
+; 沒宣告的話那個語系的 Windows 會拿到繁中的安裝畫面（不是英文）。
 !insertmacro MUI_LANGUAGE "TradChinese"
 !insertmacro MUI_LANGUAGE "English"
+!insertmacro MUI_LANGUAGE "Japanese"
 
 ; ---- localized strings ----------------------------------------------
 ; 產品顯示名稱。**只用於顯示**（視窗標題、「程式和功能」）——
 ; 路徑請用 `SHORTNAME`，理由見檔案開頭那段說明。
 LangString APP_DISPLAY  ${LANG_TRADCHINESE} "Jason Tools 文件工具箱 (jt-doc-tools)"
 LangString APP_DISPLAY  ${LANG_ENGLISH}     "Jason Tools Document Toolbox (jt-doc-tools)"
+LangString APP_DISPLAY  ${LANG_JAPANESE}    "Jason Tools 文書ツールボックス (jt-doc-tools)"
 ; 開始功能表的資料夾與兩個捷徑的檔名。**這些是路徑**，所以建出來之後要把
 ; 實際路徑寫進登錄檔，解除安裝才刪得掉（語系換了也一樣）。
 LangString SM_FOLDER    ${LANG_TRADCHINESE} "Jason Tools 文件工具箱"
 LangString SM_FOLDER    ${LANG_ENGLISH}     "Jason Tools Document Toolbox"
+LangString SM_FOLDER    ${LANG_JAPANESE}    "Jason Tools 文書ツールボックス"
 LangString SM_OPEN_LNK  ${LANG_TRADCHINESE} "開啟 jt-doc-tools"
 LangString SM_OPEN_LNK  ${LANG_ENGLISH}     "Open jt-doc-tools"
+LangString SM_OPEN_LNK  ${LANG_JAPANESE}    "jt-doc-tools を開く"
 LangString SM_UNINST_LNK ${LANG_TRADCHINESE} "解除安裝 jt-doc-tools"
 LangString SM_UNINST_LNK ${LANG_ENGLISH}     "Uninstall jt-doc-tools"
+LangString SM_UNINST_LNK ${LANG_JAPANESE}    "jt-doc-tools のアンインストール"
 LangString FINISH_OPEN  ${LANG_TRADCHINESE} "開啟 jt-doc-tools 網頁介面"
 LangString FINISH_OPEN  ${LANG_ENGLISH}     "Open the jt-doc-tools web interface"
+LangString FINISH_OPEN  ${LANG_JAPANESE}    "jt-doc-tools の Web 画面を開く"
 LangString FINISH_LINK  ${LANG_TRADCHINESE} "前往 jt-doc-tools 介紹網站"
 LangString FINISH_LINK  ${LANG_ENGLISH}     "Visit the jt-doc-tools website"
+LangString FINISH_LINK  ${LANG_JAPANESE}    "jt-doc-tools の紹介サイトへ"
 LangString UNINST_TOP   ${LANG_TRADCHINESE} "這會移除 $(APP_DISPLAY)。使用者資料（銀行帳號、簽名、歷史記錄）預設保留，可在下一步選擇是否一併刪除。"
 LangString UNINST_TOP   ${LANG_ENGLISH}     "This will remove $(APP_DISPLAY). User data (bank accounts, signatures, history) is kept by default; you can choose to delete it next."
+LangString UNINST_TOP   ${LANG_JAPANESE}    "$(APP_DISPLAY) を削除します。利用者データ（口座番号・署名・履歴）は既定で残ります。次の画面で一緒に削除するか選べます。"
 
 LangString DESC_Core    ${LANG_TRADCHINESE} "核心程式與 Python 執行環境（必要）。"
 LangString DESC_Core    ${LANG_ENGLISH}     "Core program and Python runtime (required)."
+LangString DESC_Core    ${LANG_JAPANESE}    "本体プログラムと Python 実行環境（必須）。"
 LangString DESC_Ocr     ${LANG_TRADCHINESE} "OCR 文字辨識引擎（PyTorch + EasyOCR + 中文訓練檔，約 700MB）。"
 LangString DESC_Ocr     ${LANG_ENGLISH}     "OCR engine (PyTorch + EasyOCR + Chinese data, ~700MB)."
+LangString DESC_Ocr     ${LANG_JAPANESE}    "OCR 文字認識エンジン（PyTorch + EasyOCR + 中国語データ、約 700MB）。"
 LangString DESC_Office  ${LANG_TRADCHINESE} "Office 文件轉檔引擎（OxOffice，約 600MB）。"
 LangString DESC_Office  ${LANG_ENGLISH}     "Office conversion engine (OxOffice, ~600MB)."
+LangString DESC_Office  ${LANG_JAPANESE}    "Office 変換エンジン（OxOffice、約 600MB）。"
 LangString DESC_Svc     ${LANG_TRADCHINESE} "註冊 Windows 服務，開機自動啟動。"
 LangString DESC_Svc     ${LANG_ENGLISH}     "Register a Windows service that starts automatically at boot."
+LangString DESC_Svc     ${LANG_JAPANESE}    "Windows サービスとして登録し、起動時に自動で開始します。"
 LangString DESC_Fw      ${LANG_TRADCHINESE} "允許區域網路其他電腦連入（防火牆例外；服務改綁 0.0.0.0）。不需要請取消。"
 LangString DESC_Fw      ${LANG_ENGLISH}     "Allow other LAN machines to connect (firewall rule; binds 0.0.0.0). Uncheck if not needed."
+LangString DESC_Fw      ${LANG_JAPANESE}    "社内 LAN の他の端末から接続できるようにします（ファイアウォールの例外、0.0.0.0 で待ち受け）。不要ならチェックを外してください。"
 
 ; 元件清單的項目名稱。NSIS 的 `Section "名字"` 是編譯期字面值，要多語得在
 ; .onInit 用 SectionSetText 覆寫（見下方）。原本寫成「中文 / English」並列，
 ; 兩種語系的使用者都要讀一遍不屬於自己的那半段。
 LangString SEC_CORE     ${LANG_TRADCHINESE} "核心程式（必要）"
 LangString SEC_CORE     ${LANG_ENGLISH}     "Core program (required)"
+LangString SEC_CORE     ${LANG_JAPANESE}    "本体プログラム（必須）"
 LangString SEC_OCR      ${LANG_TRADCHINESE} "OCR 文字辨識引擎"
 LangString SEC_OCR      ${LANG_ENGLISH}     "OCR engine"
+LangString SEC_OCR      ${LANG_JAPANESE}    "OCR 文字認識エンジン"
 LangString SEC_OFFICE   ${LANG_TRADCHINESE} "Office 轉檔引擎"
 LangString SEC_OFFICE   ${LANG_ENGLISH}     "Office conversion engine"
+LangString SEC_OFFICE   ${LANG_JAPANESE}    "Office 変換エンジン"
 LangString SEC_SVC      ${LANG_TRADCHINESE} "Windows 服務（開機自動啟動）"
 LangString SEC_SVC      ${LANG_ENGLISH}     "Windows service (autostart)"
+LangString SEC_SVC      ${LANG_JAPANESE}    "Windows サービス（自動起動）"
 LangString SEC_FW       ${LANG_TRADCHINESE} "區域網路存取"
 LangString SEC_FW       ${LANG_ENGLISH}     "LAN access"
+LangString SEC_FW       ${LANG_JAPANESE}    "LAN からの接続"
 
 ; 對話框。**解除安裝那三句特別重要**：解除安裝走的是 `.onInit` 裡在語言對話框
 ; 之前就 `Return` 的那條路，原本寫死中文 → 英文使用者要移除程式時看到的是
@@ -149,12 +170,16 @@ LangString SEC_FW       ${LANG_ENGLISH}     "LAN access"
 ; 宣告在第一個，解析出來的仍是中文那組），所以不經對話框也會選對。
 LangString ERR_INSTALL  ${LANG_TRADCHINESE} "安裝失敗 (install_core.ps1 exit code $1)。$\r$\n請查看 $\"%ProgramData%\${SHORTNAME}\Logs\installer.log$\" 以取得詳情。$\r$\n$\r$\n安裝與升級疑難排解：https://jasoncheng7115.github.io/jt-doc-tools/troubleshooting.html"
 LangString ERR_INSTALL  ${LANG_ENGLISH}     "Installation failed (install_core.ps1 exit code $1).$\r$\nSee $\"%ProgramData%\${SHORTNAME}\Logs\installer.log$\" for details.$\r$\n$\r$\nTroubleshooting: https://jasoncheng7115.github.io/jt-doc-tools/troubleshooting-en.html"
+LangString ERR_INSTALL  ${LANG_JAPANESE}    "インストールに失敗しました (install_core.ps1 exit code $1)。$\r$\n詳細は $\"%ProgramData%\${SHORTNAME}\Logs\installer.log$\" をご確認ください。$\r$\n$\r$\nインストールと更新の困ったときは：https://jasoncheng7115.github.io/jt-doc-tools/troubleshooting-ja.html"
 LangString UN_ASK_PURGE ${LANG_TRADCHINESE} "是否一併刪除使用者資料（銀行帳號、簽名、歷史記錄）？$\r$\n$\r$\n選「否」會保留資料，下次重新安裝可沿用。"
 LangString UN_ASK_PURGE ${LANG_ENGLISH}     "Also delete user data (bank accounts, signatures, history)?$\r$\n$\r$\nChoose No to keep it; a future reinstall will pick it up again."
+LangString UN_ASK_PURGE ${LANG_JAPANESE}    "利用者データ（口座番号・署名・履歴）も削除しますか？$\r$\n$\r$\n「いいえ」を選ぶと残ります。次回の再インストールでそのまま使えます。"
 LangString UN_NO_DIR    ${LANG_TRADCHINESE} "找不到安裝目錄，已中止解除安裝。"
 LangString UN_NO_DIR    ${LANG_ENGLISH}     "Installation directory not found; uninstall aborted."
+LangString UN_NO_DIR    ${LANG_JAPANESE}    "インストール先が見つからないため、アンインストールを中止しました。"
 LangString UN_NOT_OURS  ${LANG_TRADCHINESE} "$UN_DIR 看起來不是 ${SHORTNAME} 的安裝目錄，已中止解除安裝。"
 LangString UN_NOT_OURS  ${LANG_ENGLISH}     "$UN_DIR does not look like a ${SHORTNAME} installation; uninstall aborted."
+LangString UN_NOT_OURS  ${LANG_JAPANESE}    "$UN_DIR は ${SHORTNAME} のインストール先ではないようです。アンインストールを中止しました。"
 
 ; =====================================================================
 ;  Sections  (all optional sections default to selected = 全勾)

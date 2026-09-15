@@ -10,7 +10,8 @@ template literal 本來就支援 `${}`，所以放 `tr()` 進去是合法的。
 """
 import re, sys, pathlib
 
-SCRIPT = re.compile(r"(<script\b[^>]*>)(.*?)(</script>)", re.S | re.I)
+#: 結束標籤裡可以有空白（`</script  >`）—— 判準跟 `tools.source_text` 一致。
+SCRIPT = re.compile(r"(<script\b[^>]*>)(.*?)(</script\b[^>]*>)", re.S | re.I)
 CJK = re.compile(r"[㐀-鿿]")
 TPL = re.compile(r"`((?:[^`\\]|\\.)*)`", re.S)
 COMMENT = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)

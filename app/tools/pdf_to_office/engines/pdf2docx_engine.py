@@ -6,6 +6,7 @@ pdf2docx 上游 (Artifex) 2026 已停止維護，授權轉 MIT。我們鎖版 + 
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 from pathlib import Path
 
@@ -14,12 +15,68 @@ from pdf2docx import Converter
 log = logging.getLogger(__name__)
 
 
+#: pdf2docx 在逐頁迴圈裡記的那一行（`parse_pages` 與 `make_docx` 都是這一句）。
+#: 它用的是**根 logger**，所以掛一個暫時的 handler 就收得到 —— 不必碰它的內部。
+#: **這個字串就是身分**：上游改掉的話我們只會少掉逐頁的顆粒度（退回階段進度），
+#: 不會壞掉；`tests/test_pdf_to_office_progress.py` 會在它漂掉時先紅。
+_PAGE_LOG_FMT = "(%d/%d) Page %d"
+
+
+class _PageProgress(logging.Handler):
+    """把 pdf2docx 的逐頁 log 轉成我們的進度回報。"""
+
+    def __init__(self, cb, lo: float, hi: float, label: str):
+        super().__init__(level=logging.INFO)
+        self._cb, self._lo, self._hi, self._label = cb, lo, hi, label
+
+    def emit(self, record: logging.LogRecord) -> None:  # noqa: D102
+        if record.msg != _PAGE_LOG_FMT:
+            return
+        try:
+            i, n, _pid = record.args           # type: ignore[misc]
+            frac = self._lo + (self._hi - self._lo) * (int(i) / max(1, int(n)))
+        except Exception:                      # noqa: BLE001
+            return                             # log 的格式變了就不報，不要炸
+        _say(self._cb, f"{self._label} {i}/{n} 頁", round(frac, 3))
+
+
+def _say(cb, msg: str, frac: float) -> None:
+    """回報一次進度。**進度壞掉不可以讓轉檔失敗** —— 它是附屬品，不是產出。"""
+    if cb is None:
+        return
+    try:
+        cb(msg, frac)
+    except Exception:                          # noqa: BLE001
+        log.debug("progress callback raised", exc_info=True)
+
+
+@contextlib.contextmanager
+def _page_progress(cb, lo: float, hi: float, label: str):
+    if cb is None:
+        yield
+        return
+    h = _PageProgress(cb, lo, hi, label)
+    root = logging.getLogger()
+    root.addHandler(h)
+    # pdf2docx 用 `logging.info(...)`（根 logger）—— 根的層級若高於 INFO 就收不到。
+    prev = root.level
+    if prev > logging.INFO:
+        root.setLevel(logging.INFO)
+    try:
+        yield
+    finally:
+        root.removeHandler(h)
+        if prev > logging.INFO:
+            root.setLevel(prev)
+
+
 def convert_via_pdf2docx(
     pdf_path: Path,
     docx_path: Path,
     start: int = 0,
     end: int | None = None,
     pages: list[int] | None = None,
+    progress_cb=None,
 ) -> dict:
     """轉 PDF → docx。
 
@@ -51,7 +108,25 @@ def convert_via_pdf2docx(
             kwargs["start"] = start
             if end is not None:
                 kwargs["end"] = end
-        cv.convert(str(docx_path), **kwargs)
+        # **把 `convert()` 拆成它自己的四步**，才報得出真的進度 ——
+        # `convert()` 是一個從頭跑到尾的呼叫，中間什麼都看不到，而這支工具
+        # 動輒數分鐘（使用者只會看到進度條不動）。四步是 pdf2docx 自己的
+        # 公開方法，等價於 `convert()` 裡那一行
+        # `self.parse(...).make_docx(...)`。
+        # **設定要照 `convert()` 的做法補齊**：它是
+        # `settings = self.default_settings; settings.update(kwargs)`，
+        # 再把 `**settings` 傳給每一步。只傳 start/end/pages 的話，
+        # 後面那幾步會缺鍵（實測 `KeyError: 'ocr'`）。
+        settings = dict(cv.default_settings)
+        _say(progress_cb, "讀取 PDF…", 0.05)
+        cv.load_pages(start=kwargs.get("start", 0), end=kwargs.get("end"),
+                      pages=kwargs.get("pages"))
+        _say(progress_cb, "分析整份版面…", 0.12)
+        cv.parse_document(**settings)
+        with _page_progress(progress_cb, 0.15, 0.70, "分析版面"):
+            cv.parse_pages(**settings)
+        with _page_progress(progress_cb, 0.70, 0.98, "產生文件"):
+            cv.make_docx(str(docx_path), **settings)
         # 估算實際轉換頁數（pdf2docx 沒提供 attr 直接拿，從 fitz doc 拿）
         if pages is not None:
             pages_done = len(pages)

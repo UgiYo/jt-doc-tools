@@ -221,7 +221,7 @@ def convert_pdf_to_office(
 
     # ----- Step 1: pdf2docx (預設 engine) -----
     log.info("pdf-to-office: converting %s via pdf2docx", pdf_path.name)
-    res = convert_via_pdf2docx(pdf_path, raw_docx)
+    res = convert_via_pdf2docx(pdf_path, raw_docx, progress_cb=progress_cb)
     engine_used = "pdf2docx"
     if not res["ok"] or not raw_docx.exists():
         log.warning("pdf2docx failed (%s), trying LibreOffice fallback", res.get("error"))

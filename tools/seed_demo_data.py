@@ -281,6 +281,85 @@ def make_scan(dst: Path, src: Path) -> Path:
     return dst
 
 
+#: 示範用的帳號與群組。**全部虛構** —— 介紹站的「使用者管理」「權限矩陣」
+#: 兩張截圖原本是空狀態（「還沒有任何使用者或群組」、使用者 0 人），
+#: 當產品截圖等於什麼都沒說（使用者 2026-09-15）。
+#: 名字用「王小明 / 陳小華」這種一望即知是範例的，不要用真人。
+DEMO_USERS = [
+    ("chen.mh", "陳美華", "finance"),
+    ("lin.cw", "林志偉", "sales"),
+    ("wang.ym", "王怡君", "clerk"),
+    ("chang.ky", "張家瑜", "legal-sec"),
+    ("huang.ts", "黃大生", "default-user"),
+]
+DEMO_GROUPS = [
+    ("財務部", "發票、請款、廠商資料", ["finance"]),
+    ("業務部", "報價單、合約、客戶資料", ["sales"]),
+    ("法務資安", "個資去識別化、隱藏內容掃描", ["legal-sec"]),
+]
+
+
+def seed_users_and_groups() -> tuple[int, int]:
+    """建立示範帳號與群組（**可以重複跑**：已經有的就跳過）。"""
+    from app.core import auth_db, group_manager, permissions, roles, user_manager
+
+    auth_db.init()
+    # **內建角色要先種**：正式啟動時是 `app/main.py` 做的，這支獨立腳本
+    # 自己跑的話角色表是空的 → 指派角色會撞外鍵（實測 IntegrityError）。
+    roles.seed_builtin_roles()
+    n_u = 0
+    for username, display, role in DEMO_USERS:
+        if user_manager.get_by_username(username):
+            continue
+        # 密碼是隨機的，沒有人會用這些帳號登入 —— 截圖只需要列表上有東西。
+        import secrets
+        uid = user_manager.create_local(username, display, secrets.token_urlsafe(24),
+                                        roles=[role])
+        permissions.set_subject_roles("user", str(uid), [role])
+        n_u += 1
+
+    # **建了使用者就要明寫「認證關閉」**：`auth_settings.json` 不存在時，
+    # 產品的 fail-secure 會看到「資料庫裡有使用者」而自動改用本機認證
+    # （v1.15.34 那條刻意的防護）—— 於是這個拋棄式實例整站要登入，
+    # 截圖全部變成登入頁。這裡是明確宣告「示範站不啟用認證」，不是繞過防護。
+    from app.core import auth_settings
+    s = auth_settings.get()
+    s["backend"] = "off"
+    auth_settings.save(s)
+
+    # **同名帳號可以在不同認證來源並存** —— 那正是 `users-multi-realm.png`
+    # 要展示的東西（`chen.mh@local` ＋ `chen.mh@ldap`，各自獨立的角色）。
+    # 這一列平常是 LDAP 登入時 JIT 建出來的鏡射列，示範站直接插一筆。
+    from app.core import db as _db
+    import time as _t
+    with auth_db.conn() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM users WHERE username=? AND source='ldap'",
+            ("chen.mh",)).fetchone()
+        if not row:
+            with _db.tx(conn):
+                cur = conn.execute(
+                    "INSERT INTO users(username, display_name, source, external_dn, "
+                    "enabled, is_admin_seed, created_at, last_login_at, email, "
+                    "directory_seen_at) VALUES (?, ?, 'ldap', ?, 1, 0, ?, ?, ?, ?)",
+                    ("chen.mh", "陳美華（目錄）",
+                     "CN=chen.mh,OU=Finance,DC=example,DC=com,DC=tw",
+                     _t.time(), _t.time(), "chen.mh@example.com.tw", _t.time()))
+                ldap_uid = cur.lastrowid
+            permissions.set_subject_roles("user", str(ldap_uid), ["clerk"])
+            n_u += 1
+
+    existing = {g["name"] for g in group_manager.list_groups()}
+    n_g = 0
+    for name, desc, roles in DEMO_GROUPS:
+        if name in existing:
+            continue
+        gid = group_manager.create_local(name, desc)
+        permissions.set_subject_roles("group", str(gid), roles)
+        n_g += 1
+    return n_u, n_g
+
+
 def main() -> int:
     import os
     if not os.environ.get("JTDT_DATA_DIR"):
@@ -324,6 +403,9 @@ def main() -> int:
     print(f"去識別化素材：{make_deident_doc(demo / 'deident.zh-Hant.pdf').name}"
           f" / {make_deident_doc(demo / 'deident.pdf', DEIDENT_LINES_EN).name}")
     print(f"掃描件：{make_scan(demo / 'scan.pdf', en).name}")
+
+    n_u, n_g = seed_users_and_groups()
+    print(f"示範帳號 / 群組：新增 {n_u} 位使用者、{n_g} 個群組（全部虛構）")
     return 0
 
 

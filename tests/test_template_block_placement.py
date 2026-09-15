@@ -38,8 +38,8 @@ def test_scripts_block_holds_no_visible_markup(path: Path):
     src = path.read_text(encoding="utf-8")
     for m in _SCRIPTS_BLOCK.finditer(src):
         body = m.group(1)
-        body = re.sub(r"<script\b.*?</script\s*>", "", body, flags=re.S | re.I)
-        body = re.sub(r"<style\b.*?</style\s*>", "", body, flags=re.S | re.I)
+        body = re.sub(r"<script\b.*?</script\b[^>]*>", "", body, flags=re.S | re.I)
+        body = re.sub(r"<style\b.*?</style\b[^>]*>", "", body, flags=re.S | re.I)
         body = re.sub(r"\{#.*?#\}", "", body, flags=re.S)
         tags = sorted(set(re.findall(r"<([a-zA-Z][a-zA-Z0-9-]*)", body)))
         assert not tags, (

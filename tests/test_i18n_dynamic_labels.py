@@ -237,7 +237,7 @@ def _deident_doc_languages() -> list[str]:
 
 
 def _straighten_dpi_notes() -> list[str]:
-    """文件拉正的解析度說明（`_DPI_NOTES`）。"""
+    """文件擺正的解析度說明（`_DPI_NOTES`）。"""
     import re as _re
     src = (REPO / "app" / "tools" / "doc_straighten"
            / "router.py").read_text(encoding="utf-8")
@@ -261,7 +261,7 @@ def _straighten_dpi_notes() -> list[str]:
     ("對照字典的語言", _glossary_language_names),
     ("側欄管理區", _admin_nav_labels),
     ("去識別化的文件語言", _deident_doc_languages),
-    ("文件拉正的解析度說明", _straighten_dpi_notes),
+    ("文件擺正的解析度說明", _straighten_dpi_notes),
 ])
 @pytest.mark.parametrize("locale", _locales())
 def test_dynamic_labels_are_translated(locale: str, name: str, getter):
@@ -274,7 +274,7 @@ def test_dynamic_labels_are_translated(locale: str, name: str, getter):
 # `<option>{{ 變數 }}</option>` —— 掃字面 `tr('…')` 的守門看不到的那一類
 #
 # 2026-09-14 加日文時一次抓到四處：去識別化的文件語言（**兩支工具各一份，
-# 我只修了其中一支**）、文件拉正的解析度說明、登入頁的認證來源。
+# 我只修了其中一支**）、文件擺正的解析度說明、登入頁的認證來源。
 # 三處的共同點是「下拉的文字來自伺服器送來的資料」——
 # **畫面上就是中文，而且沒有任何測試會紅**。
 #

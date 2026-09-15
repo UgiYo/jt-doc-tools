@@ -115,7 +115,7 @@ JTDT_DATA_DIR=$(mktemp -d) JTDT_CSRF_DISABLE=1 \
 
 > **「頁面渲染得出來」跟「頁面活著」是兩件事，而我們從來只驗前者。**
 >
-> v1.15.36 使用者回報「文件拉正拉檔案進去沒反應、點選檔案也沒反應」。根因是
+> v1.15.36 使用者回報「文件擺正拉檔案進去沒反應、點選檔案也沒反應」。根因是
 > 那支模板漏了兩行 `<script src>` —— `new FileUpload(...)` 在行內腳本第一行丟
 > `ReferenceError`，**整段腳本停在那裡**（上傳沒接線、選項面板不出現、
 > 作業進度不會動）。而**當時每一關都是綠的**：
@@ -226,7 +226,7 @@ JTDT_DATA_DIR=$(mktemp -d) JTDT_CSRF_DISABLE=1 \
 - [ ] `pytest tests/test_i18n_dynamic_labels.py` 全綠 —— 它驗兩件事：
       **①每一份「程式算出來的標籤」在每一個語言的語系檔裡都有**
       （側欄管理區、資料庫清單、對照字典的語言、去識別化的文件語言、
-      文件拉正的解析度說明…），**②`<option>` 裡的運算式有沒有走 `tr()`**
+      文件擺正的解析度說明…），**②`<option>` 裡的運算式有沒有走 `tr()`**
 - [ ] 真的是資料的（使用者名稱、工具 id、事件代號、模型名稱、**語言的自稱**）
       列進 `_OPTION_RAW_OK` 並**寫下理由** —— 沒有理由的豁免會變成永久的洞
 - [ ] **同一個家族要一次掃完**：文件去識別化與文字去識別化各有一份同樣的樣板，
@@ -518,7 +518,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 
 <!-- BEGIN test-index (由 tools/build_test_plan_index.py 產生，不要手改) -->
 
-共 **272 支測試檔**。說明取自每支檔案自己的開頭說明，
+共 **280 支測試檔**。說明取自每支檔案自己的開頭說明，
 跑 `python tools/build_test_plan_index.py` 重建。
 
 > 這裡**刻意不列函式數** —— 那個數字每加一條測試就會變，
@@ -565,6 +565,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_boxed_digits_and_sublabel.py` | 兩種讓欄位「有偵測到卻填不進去」的版型 |
 | `test_broken_input_no_500.py` | 任何工具端點收到壞輸入都不可以回 500 |
 | `test_button_icons_are_consistent.py` | 按鈕圖示的兩條守門 |
+| `test_changelog_does_not_quote_people.py` | 公開的更新記錄裡不可以引述使用者 / 客戶說的話 |
 | `test_cjk_font_notice.py` | 缺中文字型時，**一般使用者**在工具頁上看得到提示（v1.14.47） |
 | `test_cjk_font_renders.py` | 寫進 PDF 的中文**必須畫得出來** |
 | `test_cli_data_dir_ownership.py` | 以 root 寫資料目錄的 CLI 指令，收尾**一定要把擁有者改回去** |
@@ -599,13 +600,15 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_doc_deident_english.py` | 英文文件的去識別化（第 2 批，v1.15.32） |
 | `test_doc_deident_english_e2e.py` | 英文文件去識別化的端到端（v1.15.32） |
 | `test_doc_deident_image_residue.py` | 去識別化必須把**圖片裡的**個資也刪掉（外部稽核 F01，v1.15.28） |
+| `test_doc_deident_japanese.py` | 去識別化支援**日文文件**（使用者 2026-09-14 交代、09-15 指示動工） |
 | `test_doc_deident_table_labels.py` | 標籤與值分屬兩個表格儲存格時也要偵測得到（GitHub issue #43） |
 | `test_doc_diff.py` | Tests for the renamed 文件差異比對 tool (formerly pdf-diff). |
-| `test_doc_straighten.py` | 文件拉正（v1.15.33，第一期：只有自動模式） |
-| `test_doc_straighten_enhance.py` | 文件拉正的「清晰化」—— 判準是**文字辨識率**與**內容有沒有被毀掉** |
-| `test_doc_straighten_overlay_geometry.py` | 文件拉正：拖曳四個角的座標對映（要真的瀏覽器才量得到） |
-| `test_doc_straighten_page_strip_e2e.py` | 文件拉正：**多頁 / 多檔的每一頁都要看得到**，而且模式切回去要真的切回去 |
-| `test_doc_straighten_quad_overlay_e2e.py` | 文件拉正的四邊形疊圖：**在真的瀏覽器裡真的畫得出來** |
+| `test_doc_straighten.py` | 文件擺正（v1.15.33，第一期：只有自動模式） |
+| `test_doc_straighten_border_is_white.py` | 旋轉 / 透視補在邊緣的顏色必須是白的，不可以是紅的 |
+| `test_doc_straighten_enhance.py` | 文件擺正的「清晰化」—— 判準是**文字辨識率**與**內容有沒有被毀掉** |
+| `test_doc_straighten_overlay_geometry.py` | 文件擺正：拖曳四個角的座標對映（要真的瀏覽器才量得到） |
+| `test_doc_straighten_page_strip_e2e.py` | 文件擺正：**多頁 / 多檔的每一頁都要看得到**，而且模式切回去要真的切回去 |
+| `test_doc_straighten_quad_overlay_e2e.py` | 文件擺正的四邊形疊圖：**在真的瀏覽器裡真的畫得出來** |
 | `test_doc_translate.py` | 文件翻譯：產出**同格式、同版面**的檔案 |
 | `test_doc_translate_spreadsheet_view.py` | 試算表翻譯的兩件事：預覽要看得到東西、產出要開在內容的開頭 |
 | `test_docs_english_pages.py` | 介紹站與 API 手冊的英文版（GitHub Pages） |
@@ -626,10 +629,12 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_heic_support.py` | HEIC / HEIF（iPhone 照片）要真的解得開（GitHub issue #49） |
 | `test_history_id_validation.py` | 歷史紀錄的 id 直接從網址進來 —— 一律先驗格式再組路徑 |
 | `test_host_stats_container.py` | 系統狀態 CPU 在容器(LXC/Docker)內要顯示容器自己的用量，不抓宿主機 |
+| `test_html_block_regexes_allow_whitespace.py` | 掃描器用的 `</script>` 正規式**一定要允許結束標籤裡有東西** |
 | `test_i18n_catalog.py` | 語系檔與樣板的一致性守門 |
 | `test_i18n_dynamic_labels.py` | 程式端產生的顯示字串（`tr(變數)`）也必須有英文 |
 | `test_id_from_body_acl.py` | 「id 由使用者傳入」的端點一律要有 ACL —— 靜態全面掃描 |
 | `test_installer_languages.py` | Windows 安裝程式在英文 Windows 上要顯示英文（v1.15.27） |
+| `test_installer_output_is_not_garbled.py` | 安裝畫面上不可以出現亂碼（2026-09-15 客戶回報，Win11 25H2） |
 | `test_installer_product_name.py` | Windows 安裝程式的產品名稱多語系 + Linux 服務的安全強化（第 1 批，v1.15.31） |
 | `test_installer_silent_mode.py` | 安裝程式在**無介面模式**下不可以停下來等人按對話框 |
 | `test_job_acl.py` | Regression tests for the /api/jobs/* per-job ownership ACL (v1.12.61). |
@@ -658,6 +663,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_new_tools_input_boundaries.py` | 三支新工具（書籤與目錄 / 騎縫章 / 頁面尺寸統一）的輸入邊界 |
 | `test_no_blocking_endpoints.py` | async 端點裡不可以直接做重活 —— 那會把整站鎖住 |
 | `test_no_dynamic_style_injection.py` | 前端 JS 不可以動態注入 `<style>` —— CSP 會把它整段擋掉 |
+| `test_no_invalid_escape_sequences.py` | 原始碼裡不可以有無效的跳脫序列（`\-`、`` \` `` 這種） |
 | `test_no_native_dialogs.py` | 樣板裡不可以用瀏覽器原生的 alert / confirm / prompt（使用者要求） |
 | `test_no_sample_names_in_public.py` | 測試樣本的檔名 / 客戶公司名不可以出現在會公開的檔案裡 |
 | `test_no_svg_dot_hidden.py` | SVG 元素不可以用 `.hidden` 開關顯示 |
@@ -687,6 +693,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_pdf_bookmark.py` | 書籤與目錄 |
 | `test_pdf_border.py` | 頁面加框（pdf-border） |
 | `test_pdf_compress.py` | Tests for the pdf-compress tool, focused on transparency preservation. |
+| `test_pdf_editor_draft_survives_reload.py` | PDF 編輯器：**斷線 / 誤關分頁之後編輯內容要救得回來** |
 | `test_pdf_editor_font_subset.py` | PDF 編輯器寫進去的中文：字形要看得見、檔案不可以是十幾 MB |
 | `test_pdf_fill_positioning.py` | 表單自動填寫的定位規則 |
 | `test_pdf_form_detect.py` | Unit tests for the field detector. Builds tiny synthetic PDFs in memory |
@@ -707,6 +714,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_pdf_to_office_d_fixers.py` | v1.8.62 D 階段 fixer 測試 |
 | `test_pdf_to_office_draw_engine.py` | pdf-to-office 第三引擎 draw（版面重現）測試 |
 | `test_pdf_to_office_jtdt_reform.py` | v1.8.63 jtdt-reform engine 單元 + 端對端測試 |
+| `test_pdf_to_office_progress.py` | `pdf2docx` 那條路要回報**逐頁**進度 |
 | `test_pdf_to_slides.py` | pdf-to-slides（PDF 轉簡報）測試 |
 | `test_pdf_tools.py` | End-to-end tests for the simple PDF tools (merge / split / rotate / pages / |
 | `test_pdf_watermark.py` | Tests for the watermark service — focused on CJK font fallback. |
@@ -1067,7 +1075,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 - [ ] 辦公文件來源先轉 PDF 再加框
 - [ ] 邊框不會蓋到原本的內容
 
-#### 文件拉正 (doc-straighten) 🆕 v1.15.33
+#### 文件擺正 (doc-straighten) 🆕 v1.15.33
 - [ ] 歪斜的掃描件 → **修正後殘留角接近 0**（實測 0.10°）。
       **這是主要判準**：轉錯方向時「角度」看起來有變化，只有殘留角會現形
 - [ ] 手機翻拍（透視變形）→ 抓到四個角、拉正後四邊平行
@@ -1882,7 +1890,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 
 - [ ] `POST /tools/doc-diff/compare`
 
-**doc-straighten（文件拉正）**
+**doc-straighten（文件擺正）**
 
 - [ ] `/tools/doc-straighten/load` —— 上傳（PDF / 圖片 / 文書檔）；
       回頁數與檔名。**壞檔要回 400 不可以 500**

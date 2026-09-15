@@ -20,7 +20,7 @@ import re
 import sys
 
 CJK = re.compile("[㐀-鿿]")
-SCRIPT = re.compile(r"(<script\b[^>]*>)(.*?)(</script\s*>)", re.S | re.I)
+SCRIPT = re.compile(r"(<script\b[^>]*>)(.*?)(</script\b[^>]*>)", re.S | re.I)
 COMMENT = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
 
 #: 一定是「拿給人看」的位置。字串**緊接在這些之後**才會被包。
