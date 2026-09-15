@@ -836,7 +836,8 @@ const PO_ICON_WARN = {{ icon('warn', size=12) | tojson }};
       if (!r.ok) throw new Error(await window.friendlyServerError(r, tr('操作失敗')));
       const j = await r.json();
       uploadId = j.upload_id;
-      let info = `已上傳 ${j.filename}（${(j.size/1024).toFixed(1)} KB）`;
+      let info = tr('已上傳 {0}（{1} KB）')
+        .replace('{0}', j.filename).replace('{1}', (j.size/1024).toFixed(1));
       if (j.converted_from) info += `；已從 ${j.converted_from} 自動轉成 PDF`;
       uploadInfo.textContent = info;
       statusEl.textContent = tr('可以開始 OCR');

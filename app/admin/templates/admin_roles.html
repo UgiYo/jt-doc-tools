@@ -178,7 +178,8 @@ document.querySelectorAll('[data-role] [data-act="set-default"]').forEach(btn =>
     const roleId = panel.dataset.role;
     const roleName = panel.querySelector('h2').textContent.trim();
     if (!(await showConfirm(
-        `把「${roleName}」設為新使用者預設角色？\n之後新加入的使用者若未指定角色，會自動套用此角色。`,
+        tr('把「{0}」設為新使用者預設角色？\n之後新加入的使用者若未指定角色，會自動套用此角色。')
+          .replace('{0}', roleName),
         { title: tr('設為新使用者預設'), okText: tr('設為預設') }))) return;
     const r = await fetch(`/admin/roles/${roleId}/set-default`, {method:'POST'});
     if (r.ok) location.reload();

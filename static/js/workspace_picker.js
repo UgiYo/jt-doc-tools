@@ -152,7 +152,7 @@
         const dup = res && res.duplicate;
         btn.innerHTML = tr('已存至工作區');
         if (window.showToast) window.showToast(
-          dup ? '已存至工作區（工作區已有同名檔，已另存一份）' : tr('已存至工作區'), 'ok');
+          dup ? tr('已存至工作區（工作區已有同名檔，已另存一份）') : tr('已存至工作區'), 'ok');
       } catch (e) {
         btn.disabled = false;
         (window.showAlert || window.alert)(e.message || tr('存至工作區失敗'));

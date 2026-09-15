@@ -115,7 +115,8 @@ importFile.addEventListener('change', async () => {
   const f = importFile.files && importFile.files[0];
   if (!f) return;
   const mode = (await showConfirm(
-    `匯入 "${f.name}"：\n\n按「覆蓋」= 覆蓋當前公司\n按「新增」= 以新公司形式匯入（保留當前）`,
+    tr('匯入 "{0}"：\n\n按「覆蓋」= 覆蓋當前公司\n按「新增」= 以新公司形式匯入（保留當前）')
+      .replace('{0}', f.name),
     { title: tr('匯入公司資料'), okText: tr('覆蓋當前'), cancelText: tr('新增為新公司') }
   )) ? 'overwrite' : 'create';
   const fd = new FormData();

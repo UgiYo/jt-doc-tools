@@ -193,7 +193,11 @@
         <div data-s="sdd13290a">
 
           <label data-s="s3044b600">{{ tr('用途範本') }}</label>
-          <select id="restrict-template" class="jt-select" data-s="sa2937b9e">
+          {# **這個下拉的選項文字不可以翻**（`data-i18n="skip"`）：選到的那串字
+             會**原樣印到章上**（「僅供○○使用，他用無效」）。翻掉的話畫面上選
+             的是英文、印出來是另一個字 —— 而且看起來完全正常。
+             第一個選項是介面文字（不是會被印出去的值），所以它照樣包 `tr()`。#}
+          <select id="restrict-template" class="jt-select" data-s="sa2937b9e" data-i18n="skip">
             <option value="">{{ tr('（自訂用途，請在下方輸入）') }}</option>
           </select>
 
@@ -1128,7 +1132,11 @@ function _ovrSetRotation(kind, deg) {
   if (input) input.value = d.toFixed(1);
   if (!ov) {
     if (window.showToast) window.showToast(
-      tr('請先啟用並在下方預覽區產生') + (kind === 'date' ? '日期' : '個資限用章'), 'err');
+      // **Translate whole sentences, never glue fragments together.** English
+      //  and Japanese word order differ, so a prefix + noun concatenation
+      //  cannot come out right in either.
+      (kind === 'date' ? tr('請先啟用並在下方預覽區產生日期')
+                       : tr('請先啟用並在下方預覽區產生個資限用章')), 'err');
     return;
   }
   ov.setRotation(d);
@@ -1285,7 +1293,12 @@ function _renderSimPage() {
   img.src = p.preview_url + '?t=' + t;
   img.alt = 'page ' + (p.index + 1);
   document.getElementById('sim-cap').textContent =
-    tr('第 ') + (p.index + 1) + tr(' 頁 / 共 ') + simPageCount + tr(' 頁') + (p.stamped ? ' · 已蓋章' : tr(' · 此頁未蓋章'));
+    // **整句一起翻，不要一段一段接** —— 拆成「第 」+數字+「 頁 / 共 」這樣
+    //  的碎片，英文會變成 "Page 1 of 1 pages"（語序對不上），日文更不成句；
+    //  而且 `' · 已蓋章'` 這一段根本沒包 `tr()`（2026-09-16 掃到）。
+    (p.stamped ? tr('第 {0} 頁 / 共 {1} 頁 · 已蓋章')
+               : tr('第 {0} 頁 / 共 {1} 頁 · 此頁未蓋章'))
+      .replace('{0}', p.index + 1).replace('{1}', simPageCount);
   document.getElementById('sim-page-info').textContent = (simPageIdx + 1) + ' / ' + simPages.length;
   document.getElementById('sim-prev').disabled = simPageIdx === 0;
   document.getElementById('sim-next').disabled = simPageIdx >= simPages.length - 1;
@@ -1310,7 +1323,7 @@ async function refreshSim() {
     if (busy) {
       const n = (previewInfo && previewInfo.page_count) || 0;
       if (busySub) busySub.textContent = n
-        ? `正在逐頁蓋章並產生預覽（共 ${n} 頁）`
+        ? tr('正在逐頁蓋章並產生預覽（共 {0} 頁）').replace('{0}', n)
         : tr('正在逐頁蓋章並產生預覽');
       busy.hidden = false;
     }

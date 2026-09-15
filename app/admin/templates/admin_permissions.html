@@ -33,12 +33,14 @@
           {% if s.type == 'user' %}{{ icon('user', size=14) }}{% else %}{{ icon('building', size=14) }}{% endif %}
         </div>
         <div class="perm-row-text">
-          <div class="perm-row-name">
+          {# 帳號名 / 群組名是**使用者的資料**不是介面文字 —— 中文是正確的，
+             翻掉才是錯的。`data-i18n="skip"` 讓逐頁掃描跳過這一格。 #}
+          <div class="perm-row-name" data-i18n="skip">
             {% if s.type == 'user' %}{{ s.username }}{% else %}{{ s.name }}{% endif %}
             {% if s.is_admin_seed or s.is_audit_seed %}<span class="badge-seed">SEED</span>{% endif %}
           </div>
           <div class="perm-row-sub">
-            {% if s.type == 'user' %}{{ s.name }}{% else %}群組{% endif %}
+            {% if s.type == 'user' %}<span data-i18n="skip">{{ s.name }}</span>{% else %}{{ tr('群組') }}{% endif %}
             <span class="src-badge src-{{ s.source }}">{{ s.source }}</span>
           </div>
         </div>
@@ -373,9 +375,13 @@ function loadSubject(s) {
   roleList.innerHTML = ALL_ROLES.length
     ? ALL_ROLES.map(r => {
         const id = r.id, name = r.display_label || r.display_name || r.id;
-        return `<label class="picker-item" data-name="${escapeHtml(name)} ${escapeHtml(id)}" title="${escapeHtml(id)}">
+        // **內建角色的顯示名稱是中文、而且有譯文** —— 不包 `tr()` 的話
+        //  英文 / 日文介面上這一排都是中文（自訂角色沒有譯文，`tr()` 原樣回傳）。
+        //  搜尋用的 `data-name` 中英兩份都留：打中文或打英文都要找得到。
+        const shown = tr(name);
+        return `<label class="picker-item" data-name="${escapeHtml(name)} ${escapeHtml(shown)} ${escapeHtml(id)}" title="${escapeHtml(id)}">
           <input type="checkbox" data-rid="${escapeHtml(id)}" ${haveR.has(id)?'checked':''} ${lockedAttr}>
-          <span class="picker-name">${escapeHtml(name)}</span>
+          <span class="picker-name">${escapeHtml(shown)}</span>
         </label>`;
       }).join('')
     : '<div class="picker-empty">' + tr('尚無角色') + '</div>';
@@ -387,9 +393,9 @@ function loadSubject(s) {
   const toolList = document.getElementById('pdToolList');
   toolList.innerHTML = ALL_TOOLS.length
     ? ALL_TOOLS.map(t => {
-        return `<label class="picker-item" data-name="${escapeHtml(t.name)} ${escapeHtml(t.id)}" title="${escapeHtml(t.id)}">
+        return `<label class="picker-item" data-name="${escapeHtml(t.name)} ${escapeHtml(tr(t.name))} ${escapeHtml(t.id)}" title="${escapeHtml(t.id)}">
           <input type="checkbox" data-tid="${escapeHtml(t.id)}" ${haveT.has(t.id)?'checked':''} ${lockedAttr}>
-          <span class="picker-name">${escapeHtml(t.name)}</span>
+          <span class="picker-name">${escapeHtml(tr(t.name))}</span>
         </label>`;
       }).join('')
     : '<div class="picker-empty">' + tr('尚無工具') + '</div>';

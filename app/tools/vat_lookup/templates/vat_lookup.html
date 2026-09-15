@@ -770,7 +770,7 @@ async function doBatch() {
     return;
   }
   if (vats.length > 200) {
-    await window.showAlert(`一次最多查 200 筆，目前 ${vats.length} 筆`, { title: tr('過多') });
+    await window.showAlert(tr('一次最多查 200 筆，目前 {0} 筆').replace('{0}', vats.length), { title: tr('過多') });
     return;
   }
   const btn = $('btnBatch');

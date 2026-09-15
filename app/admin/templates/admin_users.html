@@ -146,14 +146,15 @@
       <tr data-uid="{{ u.id }}">
         <td class="uf-ck"><input type="checkbox" class="uf-row-ck" value="{{ u.id }}"></td>
         <td>
-          <b>{{ u.username }}</b>
-          {% if u.online %}<span class="uf-online" title="最近 {{ online_window_min }} 分鐘內有活動">{{ tr('線上') }}</span>{% endif %}
+          <b data-i18n="skip">{{ u.username }}</b>
+          {% if u.online %}<span class="uf-online" title="{{ tr('最近 {0} 分鐘內有活動').replace('{0}', online_window_min|string) }}">{{ tr('線上') }}</span>{% endif %}
           {% if u.dir_disabled %}<span class="uf-addis" title="{{ tr('AD 端已停用（userAccountControl）——這個人登不進來，但本站的角色指派與群組成員關係還在') }}">{{ tr('AD 已停用') }}</span>{% endif %}
-          {% if u.pwd_expiring_soon %}<span class="uf-pwdexp" title="{{ '密碼已過期' if u.pwd_expiry_days < 0 else '密碼即將到期' }}">{% if u.pwd_expiry_days < 0 %}密碼已過期{% else %}密碼 {{ u.pwd_expiry_days }} {{ tr('天後到期') }}{% endif %}</span>{% endif %}
+          {% if u.pwd_expiring_soon %}<span class="uf-pwdexp" title="{{ tr('密碼已過期') if u.pwd_expiry_days < 0 else tr('密碼即將到期') }}">{% if u.pwd_expiry_days < 0 %}{{ tr('密碼已過期') }}{% else %}{{ tr('密碼 {0} 天後到期').replace('{0}', u.pwd_expiry_days|string) }}{% endif %}</span>{% endif %}
           {% if u.directory_missing %}<span class="uf-gone" title="{{ tr('上一次完整目錄同步時，AD / LDAP 裡已經找不到這個帳號') }}">{{ tr('目錄已無') }}</span>{% endif %}
           {% if u.is_admin_seed %}<span class="badge">SEED</span>{% endif %}
         </td>
-        <td>{{ u.display_name }}</td>
+        {# 顯示名稱是使用者的資料，中文是正確的 —— 翻掉才是錯的。 #}
+        <td data-i18n="skip">{{ u.display_name }}</td>
         {# 作業完成通知寄到這裡。AD / LDAP / SSO 帳號由來源帶入，本機帳號要人填 #}
         <td class="muted">{{ u.email or '—' }}</td>
         <td data-sort-key="{{ u.source }}">
@@ -850,7 +851,7 @@ document.getElementById('rpCancel').addEventListener('click', () => hideModal('r
 document.getElementById('rpSave').addEventListener('click', async () => {
   const p1 = document.getElementById('rpPw').value;
   const p2 = document.getElementById('rpPw2').value;
-  if (p1 !== p2) { showAlert('兩次輸入不一致'); return; }
+  if (p1 !== p2) { showAlert(tr('兩次輸入不一致')); return; }
   if (p1.length < 8) { showAlert(tr('密碼至少 8 字元')); return; }
   const r = await fetch(`/admin/users/${currentResetUid}/reset-password`, {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -882,7 +883,7 @@ document.querySelectorAll('.uf-disable-all').forEach(btn => {
     if (pre.aborted) { showAlert(pre.reason); return; }
     if (!pre.candidates) { showAlert(tr('沒有需要停用的帳號。')); return; }
     if (!(await showConfirm(
-          `停用 ${pre.candidates} 個帳號？\n\n`
+          tr('停用 {0} 個帳號？\n\n').replace('{0}', pre.candidates)
           + tr('帳號與權限指派都會保留，人回來時按一下就能恢復。'),
           { title: tr('批次停用'), kind: 'danger', okText: tr('停用') }))) return;
     const r = await fetch('/admin/users/bulk/disable-view', {
@@ -892,7 +893,7 @@ document.querySelectorAll('.uf-disable-all').forEach(btn => {
     if (!r.ok) { showAlert(await window.friendlyServerError(r, tr('停用失敗'))); return; }
     const j = await r.json();
     if (j.aborted) { showAlert(j.reason); return; }
-    showAlert(`已停用 ${j.disabled} 個帳號`);
+    showAlert(tr('已停用 {0} 個帳號').replace('{0}', j.disabled));
     location.reload();
   });
 });
@@ -985,7 +986,7 @@ async function revokeSession(sid) {
   });
   if (!r.ok) { showAlert(await window.friendlyServerError(r, tr('登出失敗'))); return; }
   const j = await r.json();
-  showAlert(`已登出 ${j.revoked} 個 session`);
+  showAlert(tr('已登出 {0} 個 session').replace('{0}', j.revoked));
   openSessions(smUid, document.getElementById('smUsername').textContent);
 }
 
@@ -1031,7 +1032,7 @@ document.querySelectorAll('.user-table button').forEach(btn => {
       const r = await fetch(`/admin/users/${uid}/unlock`, {method:'POST'});
       if (r.ok) {
         const j = await r.json();
-        showAlert(`已清除 ${j.cleared} 筆鎖定`);
+        showAlert(tr('已清除 {0} 筆鎖定').replace('{0}', j.cleared));
         location.reload();
       } else {
         showAlert(tr('解鎖失敗：') + await r.text());
@@ -1040,7 +1041,8 @@ document.querySelectorAll('.user-table button').forEach(btn => {
       openSessions(uid, btn.dataset.username);
     } else if (act === 'reset-totp') {
       if (!(await showConfirm(
-            `重設使用者「${btn.dataset.username}」的 2FA？\n\n清除原有 TOTP secret，使用者下次登入時會看到全新 QR code 重新 setup。所有現有 session 也會失效。`,
+            tr('重設使用者「{0}」的 2FA？\n\n清除原有 TOTP secret，使用者下次登入時會看到全新 QR code 重新 setup。所有現有 session 也會失效。')
+              .replace('{0}', btn.dataset.username),
             { title: tr('重設 2FA'), okText: tr('重設') }))) return;
       const r = await fetch(`/admin/users/${uid}/reset-totp`, {method:'POST'});
       if (r.ok) {

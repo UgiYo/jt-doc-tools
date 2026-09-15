@@ -1761,7 +1761,7 @@ if (_btnLlmClassify) {
       return;
     }
     const ok = await window.showConfirm(
-      `將送 ${_cachedInvoices.length} 張發票給 LLM 判讀會計科目。\n\n` +
+      tr('將送 {0} 張發票給 LLM 判讀會計科目。\n\n').replace('{0}', _cachedInvoices.length) +
       tr('會用賣方統編 / 名稱 / 行業批次送（每批 20 張），\n') +
       tr('視 LLM 速度與發票量約需 1 ~ 10 分鐘。\n') +
       tr('結果會覆寫目前的「科目」欄位（標示 source=llm）。'),

@@ -15,6 +15,11 @@
       // Inherit style "width"/"max-width" from original select to keep layout
       const w = selectEl.style.width || selectEl.style.maxWidth || '';
       if (w) wrap.style.maxWidth = w;
+      // **`data-i18n` 要傳給外層** —— 可見的那份清單是這裡另外建的節點，
+      //  不在原本的 `<select>` 裡面，`closest('[data-i18n="skip"]')` 找不到。
+      //  標在 select 上的「不要翻」於是只擋到隱藏的原生 option，
+      //  畫面上那一份照樣被判成漏翻（2026-09-16 個資限用章的用途範本）。
+      if (selectEl.dataset.i18n) wrap.dataset.i18n = selectEl.dataset.i18n;
       selectEl.parentNode.insertBefore(wrap, selectEl);
 
       // Hidden native (keeps form/.value semantics)

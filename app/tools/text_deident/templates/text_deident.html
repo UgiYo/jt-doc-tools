@@ -476,7 +476,9 @@ $('btnDetect').addEventListener('click', async () => {
     const j = await r.json();
     lastFindings = j.findings || [];
     $('resultPanel').hidden = false;
-    let metaTxt = `共找到 ${lastFindings.length} 筆，原文 ${j.char_count.toLocaleString()} 字`;
+    let metaTxt = tr('共找到 {0} 筆，原文 {1} 字')
+      .replace('{0}', lastFindings.length)
+      .replace('{1}', j.char_count.toLocaleString());
     if (j.llm_warning) metaTxt += `（${j.llm_warning}）`;
     $('resultMeta').textContent = metaTxt;
     // counts pills

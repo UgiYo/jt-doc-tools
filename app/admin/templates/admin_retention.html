@@ -95,7 +95,7 @@ document.getElementById('sweepNowBtn').addEventListener('click', async () => {
   document.getElementById('sweepNowBtn').disabled = false;
   if (r.ok) {
     const j = await r.json();
-    showToast(`清理完成：${JSON.stringify(j.report)}`, 'ok');
+    showToast(tr('清理完成：{0}').replace('{0}', JSON.stringify(j.report)), 'ok');
     setTimeout(() => location.reload(), 1500);
   } else {
     showAlert(tr('失敗：') + await r.text());

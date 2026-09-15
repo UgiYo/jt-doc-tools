@@ -186,9 +186,16 @@ JTDT_DATA_DIR=$(mktemp -d) JTDT_CSRF_DISABLE=1 \
       `display:none`、`visibility:hidden`）。實測英文 / 日文各 82 頁，
       攤開之後多出來的殘留是 **0 條**。
       **它刻意不改變任何狀態** —— 只動顯示屬性，不送出表單、不點按鈕。
-- [ ] **知道它的極限**：涵蓋不到**執行期才建出來的節點** —— 真的按下去才生成的
-      對話框、送出後的結果區、有資料才出現的表格**都不在裡面**。
-      這幾格只能靠下面的③。
+- [ ] **「送出後的結果區」另外由截圖工具掃**（v1.15.51 加）：
+
+          .venv/bin/python tools/capture_locale_screenshots.py --locale en --base …
+          .venv/bin/python tools/capture_locale_screenshots.py --locale ja --base …
+
+      它本來就會真的上傳、送出、等結果出現才拍照，**那一幕正是逐頁掃描看不到
+      的那一格**。掃到的東西會印在輸出裡（`! xx 這幾張的畫面上還有中文`）。
+      第一次跑就抓到 **11 支工具**的殘留，根因都是「句子是內插出來的」。
+- [ ] **知道它的極限**：涵蓋不到**真的按下去才生成的對話框**，
+      以及要有特定資料才會出現的表格。這幾格只能靠下面的③。
 - [ ] **日文的判準跟英文不一樣**：英文頁「有漢字」就是沒翻，日文頁漢字是正常的。
       日文看兩個訊號 ——「這串字剛好是語系檔的鍵**而且譯文不一樣**」（確定的 bug）、
       以及「含有現代日文不會用的中文詞」（啟發式）。
@@ -202,7 +209,10 @@ JTDT_DATA_DIR=$(mktemp -d) JTDT_CSRF_DISABLE=1 \
 每一支工具至少走一次「上傳 → 送出 → 看結果」，並把下列狀態逐一打開：
 
 - [ ] **對話框**：確認、提示、錯誤（`showConfirm` / `showToast` / `alert`）——
-      標題、內文、兩顆按鈕都要看
+      標題、內文、兩顆按鈕都要看。
+      **訊息本身已經有靜態守門**（`tests/test_dialog_strings_go_through_tr.py`，
+      v1.15.51 加，第一次跑抓到 15 處）—— 人工看的是**版面與語氣**，
+      不是「有沒有包 tr()」。
 - [ ] **側欄的帳號功能表**：我的帳號、語言、登出
 - [ ] **通知面板**：作業完成的那幾列（工具名稱、狀態、時間）
 - [ ] **屬性面板 / 工具列**：PDF 編輯器選一個物件之後的右側面板
@@ -528,7 +538,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 
 <!-- BEGIN test-index (由 tools/build_test_plan_index.py 產生，不要手改) -->
 
-共 **283 支測試檔**。說明取自每支檔案自己的開頭說明，
+共 **285 支測試檔**。說明取自每支檔案自己的開頭說明，
 跑 `python tools/build_test_plan_index.py` 重建。
 
 > 這裡**刻意不列函式數** —— 那個數字每加一條測試就會變，
@@ -597,6 +607,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_deident_replace_mode.py` | 文件去識別化的第三種模式：替換 |
 | `test_dependency_declaration_sop.py` | 新增 Python 相依時的六處宣告，一處都不能漏 |
 | `test_dependency_declarations_agree.py` | 三份相依宣告必須互相對得上（外部稽核 F12，v1.15.30） |
+| `test_dialog_strings_go_through_tr.py` | 對話框的訊息要走 `tr()`（v1.15.51） |
 | `test_dir_filter.py` | 目錄瀏覽「已選定」模式 filter 的純函式 + 設定測試 |
 | `test_directory_browser.py` | 目錄瀏覽（AD/LDAP OU treeview → 指派權限給 OU，2026-07-01） |
 | `test_directory_cleanup.py` | 批次停用「目錄已無 / AD 端已停用」的帳號，以及排程自動停用 |
@@ -785,6 +796,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_text_list.py` | Tests for text-list tool — pipeline ops, file extraction, export formats. |
 | `test_tool_search_keywords.py` | 每一支工具都要有搜尋關鍵字（中文 + 英文） |
 | `test_tool_ui_locales.py` | 工具的介面語系白名單（`ToolMetadata.locales`） |
+| `test_tr_number_pattern_fallback.py` | `tr()` 查不到時，把數字換成 `{0}` 再查一次（v1.15.51） |
 | `test_transit_proof_api.py` | 乘車證明工具端點整合測試（合成 PDF，auth OFF = 單機） |
 | `test_transit_proof_files.py` | 乘車證明的**原始檔**：存得下、看得到、別人拿不到、刪掉就不見 |
 | `test_transit_proof_parser.py` | 乘車證明解析器單元測試（合成 fixture，不含真實票號 / 統編 / 站名資料） |

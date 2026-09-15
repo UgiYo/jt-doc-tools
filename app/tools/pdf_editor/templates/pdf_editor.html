@@ -1023,7 +1023,7 @@ async function handleUpload(file) {
     // visible without scrolling. Use setTimeout so layout is settled
     // before we measure canvasWrap's clientWidth/Height.
     setTimeout(() => fitPageToView(), 0);
-    setStatus(`載入完成，${pages.length} 頁。選工具開始編輯。`);
+    setStatus(tr('載入完成，{0} 頁。選工具開始編輯。').replace('{0}', pages.length));
   } catch (e) { setStatus(tr('上傳錯誤：') + e.message); }
 }
 const uploadRoot = $('peUpload');
@@ -1154,7 +1154,7 @@ function buildThumbs() {
     if (pIdx + 1 === _curPage) thumb.classList.add('is-active');
     const img = document.createElement('img');
     img.src = pg.preview_url;
-    img.alt = `第 ${pIdx + 1} 頁`;
+    img.alt = tr('第 {0} 頁').replace('{0}', pIdx + 1);
     img.loading = 'lazy';
     const no = document.createElement('div');
     no.className = 'pe-thumb-no';

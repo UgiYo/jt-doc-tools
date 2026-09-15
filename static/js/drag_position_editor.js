@@ -76,7 +76,9 @@
       // unknown size — add custom
       const o = document.createElement('option');
       o.value = v;
-      o.textContent = `自訂 (${(+this.paper.w).toFixed(1)}×${(+this.paper.h).toFixed(1)})`;
+      o.textContent = tr('自訂 ({0}×{1})')
+        .replace('{0}', (+this.paper.w).toFixed(1))
+        .replace('{1}', (+this.paper.h).toFixed(1));
       o.dataset.dpeCustom = '1';
       this.$paperSelect.appendChild(o);
       this.$paperSelect.value = v;

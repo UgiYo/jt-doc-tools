@@ -138,7 +138,7 @@ document.addEventListener('click', async (e) => {
   const item = btn.closest('.history-item');
   const hid = item.dataset.hid;
   if (btn.dataset.act === 'del') {
-    if (!(await showConfirm(`確定刪除「${item.querySelector('.filename').textContent}」的歷史記錄？`, { title: tr('刪除記錄'), kind: 'danger' }))) return;
+    if (!(await showConfirm(tr('確定刪除「{0}」的歷史記錄？').replace('{0}', item.querySelector('.filename').textContent), { title: tr('刪除記錄'), kind: 'danger' }))) return;
     const r = await fetch(`/tools/pdf-fill/history/${hid}/delete`, { method: 'POST' });
     if (r.ok) { item.remove(); refreshSelUI(); }
     else showAlert(tr('刪除失敗'));

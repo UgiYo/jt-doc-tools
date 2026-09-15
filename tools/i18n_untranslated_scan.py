@@ -110,7 +110,14 @@ JS = """
       if (v) push(v, 'attr:' + a);
     }
   }
-  for (const el of document.querySelectorAll('option')) push(el.textContent, 'option');
+  // **`<option>` 也要認 `data-i18n="skip"`** —— 有些下拉的選項文字就是
+  //  要送給伺服器 / 印到產出上的**值**（個資限用章的用途就是印在章上的字），
+  //  翻掉的話畫面上選 A、印出來是 B。原本這一段沒有這道檢查，那幾條就變成
+  //  永遠掛在報告上的誤報，而誤報一多這份檢查就會被當雜訊忽略。
+  for (const el of document.querySelectorAll('option')) {
+    if (el.closest('[data-i18n="skip"]')) continue;
+    push(el.textContent, 'option');
+  }
   return JSON.stringify(out);
 })()
 """

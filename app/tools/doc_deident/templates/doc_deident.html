@@ -447,7 +447,10 @@ function renderDetect(d) {
   for (const [t, n] of Object.entries(d.by_type || {})) {
     const el = document.createElement('div');
     el.className = 'dd-stat';
-    el.innerHTML = `<div class="lbl">${escapeHTML(t)}</div><div class="val">${n}</div>`;
+    // **樣態名稱要走 `tr()`** —— v1.15.47 修過一次（結果列的那個標籤），
+    //  但**統計晶片這一份漏掉了**，所以英文 / 日文介面上這一排一直是中文。
+    //  同一個家族要一次掃完（2026-09-16 用截圖工具掃「送出後的結果區」抓到）。
+    el.innerHTML = `<div class="lbl">${escapeHTML(tr(t))}</div><div class="val">${n}</div>`;
     stats.appendChild(el);
   }
   const body = $('ddTable');
@@ -613,7 +616,8 @@ $('btnProcess').addEventListener('click', async () => {
     selections = selections.map(f => ({...f, replacement: suggestedFor(f)}));
     const empty = selections.filter(f => !(f.replacement || '').trim());
     if (empty.length) {
-      await showAlert(`有 ${empty.length} 筆沒有填替換的內容，請先補上或取消勾選。`);
+      await showAlert(tr('有 {0} 筆沒有填替換的內容，請先補上或取消勾選。')
+      .replace('{0}', empty.length));
       return;
     }
     // 替換跟編修一樣是把原文真的刪掉 —— 使用者要知道這件事

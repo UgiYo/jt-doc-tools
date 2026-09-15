@@ -445,7 +445,7 @@ if (unlockBtn) unlockBtn.addEventListener('click', async () => {
   const r = await fetch('/admin/auth-settings/unlock-all', {method:'POST'});
   if (r.ok) {
     const j = await r.json();
-    showAlert(`已清除 ${j.cleared} 筆鎖定`);
+    showAlert(tr('已清除 {0} 筆鎖定').replace('{0}', j.cleared));
   } else {
     showAlert(tr('清除失敗：') + await r.text());
   }
@@ -508,7 +508,8 @@ async function saveLdap() {
   if (targetBackend && targetBackend !== CURRENT_BACKEND) {
     const label = {local:tr('本機帳號'), ldap:'LDAP', ad:'Active Directory'}[targetBackend] || targetBackend;
     const ok = await showConfirm(
-      `要把 backend 從「${CURRENT_BACKEND}」切換為「${label}」嗎？\n\n所有現有 session 會立刻失效，所有人都需要重新登入。`,
+      tr('要把 backend 從「{0}」切換為「{1}」嗎？\n\n所有現有 session 會立刻失效，所有人都需要重新登入。')
+        .replace('{0}', CURRENT_BACKEND).replace('{1}', label),
       { title: tr('切換認證 backend'), kind: 'warn', okText: tr('儲存並切換') }
     );
     if (!ok) return;

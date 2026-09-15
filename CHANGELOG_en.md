@@ -11,6 +11,76 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.51] - 2026-09-16
+
+### The result area after you submit was still Chinese in English and Japanese
+
+TEST_PLAN §0.6 says in as many words that the per-page scan **cannot see the
+result area after a submit** — and nobody had ever scanned it. This release has
+the **screenshot tool** scan it on its way past: it already uploads a real file,
+submits it and waits for the result before taking the picture, so **what is on
+its screen is exactly the missing square**.
+
+The first run found leftovers in **11 tools** (the watermark preview status
+line, the PDF editor's loaded message, the OCR upload message, the per-sentence
+translator's loaded message, redaction's summary chips, the before/after titles
+and page numbers in PDF-to-Office, the per-page download tooltip…).
+
+Every one of them was the same shape: **the sentence is interpolated**
+(`` `第 ${n} 頁` ``), and an interpolated sentence never matches a catalogue
+key. Some were not wrapped in `tr()` at all.
+
+> **`tr()` gained a fallback**: on a miss it replaces runs of digits with `{0}`,
+> `{1}`… and looks that up, then puts the numbers back. That also makes
+> **server-produced job messages** translatable (`完成（3 份）` is built on a
+> background thread, where there is no request and so no way to know the
+> viewer's language). A second miss returns the string unchanged, so the worst
+> case is exactly today's behaviour.
+>
+> **Its boundary is a test too**: it only handles sentences whose variables are
+> all numbers. `已上傳 a.pdf（6379.1 KB）` starts with a filename — that one has
+> to be wrapped where the sentence is built.
+
+> **Redaction's pattern names were half-fixed**: v1.15.47 fixed the label on the
+> result row and **missed the summary chips**. One family, one sweep — again.
+
+### Some dropdown options must NOT be translated
+
+Whatever you pick in the personal-data stamp's "purpose" list is **printed on
+the stamp verbatim**. Translating it would mean picking one thing and printing
+another — and it would look completely normal.
+
+That list is marked `data-i18n="skip"`, and **the scanner now honours skip on
+`<option>` too** — it did not before, so those entries would have sat in the
+report forever as false positives, and a report full of false positives is a
+report nobody reads.
+
+> **Marking the `<select>` was not enough**: every dropdown on the site is a
+> custom widget, and **the list you actually see is a separate set of nodes**
+> outside the native `<select>` — `closest()` never found the marker, so only
+> the hidden native options were skipped. The widget now passes `data-i18n`
+> through to the wrapper it builds.
+
+Account and group names in the permission matrix are marked as data too (they
+are the user's data; Chinese is correct there), while tool names, role names
+and the word "group" **should have been translated and were not**.
+
+### Dialogs: a static scan found 15 calls with no `tr()`
+
+TEST_PLAN §0.6 files dialogs under "manual pass only" — but **a static scan
+sees every branch**, including the ones only an error reaches. Three shapes:
+an interpolated template literal, a plain string nobody wrapped, and — the
+nastiest — **a ternary with only one side wrapped**, which looks handled.
+
+The guard's criterion is "strip `tr('…')` out of the first argument; no Chinese
+may remain". Checking "does it start with `tr(`" would flag
+`cond ? tr(a) : tr(b)` and `err.message || tr(c)`, which are correct.
+
+> **My own comment fooled my own scanner** (again): the note I wrote next to
+> the fix quoted the wrong form as an example, and the guard flagged it.
+> Strip comments first — and for templates take only the `<script>` blocks,
+> since handing a whole HTML file to a JS comment stripper treats prose as code.
+
 ## [1.15.50] - 2026-09-16
 
 ### Memory admission now books what it just dispatched (audit F06)

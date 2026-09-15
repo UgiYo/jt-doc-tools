@@ -135,7 +135,7 @@ $('enforce').addEventListener('change', async () => {
     body: JSON.stringify({enforce: $('enforce').checked}),
   });
   if (r.ok && window.showToast) {
-    showToast($('enforce').checked ? '已啟用強制檢查' : tr('已關閉強制檢查'), 'ok');
+    showToast($('enforce').checked ? tr('已啟用強制檢查') : tr('已關閉強制檢查'), 'ok');
   }
 });
 

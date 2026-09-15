@@ -638,8 +638,8 @@ const jp = new JobProgress($('p2oJob'), {
     const nOrig = pv.orig_pages || pageIdxs.length;
     if (header) {
       header.textContent = (nOrig <= 6)
-        ? `全部 ${nOrig} 頁前後對照（DPI 90）`
-        : `前後對照（DPI 90）— 共 ${nOrig} 頁，顯示前 6 頁`;
+        ? tr('全部 {0} 頁前後對照（DPI 90）').replace('{0}', nOrig)
+        : tr('前後對照（DPI 90）— 共 {0} 頁，顯示前 6 頁').replace('{0}', nOrig);
     }
     const fmt = (sm.output_format||'').toLowerCase();
     pagesContainer.innerHTML = '';
@@ -651,9 +651,9 @@ const jp = new JobProgress($('p2oJob'), {
       const rc = resultChars[String(pi)];
       // v1.9.79：左右標題顯示「擷取 N 字」幫助使用者驗證內容完整度
       const ocLabel = (oc !== undefined && oc !== null)
-        ? ` <span data-s="se93eb165">— 擷取 ${oc} 字</span>` : '';
+        ? ` <span data-s="se93eb165">${tr('— 擷取 {0} 字').replace('{0}', oc)}</span>` : '';
       const rcLabel = (rc !== undefined && rc !== null)
-        ? ` <span data-s="se93eb165">— 擷取 ${rc} 字</span>` : '';
+        ? ` <span data-s="se93eb165">${tr('— 擷取 {0} 字').replace('{0}', rc)}</span>` : '';
       // rc===0：此頁被 jtdt-layout 判為設計 / 圖片版面，已用整頁圖保真還原（無可
       //   選取文字，屬正常，非遺失）→ 中性說明。
       // 0<rc<oc*0.5 且 oc>50：結果字數遠少於原始 → 真的部分遺失，紅色警示。
@@ -668,15 +668,15 @@ const jp = new JobProgress($('p2oJob'), {
       const block = document.createElement('div');
       block.style.marginBottom = '14px';
       block.innerHTML = `
-        <div class="preview-label" data-s="sb3dfab28">第 ${p1} 頁</div>
+        <div class="preview-label" data-s="sb3dfab28">${tr('第 {0} 頁').replace('{0}', p1)}</div>
         <div class="preview-grid">
           <div class="preview-cell">
-            <div class="preview-label">原 PDF${ocLabel}</div>
-            <img alt="${tr('原 PDF 第 ${p1} 頁')}" data-kind="orig" data-page="${p1}" />
+            <div class="preview-label">${tr('原 PDF')}${ocLabel}</div>
+            <img alt="${tr('原 PDF 第 {0} 頁').replace('{0}', p1)}" data-kind="orig" data-page="${p1}" />
           </div>
           <div class="preview-cell">
-            <div class="preview-label">轉換結果（${fmt}）${rcLabel}${rcExtra}</div>
-            <img alt="${tr('轉換結果第 ${p1} 頁')}" data-kind="result" data-page="${p1}" />
+            <div class="preview-label">${tr('轉換結果（{0}）').replace('{0}', fmt)}${rcLabel}${rcExtra}</div>
+            <img alt="${tr('轉換結果第 {0} 頁').replace('{0}', p1)}" data-kind="result" data-page="${p1}" />
           </div>
         </div>`;
       pagesContainer.appendChild(block);

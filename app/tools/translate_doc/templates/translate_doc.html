@@ -761,7 +761,10 @@ async function handleUploadedFile(f) {
       dropText.innerHTML = `<b>${escapeHTML(f.name)}</b><div class="trd-drop-hint warn">${hint}</div>`;
     } else {
       dropZone.classList.remove('has-warn');
-      dropText.innerHTML = `<b>${escapeHTML(f.name)}</b><div class="trd-drop-hint">已載入 ${j.sentence_count} 句、${j.char_count} 字</div>`;
+      dropText.innerHTML = `<b>${escapeHTML(f.name)}</b><div class="trd-drop-hint">`
+        + escapeHTML(tr('已載入 {0} 句、{1} 字')
+            .replace('{0}', j.sentence_count).replace('{1}', j.char_count))
+        + `</div>`;
     }
     refreshCounter();
   } catch (err) {

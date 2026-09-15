@@ -170,7 +170,7 @@
         : ((typeof this.currentAsset === 'function') ? (this.currentAsset() || {}) : {});
       if (kind !== 'stamp' && !cur.png_b64) {
         if (window.showToast) window.showToast(
-          kind === 'date' ? '請先在上方「1b. 插入日期」啟用並設定內容'
+          kind === 'date' ? tr('請先在上方「1b. 插入日期」啟用並設定內容')
                           : tr('請先在上方「1c. 個資限用章」啟用並設定內容'), 'err');
         return null;
       }
@@ -554,7 +554,7 @@
       if (this.$btnCopyAll) this.$btnCopyAll.addEventListener('click', () => {
         const n = this.copyPageToAll();
         if (window.showToast) {
-          window.showToast(n ? `已複製 ${n} 個物件到其他頁` : tr('目前頁沒有物件可複製'),
+          window.showToast(n ? tr('已複製 {0} 個物件到其他頁').replace('{0}', n) : tr('目前頁沒有物件可複製'),
                            n ? 'ok' : 'err');
         }
       });

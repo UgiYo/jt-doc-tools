@@ -202,7 +202,7 @@
           '</a>' +
           '<div class="p2i-meta">' +
             tr('<span>第 ') + (p.index + 1) + tr(' 頁 · ') + p.width_px + '×' + p.height_px + ' · ' + fmtBytes(p.size_bytes || 0) + '</span>' +
-            '<a class="p2i-dl" href="' + p.preview_url + '" download="page_' + (p.index + 1) + '.png" title="下載此頁 PNG" aria-label="下載此頁 PNG">' + dlIcon + '</a>' +
+            '<a class="p2i-dl" href="' + p.preview_url + '" download="page_' + (p.index + 1) + '.png" title="' + tr('下載此頁 PNG') + '" aria-label="' + tr('下載此頁 PNG') + '">' + dlIcon + '</a>' +
           '</div>';
         gridEl.appendChild(card);
       });

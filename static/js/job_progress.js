@@ -67,8 +67,8 @@
     _labelDownload(j) {
       const ext = this._resultExt(j);
       if (!ext) return;                        // 拿不到就維持模板原本的字
-      const label = ext === 'pdf' ? '下載 PDF'
-                  : ext === 'zip' ? '下載 ZIP'
+      const label = ext === 'pdf' ? tr('下載 PDF')
+                  : ext === 'zip' ? tr('下載 ZIP')
                   : tr('下載 .') + ext;
       const node = [...this.dlBtn.childNodes]
         .reverse().find((n) => n.nodeType === 3 && n.textContent.trim());
@@ -121,7 +121,7 @@
           const res = await window.saveToWorkspace({ jobId: this.jobId }, fname, j.tool_id || '');
           btn.innerHTML = tr('已存至工作區');
           if (window.showToast) window.showToast(
-            (res && res.duplicate) ? '已存至工作區（工作區已有同名檔，已另存一份）' : tr('已存至工作區'), 'ok');
+            (res && res.duplicate) ? tr('已存至工作區（工作區已有同名檔，已另存一份）') : tr('已存至工作區'), 'ok');
         } catch (e) {
           btn.disabled = false;
           if (window.showAlert) window.showAlert(e.message || tr('存至工作區失敗'));

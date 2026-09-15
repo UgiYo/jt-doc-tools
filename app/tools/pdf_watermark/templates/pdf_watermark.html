@@ -516,7 +516,8 @@ function refreshSim(){
       simPageCount = j.page_count || 1;
       if (typeof j.page === 'number') simPage = j.page;  // backend clamps
       updateWmPageNav();
-      status.textContent = `第 ${simPage + 1} 頁預覽 / 共 ${simPageCount} 頁（依目前設定）`;
+      status.textContent = tr('第 {0} 頁預覽 / 共 {1} 頁（依目前設定）')
+        .replace('{0}', simPage + 1).replace('{1}', simPageCount);
     } catch(e) {
       if (seq !== simSeq) return;
       status.textContent = tr('預覽產生失敗');

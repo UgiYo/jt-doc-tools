@@ -269,6 +269,46 @@ _DIALOG_TEXT = """
 CHROME = "/usr/bin/chromium-browser"
 
 
+
+#: 這幾張畫面上的中文是**示範資料**不是介面文字 —— 翻掉才是錯的。
+#:
+#: `seed_demo_data.py` 建的示範帳號是中文姓名、示範印章叫「範例之印」，
+#: 而個資限用章的用途範本是**會被印到章上的值**（那個下拉已經標
+#: `data-i18n="skip"`，這裡列的是它在別處出現的情況）。
+#:
+#: **不排除的話這幾條會永遠掛在報告上**，而誤報一多這份檢查就會被當雜訊
+#: 忽略（用詞守門那次的教訓）。
+_DATA_SHOTS: dict[str, tuple[str, ...]] = {
+    "stamp": ("範例之印",),
+    "premissions": ("張家瑜", "陳美華", "黃大生"),
+    "users-multi-realm": ("張家瑜", "陳美華", "黃大生"),
+}
+
+
+#: 拍完之後順手掃一次「畫面上還有沒有中文」。
+#:
+#: TEST_PLAN §0.6 列的三格裡，**「送出後的結果區」一直沒有人掃** ——
+#: 逐頁掃描器只看頁面剛載入的狀態，而這支工具**真的把檔案送出去、等結果
+#: 出現**才拍照，所以它眼前那一幕正是缺的那一格。
+#:
+#: **重用逐頁掃描器的 JS 與判準**（`i18n_untranslated_scan`），不要另抄一份
+#: —— 同一份判準寫兩個地方一定會漂（本專案第 N 次）。
+async def _residual_cjk(cmd, locale: str) -> list[str]:
+    from tools.i18n_untranslated_scan import JS as _SCAN_JS, _catalog_keys, _keep
+    r = await cmd("Runtime.evaluate", {"expression": _SCAN_JS, "returnByValue": True})
+    try:
+        items = json.loads((r.get("result", {}) or {}).get("value") or "[]")
+    except Exception:  # noqa: BLE001
+        return []
+    keys = _catalog_keys(locale)
+    return [i["text"] for i in items if _keep(i["text"], locale, keys)]
+
+
+def _not_demo_data(shot: str, texts: list[str]) -> list[str]:
+    allow = _DATA_SHOTS.get(shot, ())
+    return [t for t in texts if not any(a in t for a in allow)]
+
+
 async def _capture(base: str, cdp_port: int, locale: str) -> list[str]:
     import httpx
     import websockets
@@ -327,6 +367,7 @@ async def _capture(base: str, cdp_port: int, locale: str) -> list[str]:
             skip = hidden_shots(locale)
             if skip:
                 print(f"  {locale} 跳過（該語言下反灰的工具）：{sorted(skip)}")
+            residual: dict[str, list[str]] = {}
             for name, path in SHOTS.items():
                 if name in skip:
                     continue
@@ -397,9 +438,17 @@ async def _capture(base: str, cdp_port: int, locale: str) -> list[str]:
                     msg = (bad.get("result", {}) or {}).get("value") or ""
                     if msg:
                         print(f"  ! {name}: 畫面上有對話框 → {msg[:60]}")
+                if locale != "zh-Hant":
+                    left = _not_demo_data(name, await _residual_cjk(cmd, locale))
+                    if left:
+                        residual[name] = left
                 shot = await cmd("Page.captureScreenshot", {})
                 (out / f"{name}.png").write_bytes(base64.b64decode(shot["data"]))
                 done.append(name)
+            if residual:
+                print(f"  ! {locale} 這幾張的畫面上還有中文（送出後的結果區）：")
+                for k, v in residual.items():
+                    print(f"      {k}: {v[:4]}")
         return done
     finally:
         proc.terminate()
