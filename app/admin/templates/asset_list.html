@@ -54,11 +54,12 @@
   {% for a in assets %}
   <div class="asset-item">
     <div class="thumb">
-      <img src="/admin/assets/{{ a.id }}/thumb?v={{ a.updated_at|default(0) }}" alt="{{ a.name }}"
+      <img src="/admin/assets/{{ a.id }}/thumb?v={{ a.updated_at|default(0) }}" alt="{{ a.name }}" data-i18n="skip"
            data-zoom-src="/admin/assets/{{ a.id }}/file?v={{ a.updated_at|default(0) }}" data-zoom-name="{{ a.name }}"
            title="{{ tr('點一下放大檢視') }}" />
     </div>
-    <div class="name">{{ a.name }} {% if a.is_default %}<span class="badge-default">{{ tr('預設') }}</span>{% endif %}</div>
+    {# 資產名稱是使用者取的 —— 中文是正確的，翻掉才是錯的。 #}
+    <div class="name"><span data-i18n="skip">{{ a.name }}</span> {% if a.is_default %}<span class="badge-default">{{ tr('預設') }}</span>{% endif %}</div>
     <div class="meta">{{ a.type }} · {{ '%.0f'|format(a.preset.width_mm) }}×{{ '%.0f'|format(a.preset.height_mm) }} mm</div>
     <div class="actions">
       <a class="btn btn-small" href="/admin/assets/{{ a.id }}/edit">{{ icon('edit') }}{{ tr('編輯') }}</a>

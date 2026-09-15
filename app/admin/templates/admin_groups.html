@@ -77,9 +77,10 @@
           data-depth="{{ g.depth or 0 }}"
           data-dn="{{ (g.external_dn or '')|lower }}"
           data-haschildren="{{ 1 if g.has_children else 0 }}">
-        <td>{% if g.depth %}{% for _ in range(g.depth) %}<span class="grp-indent"></span>{% endfor %}<span class="grp-branch">└</span> {% endif %}{% if g.has_children %}<button type="button" class="grp-toggle" aria-expanded="true" title="{{ tr('收折 / 展開子群組') }}">▾</button>{% else %}<span class="grp-caret-spacer"></span>{% endif %}<b>{{ g.name }}</b></td>
+        <td>{% if g.depth %}{% for _ in range(g.depth) %}<span class="grp-indent"></span>{% endfor %}<span class="grp-branch">└</span> {% endif %}{% if g.has_children %}<button type="button" class="grp-toggle" aria-expanded="true" title="{{ tr('收折 / 展開子群組') }}">▾</button>{% else %}<span class="grp-caret-spacer"></span>{% endif %}<b data-i18n="skip">{{ g.name }}</b></td>
         <td><span class="src-badge src-{{ g.source }}">{{ g.source }}</span></td>
-        <td class="muted">{{ g.description }}</td>
+        {# 群組名稱與說明是管理員 / 目錄來的**資料** —— 中文是正確的。 #}
+        <td class="muted" data-i18n="skip">{{ g.description }}</td>
         {% if g.source in ('ldap', 'ad') and g.dir_member_count is not none %}
         <td title="目錄成員數（由排程同步快取；本機登入數 {{ g.member_count }}）">{{ g.dir_member_count }}</td>
         {% elif g.source in ('ldap', 'ad') %}

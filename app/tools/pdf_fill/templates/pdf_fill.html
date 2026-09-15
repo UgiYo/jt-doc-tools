@@ -29,7 +29,11 @@
   {% for sec in sections %}
     {% set visible_rows = sec.rows|selectattr('value')|list %}
     {% if visible_rows %}
-    <div class="profile-section">
+    {#- 這一整塊是**使用者自己的公司資料**：欄位名稱是管理員可以改的
+        （`profile_manager.DEFAULT_FIELDS` 只是初始值），而且它們同時是拿去
+        比對台灣廠商表單上那些中文欄位標籤的依據 —— **翻掉會讓比對安靜失效**。
+        中文在這裡是正確的，`data-i18n="skip"` 讓逐頁掃描跳過。 -#}
+    <div class="profile-section" data-i18n="skip">
       <h3 class="profile-section-title">{{ sec.title }}</h3>
       <dl class="profile-dl">
         {% for row in visible_rows %}

@@ -38,7 +38,7 @@
         <input type="radio" name="asset" value="{{ s.id }}" {% if s.id == default_id %}checked{% endif %} />
         <div class="wm-asset-thumb"><img src="/assets/{{ s.id }}/thumb" /></div>
         <div class="wm-asset-meta">
-          <span class="wm-asset-name">{{ s.name }}</span>
+          <span class="wm-asset-name" data-i18n="skip">{{ s.name }}</span>
           <span class="type-chip type-{{ s.type }}">{{ tr({'stamp':'印章','signature':'簽名','logo':'Logo','watermark':'浮水印'}[s.type] or s.type) }}</span>
         </div>
       </label>

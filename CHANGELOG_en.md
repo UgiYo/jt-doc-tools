@@ -11,6 +11,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.53] - 2026-09-16
+
+### Scan an instance that actually has data, and tell data from interface
+
+Every per-page scan so far ran against an **empty** instance, so "tables that
+only appear once there is data" (the third square in TEST_PLAN §0.6) had never
+been looked at. This one seeds demo data first: 71 findings in English, 9 in
+Japanese.
+
+**Read one by one, not one of them is a missing translation** — they are all
+the user's own data: the field names and values on the company card, group
+names and descriptions, the names of stamps, signatures and watermarks, every
+cell on the company settings page.
+
+Those are now marked `data-i18n="skip"`. **The company card in the form filler
+matters most**: those field names are editable by the administrator *and* are
+what the matcher compares against the Chinese labels printed on Taiwanese
+vendor forms — translating them would make the matching fail silently.
+
+> **"Lots of findings" is not "lots of missing translations."** Without that
+> distinction nobody reads the report next time — and the real misses get
+> ignored along with the noise.
+
 ## [1.15.52] - 2026-09-16
 
 ### Display attributes set from JS need `tr()` too

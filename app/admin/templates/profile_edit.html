@@ -12,8 +12,10 @@
     <div class="field" data-s="sc8395ac5">
       <select id="companySelect" data-s="sd7c87199">
         {% for c in companies %}
-        <option value="{{ c.id }}" {% if c.id == edit_id %}selected{% endif %}>
-          {{ tr(c.name) }}{% if c.is_active %} ★ {{ tr('作用中') }}{% endif %}
+        {# 公司名稱是**資料**：`tr()` 查不到就原樣回傳，但別讓掃描以為它漏翻。 #}
+        <option value="{{ c.id }}" {% if c.id == edit_id %}selected{% endif %}
+                data-i18n="skip">
+          {{ c.name }}{% if c.is_active %} ★ {{ tr('作用中') }}{% endif %}
         </option>
         {% endfor %}
       </select>
@@ -49,8 +51,10 @@
       <div class="edit-row edit-head">
         <span>key</span><span>{{ tr('顯示名稱') }}</span><span>{{ tr('值') }}</span><span></span>
       </div>
+      {# 每一列都是**使用者自己的公司資料**（欄位代號、顯示名稱、值）——
+         中文在這裡是正確的，翻掉等於改壞他的資料。 #}
       {% for row in sec.rows %}
-      <div class="edit-row" data-key="{{ row.key }}">
+      <div class="edit-row" data-key="{{ row.key }}" data-i18n="skip">
         <input class="k" type="text" value="{{ row.key }}" />
         <input class="lbl" type="text" value="{{ row.label }}" placeholder="{{ tr('顯示名稱') }}" />
         <textarea class="v" rows="1">{{ row.value }}</textarea>

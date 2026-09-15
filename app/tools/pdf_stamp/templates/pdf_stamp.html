@@ -20,7 +20,7 @@
       <div class="thumb"><img src="/assets/{{ s.id }}/thumb" /></div>
       <div class="name">
         <input type="radio" name="stamp" value="{{ s.id }}" {% if s.id == default_id %}checked{% endif %} />
-        {{ s.name }}
+        <span data-i18n="skip">{{ s.name }}</span>
         <span class="type-chip type-{{ s.type }}">{{ tr({'stamp':'印章','signature':'簽名','logo':'Logo'}[s.type] or s.type) }}</span>
       </div>
       <div class="meta">{{ '%.0f'|format(s.preset.width_mm) }}×{{ '%.0f'|format(s.preset.height_mm) }}mm, Y={{ '%.0f'|format(s.preset.y_mm) }}</div>
