@@ -42,6 +42,16 @@ def test_selected_text_has_matching_number_and_strong_highlight():
     assert "list.scrollTop=0" in TEMPLATE
 
 
+def test_clean_page_preview_hides_ocr_overlays_in_a_dialog():
+    assert 'id="cleanPreviewDialog"' in TEMPLATE
+    assert 'id="piteCleanPreview"' in TEMPLATE
+    assert "function openCleanPreview(card,img)" in TEMPLATE
+    assert "previewUrls.get(img.index)||img.preview_url" in TEMPLATE
+    assert "showModal()" in TEMPLATE
+    assert 'id="cleanZoomIn"' in TEMPLATE
+    assert 'id="cleanFit"' in TEMPLATE
+
+
 def test_each_fragment_supports_font_size_color_and_bold():
     assert "async function loadFonts()" in TEMPLATE
     assert 'class="font"' in TEMPLATE
