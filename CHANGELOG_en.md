@@ -11,6 +11,55 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.50] - 2026-09-16
+
+### Memory admission now books what it just dispatched (audit F06)
+
+The dispatch loop can start several jobs in one pass, and each one reads the
+**current** free memory — but the one before it **has not allocated yet**, so
+the second sees a stale number and both are admitted. At the default
+concurrency of 2 that is one extra job (800 MB); an administrator who raises it
+to 4–6 is off by 2.4–4 GB, which is exactly the OOM budget.
+
+A dispatched job now holds a reservation for its estimate, and the reservation
+**expires after a settle window (30 s)** — by then its real memory shows up in
+the free-memory reading, and counting both would be double counting.
+
+> **"Skip the check when nothing is running" stays as it was**: that is a
+> deliberate trade-off (otherwise the queue never unblocks when memory is
+> tight), and the code already says so. This only adds the half that was
+> missing.
+
+### It now says so when you run it with multiple workers (audit F11)
+
+`OPS.md` has always said not to, but **nothing enforced it** — and the symptoms
+(the same job dispatched several times, running jobs turning into "interrupted")
+look nothing like a configuration problem.
+
+Startup now logs an ERROR saying **how it worked that out** and **what will go
+wrong**. It logs and continues: refusing to start would be worse than the
+problem.
+
+> The test was derived from uvicorn's source (it spawns workers with
+> `multiprocessing.get_context("spawn")`, so a worker's `parent_process()` is
+> not `None`), not guessed. `WEB_CONCURRENCY` is checked too.
+
+### Other
+
+* No source file may contain an invalid escape sequence. Python 3.12 only warns;
+  **3.14 makes it a `SyntaxError`**, which would break collection for the whole
+  suite. Both real cases were inside explanatory docstrings.
+* The two installer guards now share one rule for which languages may
+  legitimately contain Han characters.
+* The per-page i18n scan gained `--reveal`: it expands panels and sections that
+  are **already in the DOM but not displayed** before scanning, covering the
+  "you have to open it first" category. Measured: English and Japanese, 82
+  pages each, **zero** extra findings. **Nodes created at runtime** (a dialog
+  that only exists once you click) are still outside what it can see.
+* One label mapping to several canonical keys is **intentional** — Taiwanese
+  forms often have one cell covering two things — and now has a guard. I very
+  nearly "fixed" it as a defect.
+
 ## [1.15.49] - 2026-09-15
 
 ### A red frame along all four edges of the corrected page (customer report)

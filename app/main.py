@@ -21,7 +21,7 @@ from .core.job_manager import job_manager
 from .logging_setup import get_logger, setup_logging
 from .tool_registry import discover_tools, mount_tools
 
-VERSION = "1.15.49"
+VERSION = "1.15.50"
 
 setup_logging("DEBUG" if settings.debug else "INFO")
 logger = get_logger(__name__)
@@ -2111,6 +2111,9 @@ async def _startup():
     import asyncio
     logger.info("%s starting on %s:%s", settings.app_name, settings.host, settings.port)
     logger.info("Loaded %d tool(s): %s", len(tools), [t.metadata.id for t in tools])
+    # **只能單一 Web 行程**（稽核 F11）—— 只記錄不阻止，理由見那個模組。
+    from .core.single_process import warn_if_multi_worker
+    warn_if_multi_worker()
     # Initialise auth + audit DBs (idempotent; applies pending migrations).
     # We do this even when auth is disabled so that turning auth on later
     # has the schema ready.

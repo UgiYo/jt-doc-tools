@@ -56,6 +56,10 @@ ALLOW_SUBSTR = (
     "Jason Tools 文件工具箱",   # 品牌名
     "繁體中文",                 # 語言切換選項本身
     "文件工具箱",
+    # **語言的自稱**：語言選單與「文件語言」下拉一律用該語言自己的寫法
+    #（英文使用者看到「Japanese」也不知道那是不是他要的；日文使用者看得懂
+    # 「日本語」）。`ui_locale.LOCALE_NAMES` 是唯一來源 —— 翻掉才是錯的。
+    "日本語",
 )
 # 這些整串都是資料不是介面（字型名、範例統編資料）
 ALLOW_EXACT = {"繁", "中", "字 Ag 1", "Ag 1"}
@@ -170,8 +174,37 @@ def _keep(t: str, locale: str, keys: set[str]) -> bool:
     return True
 
 
+
+#: 掃之前先把「藏起來的」攤開。
+#:
+#: TEST_PLAN §0.6 記著：瀏覽器逐頁掃**看不到**對話框、要點開的面板、
+#: 有資料才出現的表格、送出後的結果區 —— 而使用者一眼就看到
+#: （2026-09-05 被使用者連續截了十幾張圖打臉）。
+#:
+#: 這一段把 DOM 裡**已經存在但沒顯示**的那些攤開來，補上其中一大類。
+#: 執行期才建出來的節點（真的按下去才生成的對話框）仍然掃不到 ——
+#: **這個方法也有它看不到的東西，不要當成「翻完了」的證明。**
+#:
+#: 刻意**不改變任何狀態**：只動 `hidden` / `display` / `open`，不送出表單、
+#: 不點按鈕 —— 掃描器不可以在被掃的實例上留下資料。
+_REVEAL_JS = """(() => {
+  let n = 0;
+  document.querySelectorAll('[hidden]').forEach(el => {
+    el.toggleAttribute('hidden', false); n++;
+  });
+  document.querySelectorAll('details:not([open])').forEach(el => {
+    el.open = true; n++;
+  });
+  document.querySelectorAll('*').forEach(el => {
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none') { el.style.setProperty('display', 'block', 'important'); n++; }
+    else if (cs.visibility === 'hidden') { el.style.setProperty('visibility', 'visible', 'important'); n++; }
+  });
+  return n;
+})()"""
+
 async def _scan(base: str, cdp_port: int, paths: list[str],
-                locale: str) -> dict:
+                locale: str, reveal: bool = False) -> dict:
     import httpx
     import websockets
 
@@ -221,6 +254,10 @@ async def _scan(base: str, cdp_port: int, paths: list[str],
             for path in paths:
                 await cmd("Page.navigate", {"url": base + path})
                 await asyncio.sleep(1.7)
+                if reveal:
+                    await cmd("Runtime.evaluate",
+                              {"expression": _REVEAL_JS, "returnByValue": True})
+                    await asyncio.sleep(0.4)     # 攤開之後版面會重排
                 r = await cmd("Runtime.evaluate",
                               {"expression": JS, "returnByValue": True})
                 try:
@@ -245,11 +282,15 @@ def main() -> int:
     ap.add_argument("--locale", default="en", choices=langs)
     ap.add_argument("--base", default="http://127.0.0.1:8799")
     ap.add_argument("--cdp-port", type=int, default=9412)
+    ap.add_argument("--reveal", action="store_true",
+                    help="掃之前先把藏起來的面板 / 區塊攤開（會有較多誤報，"
+                         "結果要逐條看過）")
     args = ap.parse_args()
 
     paths = [p for p in _pages(args.base) if _is_html(args.base, p)]
     print(f"掃 {len(paths)} 頁（語言 {args.locale}）…")
-    report = asyncio.run(_scan(args.base, args.cdp_port, paths, args.locale))
+    report = asyncio.run(_scan(args.base, args.cdp_port, paths,
+                               args.locale, reveal=args.reveal))
     out = REPO / "temp" / "i18n-scan" / time.strftime("%Y%m%d-%H%M%S")
     out.mkdir(parents=True, exist_ok=True)
     (out / "report.json").write_text(

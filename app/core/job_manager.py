@@ -191,6 +191,12 @@ class JobManager:
         self._fns: dict[str, Callable[[Job], None]] = {}
         self._pending: deque[str] = deque()
         self._running: set[str] = set()
+        #: 已派送、但記憶體**還沒反映在 RSS 上**的工作 —— `jid: (MB, 派送時間)`。
+        #:
+        #: 沒有這一本帳的話，同一輪 `_dispatch()` 連派兩件時，第二件看到的
+        #: 可用記憶體是**第一件還沒配記憶體之前**的數字 —— 兩件都會被放行。
+        #: 預設併行 2 時最多多算一件（800 MB）；管理員調到 4~6 就是 2.4~4 GB。
+        self._reserved: dict[str, tuple[int, float]] = {}
         self._subprocs: dict[str, set[int]] = {}
         self._lock = threading.RLock()
         self._max_concurrent = max(1, int(workers))
@@ -452,13 +458,15 @@ class JobManager:
                 if job is None or job.cancelled:
                     self._pending.popleft()
                     continue
-                if self._running and not _ram_allows_start(job.tool_id):
+                if self._running and not _ram_allows_start(
+                        job.tool_id, self._reserved_mb()):
                     # 記憶體不足 → 留在佇列裡等，不硬開。busy==0 時不做這個判斷，
                     # 否則沒有任何工作在跑時佇列會永遠解不開。
                     hold = True
                     break
                 self._pending.popleft()
                 self._running.add(jid)
+                self._reserve(jid, job.tool_id)
                 to_start.append(jid)
             self._held_for_ram = hold
         for jid in to_start:
@@ -559,12 +567,38 @@ class JobManager:
         """
         self._fns.pop(job_id, None)
         self._subprocs.pop(job_id, None)
+        self._reserved.pop(job_id, None)
         if drop_row:
             self._jobs.pop(job_id, None)
+
+    #: 預留多久之後就不再算（秒）。
+    #:
+    #: 過了這段時間，工作實際配到的記憶體已經反映在 `available_mb()` 上，
+    #: 再把預留算進去就是**重複計算**，會比需要的更保守。
+    #:
+    #: **這是保守值不是量出來的** —— 一件工作要多久把記憶體配完，跟檔案大小
+    #: 與工具有關，沒有單一答案。代價只有「這 30 秒內我們比實際更保守」，
+    #: 不會漏放。
+    _RESERVE_SETTLE_S = 30.0
+
+    def _reserve(self, job_id: str, tool_id: str) -> None:
+        """記一筆預留。**呼叫端要持有 `self._lock`。**"""
+        from . import concurrency_settings as cs
+        self._reserved[job_id] = (cs.estimated_job_mb(tool_id), time.time())
+
+    def _reserved_mb(self) -> int:
+        """目前還算數的預留總量。**呼叫端要持有 `self._lock`。**"""
+        now = time.time()
+        stale = [k for k, (_mb, ts) in self._reserved.items()
+                 if now - ts >= self._RESERVE_SETTLE_S]
+        for k in stale:
+            self._reserved.pop(k, None)
+        return sum(mb for mb, _ts in self._reserved.values())
 
     def _finish_slot(self, job_id: str) -> None:
         with self._lock:
             self._running.discard(job_id)
+            self._reserved.pop(job_id, None)
         self._trim_memory()
         self._dispatch()
 
@@ -689,18 +723,21 @@ class JobManager:
 
 # ---------- 記憶體准入判斷 ----------
 
-def _ram_allows_start(tool_id: str) -> bool:
+def _ram_allows_start(tool_id: str, reserved_mb: int = 0) -> bool:
     """再開一個這種工作，記憶體撐得住嗎？
 
     估算值刻意保守：轉檔類（會起 soffice）抓較高，其餘抓較低。取不到記憶體資訊
     時回 True —— 寧可讓它跑，也不要因為讀不到數字就整個服務停擺。
+
+    `reserved_mb` 是**已經派出去、但還沒反映在可用記憶體上**的量。
+    沒有它的話，同一輪派送裡的第二件會拿到過時的數字（見 `_reserved`）。
     """
     from . import concurrency_settings as cs
     need_mb = cs.estimated_job_mb(tool_id)
     avail_mb = cs.available_mb()
     if avail_mb is None:
         return True
-    return avail_mb - need_mb >= cs.reserve_mb()
+    return avail_mb - reserved_mb - need_mb >= cs.reserve_mb()
 
 
 job_manager = JobManager()

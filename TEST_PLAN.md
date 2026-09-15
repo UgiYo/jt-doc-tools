@@ -177,8 +177,18 @@ JTDT_DATA_DIR=$(mktemp -d) JTDT_CSRF_DISABLE=1 \
 
 - [ ] **每一個非中文語言各跑一次**都回報 **0 條**
       （語言清單以 `app/core/ui_locale.SUPPORTED` 為準，不要只跑英文）
-- [ ] **知道它的極限**：只涵蓋「頁面載入後的靜止狀態」。對話框、要點開的面板、
-      有資料才出現的表格、送出後的結果區**都不在裡面**。
+- [ ] **要點開的面板另外跑一輪**（v1.15.50 加的 `--reveal`）：
+
+          python tools/i18n_untranslated_scan.py --locale en --reveal --base …
+          python tools/i18n_untranslated_scan.py --locale ja --reveal --base …
+
+      掃之前先把**已經在 DOM 裡但沒顯示**的東西攤開（`[hidden]`、`details`、
+      `display:none`、`visibility:hidden`）。實測英文 / 日文各 82 頁，
+      攤開之後多出來的殘留是 **0 條**。
+      **它刻意不改變任何狀態** —— 只動顯示屬性，不送出表單、不點按鈕。
+- [ ] **知道它的極限**：涵蓋不到**執行期才建出來的節點** —— 真的按下去才生成的
+      對話框、送出後的結果區、有資料才出現的表格**都不在裡面**。
+      這幾格只能靠下面的③。
 - [ ] **日文的判準跟英文不一樣**：英文頁「有漢字」就是沒翻，日文頁漢字是正常的。
       日文看兩個訊號 ——「這串字剛好是語系檔的鍵**而且譯文不一樣**」（確定的 bug）、
       以及「含有現代日文不會用的中文詞」（啟發式）。
@@ -518,7 +528,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 
 <!-- BEGIN test-index (由 tools/build_test_plan_index.py 產生，不要手改) -->
 
-共 **280 支測試檔**。說明取自每支檔案自己的開頭說明，
+共 **283 支測試檔**。說明取自每支檔案自己的開頭說明，
 跑 `python tools/build_test_plan_index.py` 重建。
 
 > 這裡**刻意不列函式數** —— 那個數字每加一條測試就會變，
@@ -638,6 +648,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_installer_product_name.py` | Windows 安裝程式的產品名稱多語系 + Linux 服務的安全強化（第 1 批，v1.15.31） |
 | `test_installer_silent_mode.py` | 安裝程式在**無介面模式**下不可以停下來等人按對話框 |
 | `test_job_acl.py` | Regression tests for the /api/jobs/* per-job ownership ACL (v1.12.61). |
+| `test_job_admission_reserve.py` | 記憶體准入：**已派送但還沒反映在 RSS 上的量要先記帳**（稽核 F06） |
 | `test_job_api_acl.py` | 「我的工作」/ 管理區工作監控的 API 與權限邊界 |
 | `test_job_autosave.py` | 作業完成後自動存入工作區 |
 | `test_job_cancel.py` | Tests for job cancellation (停止轉換). |
@@ -676,6 +687,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_office_convert.py` | 辦公文件格式互轉（office-convert） |
 | `test_office_convert_output_first.py` | soffice 的離開碼不可靠 —— 判準是「有沒有拿到可用的檔案」 |
 | `test_office_source_validation.py` | 辦公文件的**來源檔**壞掉時，要在送進 soffice 之前就擋下來 |
+| `test_one_label_can_map_to_several_keys.py` | 一個標籤對應到**多個** canonical key 是刻意支援的，不要「修掉」 |
 | `test_one_shared_lightbox.py` | 放大檢視（lightbox）只留一份共用實作 |
 | `test_online_sessions.py` | 在線人數、某人的登入裝置清單、強制登出 |
 | `test_open_redirect.py` | Open-redirect regression — closes CodeQL alerts #14 / #15 |
@@ -751,6 +763,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_settings_export_roundtrip.py` | 設定備份：**匯出的檔案要匯得回去** |
 | `test_sidebar_active_match.py` | 側欄「使用中」只能標一支 —— 判準是整段路徑，不是前綴 |
 | `test_signpath_notes_are_private.py` | SignPath 的往來筆記不可以出現在公開版（v1.15.27） |
+| `test_single_web_process.py` | 這個服務只能用**單一 Web 行程**跑，被開成多 worker 時要講出來（稽核 F11） |
 | `test_smoke_routes.py` | Smoke tests: every public page renders 200, no 500s. |
 | `test_smtp_relay_modes.py` | 通知信的三種寄送方式 |
 | `test_sso.py` | Tests for the SSO feature (OIDC + SAML): settings encryption, JIT |
