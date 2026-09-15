@@ -70,6 +70,23 @@ Python ssl 接到 OS 原生信任庫。企業 CA 既然已在 OS 信任庫（`ap
 sudo update-ca-certificates`；Windows 匯入「受信任的根憑證授權單位」；macOS 加入鑰匙圈並信任）。
 真的不便處理時，最後手段 `sudo JTDT_TLS_INSECURE=1 jtdt update`（停用驗證，有 MITM 風險，僅信任內網用）。
 
+### Docker image 連線使用私有 CA 的內網服務
+
+外網建置的 image 不應直接包入公司 CA。將公司根憑證／中繼憑證組成 PEM chain，
+在內網啟動時唯讀掛載並設定 `JTDT_EXTRA_CA_CERTS`：
+
+```bash
+docker run -d --name jt-doc-tools -p 8765:8765 \
+  -v jtdt-data:/data \
+  -v /opt/jtdt/certs/company-ca-chain.pem:/data/certs/company-ca-chain.pem:ro \
+  -e JTDT_EXTRA_CA_CERTS=/data/certs/company-ca-chain.pem \
+  --restart unless-stopped jt-doc-tools:easyocr-offline
+```
+
+Container 啟動時會把額外 CA 與系統 CA 合併，並同步設定 Python/httpx、Requests
+及 curl 使用的 CA bundle。這不需要 root 權限，也不需要在內網重建 image。若有多個
+CA 檔案，以冒號分隔 `JTDT_EXTRA_CA_CERTS` 的路徑。CA 輪替後只需換檔並重啟。
+
 ## ⚠ 不建議直接對「公開網際網路」開放
 
 > **首選部署方式：只在內網 / VPN 使用，不要把服務放到公開網際網路上。**

@@ -29,6 +29,11 @@ services:
     environment:
       # 反向代理後面才需要；直接對外時維持預設即可
       # - JTDT_HOST=0.0.0.0
+      # 企業內網 LiteLLM 使用私有 CA 時，掛載 PEM 憑證鏈並取消下列註解：
+      # - JTDT_EXTRA_CA_CERTS=/data/certs/company-ca-chain.pem
       TZ: Asia/Taipei
+    # 企業 CA 不應包入外網建置的 image；在內網主機以唯讀方式掛載：
+    # volumes 上方已掛載 jtdt-data，若需獨立檔案可再加入：
+    #   - /opt/jtdt/certs/company-ca-chain.pem:/data/certs/company-ca-chain.pem:ro
 volumes:
   jtdt-data:

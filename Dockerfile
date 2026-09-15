@@ -68,6 +68,7 @@ RUN mkdir -p app && touch app/__init__.py \
     && uv cache clean
 
 COPY . /app
+RUN chmod 0755 /app/docker-entrypoint.sh
 # 預設把 torch / torchvision / easyocr 整組排除 —— 連帶 nvidia-* 與 triton 都
 # 不會被裝（`uv sync --dry-run` 實測：排除這三個之後，輸出裡 nvidia/cuda/triton
 # 的行數是 0）。**這是「根本不裝」而不是「裝了再刪」** —— 後者在 Docker 分層
@@ -121,5 +122,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
     CMD ["/app/.venv/bin/python", "-c", \
          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8765/healthz', timeout=3).status==200 else 1)"]
 
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["/app/.venv/bin/python", "-m", "uvicorn", "app.main:app", \
      "--host", "0.0.0.0", "--port", "8765"]

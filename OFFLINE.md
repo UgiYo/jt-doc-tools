@@ -129,6 +129,27 @@ sudo -E bash install.sh                # -E 保留上面這些環境變數
 > 企業 TLS 檢查（代理換憑證）不必特別處理 —— 安裝腳本預設就已經
 > `UV_NATIVE_TLS=true`（改用作業系統信任庫），程式本身的 `net_ssl` 也是同一套。
 
+### Container 連線內網 LiteLLM（企業／私有 CA）
+
+外網建置的 image 不會包含公司內部 CA。請在內網主機準備 PEM 格式的根憑證與
+中繼憑證鏈，於啟動時唯讀掛載；entrypoint 會把它與 Debian 系統 CA 合併，因此
+內網 LiteLLM 與一般公開 HTTPS 都能繼續正常驗證：
+
+```bash
+docker run -d --name jt-doc-tools \
+  -p 8765:8765 \
+  -v jtdt-data:/data \
+  -v /opt/jtdt/certs/company-ca-chain.pem:/data/certs/company-ca-chain.pem:ro \
+  -e JTDT_EXTRA_CA_CERTS=/data/certs/company-ca-chain.pem \
+  --restart unless-stopped \
+  jt-doc-tools:easyocr-offline
+```
+
+`JTDT_EXTRA_CA_CERTS` 可用冒號指定多個檔案，例如
+`/data/certs/root.pem:/data/certs/intermediate.pem`。更換 CA 後重啟 container 即可，
+不必重新建置 image。請勿把公司 CA 或私鑰提交到 Git；也不要使用
+`JTDT_TLS_INSECURE=1` 當成正式解法，該設定會停用 TLS 憑證驗證。
+
 ### B-3. 之後的更新
 
 ```bash
