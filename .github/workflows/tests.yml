@@ -1,4 +1,5 @@
 # 每次 push / PR 跑測試。
+# CI trigger note: feature branches are intentionally validated on every push.
 #
 # * core —— 不需要 LibreOffice / OCR 模型的部分，每次 push 都跑。
 # * raster-editor —— 圖片文字編輯 / PPT 圖片文字編輯共用 raster pipeline 的回歸測試。
