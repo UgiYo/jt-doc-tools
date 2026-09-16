@@ -254,3 +254,41 @@ def test_page_image_rejects_a_bad_slot_or_page(client):
         resp = client.get(bad)
         assert resp.status_code in (400, 404, 410), (bad, resp.status_code)
         assert resp.status_code < 500, f"{bad} 回了 {resp.status_code}（5xx 是伺服器壞了）"
+
+
+def test_an_inserted_page_does_not_make_everything_after_it_different(client):
+    """**端到端**：插一頁之後，回報的差異只能是那一頁。
+
+    依索引配對時實測 20 頁的文件插一頁 → 19 頁被判成「整頁刪掉 ＋ 整頁新增」，
+    使用者看到的是「整份都改了」。
+    """
+    pages = ["page one alpha", "page two beta", "page three gamma",
+             "page four delta"]
+
+    def _multi(texts: list[str]) -> bytes:
+        doc = fitz.open()
+        for s in texts:
+            doc.new_page(width=595, height=842).insert_text(
+                (50, 80), s, fontsize=12, fontname="helv")
+        out = io.BytesIO(); doc.save(out); doc.close()
+        return out.getvalue()
+
+    a = _multi(pages)
+    b = _multi(pages[:1] + ["INSERTED"] + pages[1:])
+    r = client.post("/tools/doc-diff/compare", files={
+        "file_a": ("a.pdf", a, "application/pdf"),
+        "file_b": ("b.pdf", b, "application/pdf")})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    rows = body["pages"]
+    changed = [p for p in rows
+               if p["diff"]["added"] + p["diff"]["removed"] + p["diff"]["changed"]]
+    assert len(changed) == 1, (
+        f"只插了一頁，卻有 {len(changed)} 頁被判成有差異："
+        f"{[(p['index'], p['a_page'], p['b_page']) for p in changed]}")
+    only = changed[0]
+    assert only["a_page"] is None and only["b_page"] == 2, only
+    # 後面那幾頁的頁碼要錯開（舊 2 對新 3…），而且都判成沒有差異
+    tail = [p for p in rows if p["a_page"] and p["b_page"]]
+    assert all(p["b_page"] == p["a_page"] + 1 for p in tail[1:]), \
+        [(p["a_page"], p["b_page"]) for p in tail]

@@ -160,3 +160,45 @@ def test_the_text_diff_itself_is_unchanged_by_the_coordinate_work():
     assert [r["text"] for r in d["b"]] == b
     assert [r["tag"] for r in d["a"]] == ["equal", "replace", "equal"]
     assert d["changed"] == 1 and d["added"] == 0 and d["removed"] == 0
+
+
+# --------------------------------------------------------------------------
+# 頁面配對（v1.15.58）：插一頁不可以讓後面每一頁都變成「整頁不同」
+# --------------------------------------------------------------------------
+
+def _pages(lines_per_page: list[list[str]]) -> list[list[str]]:
+    return lines_per_page
+
+
+def test_inserting_a_page_only_reports_that_page():
+    """**依索引配對時實測 20 頁的文件插一頁 → 19 頁被判成整頁不同。**
+
+    使用者看到的是「整份都改了」，而實際上只多了一頁。
+    """
+    a = [["第 %d 頁的內容" % i, "同樣的第二行"] for i in range(1, 9)]
+    b = a[:2] + [["插進來的新頁"]] + a[2:]
+    pairs = R._pair_pages(a, b)
+    paired = [(x, y) for x, y in pairs if x is not None and y is not None]
+    assert len(paired) == len(a), f"只配對到 {len(paired)} 頁，應該是 {len(a)} 頁"
+    added = [y for x, y in pairs if x is None]
+    assert added == [2], f"新增的應該只有第 3 頁（索引 2），實際 {added}"
+
+
+def test_deleting_a_page_only_reports_that_page():
+    a = [["第 %d 頁" % i] for i in range(1, 7)]
+    b = a[:3] + a[4:]
+    pairs = R._pair_pages(a, b)
+    removed = [x for x, y in pairs if y is None]
+    assert removed == [3], f"刪掉的應該只有索引 3，實際 {removed}"
+
+
+def test_a_changed_page_still_pairs_up():
+    """改過的頁面夾在沒改的頁面之間 —— 靠錨點就對得上，不需要模糊相似度。"""
+    a = [["第一頁"], ["原本的第二頁"], ["第三頁"]]
+    b = [["第一頁"], ["改過的第二頁"], ["第三頁"]]
+    assert R._pair_pages(a, b) == [(0, 0), (1, 1), (2, 2)]
+
+
+def test_identical_documents_pair_one_to_one():
+    a = [["a"], ["b"], ["c"]]
+    assert R._pair_pages(a, list(a)) == [(0, 0), (1, 1), (2, 2)]

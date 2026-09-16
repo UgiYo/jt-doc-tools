@@ -543,7 +543,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 
 <!-- BEGIN test-index (由 tools/build_test_plan_index.py 產生，不要手改) -->
 
-共 **293 支測試檔**。說明取自每支檔案自己的開頭說明，
+共 **294 支測試檔**。說明取自每支檔案自己的開頭說明，
 跑 `python tools/build_test_plan_index.py` 重建。
 
 > 這裡**刻意不列函式數** —— 那個數字每加一條測試就會變，
@@ -682,6 +682,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_latin_ext_garbled_recovery.py` | 擷取結果被映到拉丁擴充區、而且每個 span 都很短 —— 舊的判準抓不到 |
 | `test_ldap_attribute_portability.py` | LDAP 查詢的屬性清單不可以夾帶 AD 專屬屬性 |
 | `test_ldap_failover.py` | 多台 DC 容錯與連線逾時 |
+| `test_learn_synonym_reports_existing_mappings.py` | 按「學起來」時要**把後果講出來** |
 | `test_license_declaration.py` | 本專案宣告的授權必須處處一致（v1.14.48 起改為 AGPL-3.0-or-later） |
 | `test_llm_per_field_consensus.py` | LLM 逐欄校驗：連兩輪都指出同一個問題才採納 |
 | `test_llm_stream_deadline.py` | 串流回應要有**整次生成的上限**，不是只有每個 chunk |

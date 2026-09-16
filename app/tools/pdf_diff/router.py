@@ -204,6 +204,44 @@ def _page_boxes(doc: "fitz.Document",
     return out
 
 
+def _pair_pages(a_pages: list[list[str]],
+                b_pages: list[list[str]]) -> list[tuple[int | None, int | None]]:
+    """把兩邊的頁面配對起來，回 `[(舊版頁索引, 新版頁索引)]`（0 起算，可能是 `None`）。
+
+    ## 為什麼不能依索引配
+
+    原本是 `for i in range(max(頁數))` 硬配 —— **插一頁之後，後面每一頁都會被
+    判成整頁不同**。實測 20 頁的文件在第 3 頁插一頁：依索引只有 **2 / 21 頁**
+    對得上，其餘 19 頁全部變成「整頁刪掉 ＋ 整頁新增」。使用者看到的是「整份
+    都改了」，而實際上只多了一頁。
+
+    ## 做法
+
+    跟行的比對**同一個結構，只是高一層**：用 `difflib` 對「每頁的文字」做
+    序列比對，`equal` 的直接 1:1 配起來（那是錨點），`replace` 的段落內再依
+    位置配、長度不同的一邊補 `None`。
+
+    **不需要模糊相似度** —— 沒改的頁面本來就逐字相同，拿它們當錨點就夠了；
+    改過的頁面夾在錨點之間，位置自然對得上。加相似度只會多一個要調的門檻。
+    """
+    a_keys = ["\n".join(x) for x in a_pages]
+    b_keys = ["\n".join(x) for x in b_pages]
+    pairs: list[tuple[int | None, int | None]] = []
+    sm = difflib.SequenceMatcher(None, a_keys, b_keys, autojunk=False)
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        if tag == "equal":
+            pairs += [(i1 + k, j1 + k) for k in range(i2 - i1)]
+        elif tag == "delete":
+            pairs += [(k, None) for k in range(i1, i2)]
+        elif tag == "insert":
+            pairs += [(None, k) for k in range(j1, j2)]
+        else:                                    # replace：段落內依位置配
+            for k in range(max(i2 - i1, j2 - j1)):
+                pairs.append((i1 + k if k < i2 - i1 else None,
+                              j1 + k if k < j2 - j1 else None))
+    return pairs
+
+
 def _page_marks(rows: list[dict], boxes: list | None,
                 page_rect) -> list[dict]:
     """把一頁的差異列換成**頁面上的框**（0~1 的比例）。
@@ -382,37 +420,41 @@ async def compare(
                                        dict(db.metadata or {}))
             a_page_count = da.page_count
             b_page_count = db.page_count
-        page_count = max(a_page_count, b_page_count)
         pages_out = []
         totals = {
             "added": 0, "removed": 0, "changed": 0,
             "chars_added": 0, "chars_removed": 0, "chars_changed": 0,
             "chars_a": 0, "chars_b": 0,
         }
-        for i in range(page_count):
-            ap = a_pages[i] if i < a_page_count else []
-            bp = b_pages[i] if i < b_page_count else []
+        for row, (ai, bi) in enumerate(_pair_pages(a_pages, b_pages)):
+            ap = a_pages[ai] if ai is not None else []
+            bp = b_pages[bi] if bi is not None else []
             d = _diff_pages(ap, bp)
             for k in totals:
                 totals[k] += d.get(k, 0)
             pages_out.append({
-                "index": i + 1,
-                "a_exists": i < a_page_count,
-                "b_exists": i < b_page_count,
+                "index": row + 1,
+                # **`a_page` / `b_page` 是真正的頁碼**（1 起算，可能 null）——
+                # 插過頁之後兩邊的頁碼會錯開，前端抓頁面圖要用這個，
+                # 不可以用 `index`（那只是畫面上第幾列）。
+                "a_page": (ai + 1) if ai is not None else None,
+                "b_page": (bi + 1) if bi is not None else None,
+                "a_exists": ai is not None,
+                "b_exists": bi is not None,
                 "diff": d,
                 "marks": {
                     "a": _page_marks(d["a"],
-                                     a_boxes[i] if i < a_page_count else None,
-                                     a_rects[i] if i < a_page_count else None),
+                                     a_boxes[ai] if ai is not None else None,
+                                     a_rects[ai] if ai is not None else None),
                     "b": _page_marks(d["b"],
-                                     b_boxes[i] if i < b_page_count else None,
-                                     b_rects[i] if i < b_page_count else None),
+                                     b_boxes[bi] if bi is not None else None,
+                                     b_rects[bi] if bi is not None else None),
                 },
                 "size": {
-                    "a": ([round(a_rects[i].width, 2), round(a_rects[i].height, 2)]
-                          if i < a_page_count else None),
-                    "b": ([round(b_rects[i].width, 2), round(b_rects[i].height, 2)]
-                          if i < b_page_count else None),
+                    "a": ([round(a_rects[ai].width, 2), round(a_rects[ai].height, 2)]
+                          if ai is not None else None),
+                    "b": ([round(b_rects[bi].width, 2), round(b_rects[bi].height, 2)]
+                          if bi is not None else None),
                 },
             })
         return a_page_count, b_page_count, pages_out, totals, meta_diff

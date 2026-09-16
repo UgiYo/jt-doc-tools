@@ -11,6 +11,41 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.58] - 2026-09-16
+
+### ⚠⚠ Document diff: inserting one page made every page after it look different
+
+Pages were paired **by index** — old page N against new page N. Measured on a
+20-page document with one page inserted at position 3: **only 2 of 21 pages
+paired up, the other 19 became "whole page removed plus whole page added"**.
+The user sees "the entire document changed" when in fact one page was added.
+
+Pairing now uses **the same structure as the line diff, one level up**: a
+sequence comparison anchors the unchanged pages one to one, and changed pages
+sitting between anchors line up by position. The same document now reports only
+the inserted page.
+
+> **No fuzzy similarity is needed** — unchanged pages are byte-identical, so
+> they make perfectly good anchors. A similarity score would only add a
+> threshold to tune.
+
+> After an insert the two page numbers drift apart, so the heading now says so
+> ("old page 4 ↔ new page 5"), and the page view fetches images by the **real**
+> page number rather than the row number.
+
+### Teaching a field name now tells you what else that name maps to
+
+The "learn this" button in the form filler writes into the **site-wide** field
+name map. It used to just say "learned", so the user had no idea what they had
+affected.
+
+> **It was not changed into "refuse on conflict".** Reading how the lookup index
+> is built showed the premise was wrong: **one label mapping to several fields is
+> deliberate**. Taiwanese forms often have a single cell covering two things at
+> once, so two fields each tick their own options from it. Refusing would
+> silently break ticking on those forms **and no test would go red**. So the
+> consequence is reported, not blocked.
+
 ## [1.15.57] - 2026-09-16
 
 ### Japanese de-identification gained driver's licence and health insurance numbers

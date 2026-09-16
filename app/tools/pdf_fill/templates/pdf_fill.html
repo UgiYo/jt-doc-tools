@@ -1169,6 +1169,15 @@ document.addEventListener('click', async (e) => {
       btn.textContent = tr('✓ 已學會');
       btn.disabled = true;
       document.getElementById('rerunBtn').hidden = false;
+      // **把後果講出來**：這份對照表是全站共用的，而且一個標籤同時對應到
+      // 多個欄位是刻意支援的（台灣的表單常有一格管兩件事）。不擋，但要說。
+      let info = {};
+      try { info = await res.json(); } catch (err) { info = {}; }
+      const also = info.also_maps_to || [];
+      if (also.length && window.showToast) {
+        window.showToast(tr('這個欄位名稱在全站的對照表裡同時也對應到：{0}')
+          .replace('{0}', also.join('、')));
+      }
     }
   }
   if (e.target.id === 'rerunBtn') {

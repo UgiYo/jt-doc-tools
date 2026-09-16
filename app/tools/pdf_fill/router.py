@@ -654,8 +654,12 @@ async def learn_synonym(request: Request):
     label = (body.get("label") or "").strip()
     if not key or not label:
         raise HTTPException(400, "key and label required")
+    # **把後果講出來**：這是**全站共用**的對照表，而且一個標籤對應到多個
+    # canonical key 是刻意支援的（台灣的表單常有一格同時管兩件事）——
+    # 所以不擋，但要讓按下去的人知道這個標籤已經對應到誰了。
+    also = [k for k in synonym_manager.keys_for(label) if k != key]
     changed = synonym_manager.add_synonym(key, label)
-    return {"ok": True, "changed": changed}
+    return {"ok": True, "changed": changed, "also_maps_to": also}
 
 
 @router.post("/submit")

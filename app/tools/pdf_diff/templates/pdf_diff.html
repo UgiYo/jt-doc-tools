@@ -240,6 +240,16 @@ function renderLlm(llm) {
   }
 }
 
+// 兩邊的頁碼在插過頁之後會錯開 —— **標題要講出來**，
+// 不然使用者對照不到自己手上的檔案是第幾頁。
+function pageLabel(p) {
+  if (!p.a_exists) return tr('新版第 {0} 頁（新增）').replace('{0}', p.b_page);
+  if (!p.b_exists) return tr('舊版第 {0} 頁（刪除）').replace('{0}', p.a_page);
+  if (p.a_page === p.b_page) return tr('第 {0} 頁').replace('{0}', p.a_page);
+  return tr('舊版第 {0} 頁 ↔ 新版第 {1} 頁')
+    .replace('{0}', p.a_page).replace('{1}', p.b_page);
+}
+
 function renderResult(d) {
   renderLlm(d.llm);
   const t = d.totals || {};
@@ -298,7 +308,7 @@ function renderResult(d) {
     const nChanges = p.diff.added + p.diff.removed + p.diff.changed;
     return `<div class="df-page">
       <div class="df-page-head">
-        <span>第 ${p.index} 頁 ${p.a_exists ? '' : tr('(新版才有)')} ${p.b_exists ? '' : tr('(舊版才有)')}</span>
+        <span>${esc(pageLabel(p))}</span>
         <span class="muted" data-s="s0c27a7ee">
           <span class="add">+${p.diff.added}</span>　·
           <span class="rem">-${p.diff.removed}</span>　·
@@ -361,9 +371,7 @@ function buildPageMode() {
     const head = document.createElement('div');
     head.className = 'dfp-head';
     const left = document.createElement('span');
-    left.textContent = tr('第 {0} 頁').replace('{0}', p.index)
-      + (p.a_exists ? '' : ' ' + tr('(新版才有)'))
-      + (p.b_exists ? '' : ' ' + tr('(舊版才有)'));
+    left.textContent = pageLabel(p);
     const right = document.createElement('span');
     right.textContent = nChanges === 0 ? tr('無差異')
       : `+${p.diff.added} · -${p.diff.removed} · ~${p.diff.changed}`;
@@ -409,8 +417,13 @@ function buildSide(uid, slot, p, marks) {
   }
   const img = document.createElement('img');
   img.loading = 'lazy';
-  img.alt = (slot === 'a' ? tr('舊版') : tr('新版')) + ' ' + tr('第 {0} 頁').replace('{0}', p.index);
-  img.src = `/tools/doc-diff/page-image/${encodeURIComponent(uid)}/${slot}/${p.index}`;
+  // **用真正的頁碼**（插過頁之後兩邊會錯開），不是畫面上第幾列。
+  // 這行要在 `img.alt` **之前** —— `const` 有暫時性死區，
+  // 放在後面會是 ReferenceError，而且整個頁面模式一張圖都畫不出來
+  // （本專案在 `tr` 被遮蔽那次踩過同一個家族：語法完全合法、沒有紅字）。
+  const pno = slot === 'a' ? (p.a_page || p.index) : (p.b_page || p.index);
+  img.alt = (slot === 'a' ? tr('舊版') : tr('新版')) + ' ' + tr('第 {0} 頁').replace('{0}', pno);
+  img.src = `/tools/doc-diff/page-image/${encodeURIComponent(uid)}/${slot}/${pno}`;
   side.append(img);
   marks.forEach(m => (m.rects || []).forEach(r => {
     const el = document.createElement('div');

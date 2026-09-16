@@ -110,6 +110,23 @@ class SynonymManager:
             self._write(data)
             return True
 
+    def keys_for(self, synonym: str) -> list[str]:
+        """這個標籤目前對應到哪些 canonical key。
+
+        **一個標籤對應多個 key 是刻意支援的** —— 台灣的表單常有一格同時管兩件
+        事（`發票聯數 & 種類` 同時屬於 發票種類 與 稅別），讓兩個欄位各自去勾
+        自己的選項。所以這裡**不是拿來擋的**，是拿來**把後果講出來**：
+        使用者按一次「學起來」會寫進**全站共用**的對照表，他該知道這個標籤
+        已經對應到誰了。
+        """
+        syn = (synonym or "").strip()
+        if not syn:
+            return []
+        with self._lock:
+            data = self._read()
+        return sorted(k for k, lst in (data.get("synonyms") or {}).items()
+                      if syn in (lst or []))
+
     def reset_to_defaults(self) -> None:
         """Overwrite the store with the module-level defaults (for debugging)."""
         from .pdf_form_detect import DEFAULT_LABEL_MAP
