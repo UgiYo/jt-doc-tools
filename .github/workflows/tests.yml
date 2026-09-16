@@ -1,37 +1,33 @@
 # 每次 push / PR 跑測試。
 #
-# **為什麼要有這一支**：外部評估（2026-09-05）指出測試不是合併與發版的門檻 ——
-# 專案有兩千多支測試，但 CI 上一支都沒跑，於是「clone 下來跑不起來」這種只有
-# 別人會踩到的問題，自己怎麼跑都看不到（那次實測 70 紅 / 32 error）。
-#
-# 刻意**分成兩段**：
-#
-# * `core` —— 不需要 LibreOffice / OCR 模型的部分，每次 push 都跑，幾分鐘。
-# * `office` —— 要裝 LibreOffice 與中日韓字型的轉檔測試，只在 PR 與每日跑。
-#
-# 缺系統相依時**要明確 skip 並寫原因**，不可以靜靜地當成通過。
+# * core —— 不需要 LibreOffice / OCR 模型的部分，每次 push 都跑。
+# * raster-editor —— 圖片文字編輯 / PPT 圖片文字編輯共用 raster pipeline 的回歸測試。
+# * office —— 要裝 LibreOffice 與中日韓字型，只在 PR、每日排程或手動完整執行時跑。
 name: tests
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'feature/**'
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_office:
+        description: '同時執行 LibreOffice / CJK 完整測試'
+        required: false
+        default: false
+        type: boolean
   schedule:
-    # 每日台北時間 09:00（01:00 UTC）跑一次完整的（含 office）。
-    # **GitHub 會延遲排程執行**（共用 runner 忙的時候實測晚了四個多小時），
-    # 所以收到失敗通知的時間跟這裡寫的對不起來是正常的 —— 要看 run 的
-    # `event` 欄位分辨是 push 還是 schedule 觸發的。
-    #
-    # 排程這一次的價值就在**時序跟 push 那次不一樣**：機器忙、寫入慢，
-    # 才會踩到 push 永遠踩不到的競態（v1.15.18 的作業時間點就是這樣抓到的）。
+    # 每日台北時間 09:00（01:00 UTC）。
     - cron: '0 1 * * *'
 
 permissions:
   contents: read
 
 concurrency:
-  group: tests-${{ github.ref }}
+  group: tests-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -44,10 +40,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      # **中日韓字型不是 Office 相依** —— 有十幾條測試在驗「中文真的畫得出來」
-      # （浮水印的字型退回、限用章的天頭、騎縫章的字寬、字形反查）。
-      # 沒有字型時它們會跳過，等於那一整片防護在 CI 上不存在。
-      # 裝一個 apt 套件就換回這些涵蓋，很划算（2026-09-06 一次紅了 10 條）。
       - name: 安裝中日韓字型
         run: |
           sudo apt-get update -qq
@@ -63,10 +55,6 @@ jobs:
         run: python tools/check_version_consistency.py
       - name: 文件與工具涵蓋
         run: python tools/check_docs_tool_coverage.py
-      # **失敗的測試名稱要寫成 annotation** —— job 的 log 需要 repo admin 權限
-      # 才讀得到，所以光看 "Process completed with exit code 1" 完全無從下手
-      # （2026-09-06 為了查兩次紅燈，只能在本機重建環境反推）。
-      # `::error::` 產生的 annotation 匿名就讀得到，通知信裡也看得見。
       - name: pytest（排除需要 Office / OCR 的）
         run: |
           set +e
@@ -81,6 +69,28 @@ jobs:
             done
           fi
           exit $code
+
+  raster-editor:
+    name: 圖片 / PPT 圖片編輯回歸測試
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 安裝 renderer 測試相依
+        run: |
+          python -m pip install --upgrade pip
+          pip install Pillow pytest
+      - name: 安裝 CJK 字型
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+      - name: 共用 raster renderer 回歸測試
+        run: pytest -q -p no:cacheprovider tests/test_raster_overlay_editor.py
+      - name: 前端共用編輯器 JavaScript 語法檢查
+        run: node --check static/js/raster_overlay_editor.js
 
   security:
     name: 資安測試
@@ -116,10 +126,6 @@ jobs:
             done
           fi
           exit $code
-      # `-ll` 是「Medium 以上」不是「只擋 HIGH」—— 名稱與旗標一度不一致。
-      # 這裡**刻意維持 Medium**：2026-09-06 第一次真的跑到這一步就掃出 10 個，
-      # 其中四個是用 stdlib ElementTree 解析**使用者上傳的 XML**（實體展開 DoS）。
-      # 門檻調低只會讓那種東西再也看不見。
       - name: bandit（Medium 以上、高信心）
         run: |
           set +e
@@ -135,7 +141,7 @@ jobs:
 
   office:
     name: 轉檔測試（LibreOffice + 中日韓字型）
-    if: github.event_name != 'push'
+    if: github.event_name == 'pull_request' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_office)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
