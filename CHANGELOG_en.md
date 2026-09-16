@@ -11,6 +11,70 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.56] - 2026-09-16
+
+### The document diff gained a page view that marks the changes on the page itself
+
+Until now there was only the text view: two columns of text showing *what*
+changed but not *where on the page* it changed. There is now a toggle:
+
+* **Text view** — exactly as before, untouched.
+* **Page view** — the original page rendered on both sides, with the
+  differences outlined in place. Red = removed, green = added, yellow = changed.
+
+Both views share the same comparison result, so switching costs nothing.
+Office files work too: they are already converted to PDF before comparing, so
+the page view shows the **converted** layout.
+
+> **The text comparison itself did not change.** Lines still come from
+> `get_text("text")`; coordinates are read separately from `rawdict` and matched
+> by "the Nth non-empty line". Across 30 real samples that matched on
+> **101 of 101 pages**; a page that does not match gets **no boxes at all** —
+> missing boxes only lose a feature, boxes in the wrong place mislead.
+
+> The per-character ranges inside a changed line were **already being computed
+> and then thrown away**. Keeping them is what makes "these characters changed"
+> markable. Chinese has to be character-level: `get_text("words")` returns a
+> whole line as one "word" when there are no spaces, so a one-character edit
+> would outline the entire line.
+
+### Rotated pages nearly got every box in the wrong place
+
+Text coordinates and the rendered page are not in the same space. Measuring the
+ink coverage inside the box, on the same page at each rotation:
+
+| Rotation | Raw coordinates | Times `page.rotation_matrix` |
+|---:|---:|---:|
+| 0 | 22.7% | 22.7% |
+| 90 | **0.0%** | 22.7% |
+| 180 | **0.0%** | 22.6% |
+| 270 | 4.6% | 22.6% |
+
+Without the matrix the boxes land on blank paper while the page itself looks
+perfectly normal, so nobody would notice. The acceptance criterion is therefore
+**ink coverage inside the box**, not "a box was drawn": all four rotations are
+checked, and mutation-verified (drop that one line and 90/180/270 fail).
+
+### When there is no text layer, it says so instead of implying "no differences"
+
+Scans, text converted to outlines and PDFs with a broken character map cannot
+give coordinates. The page view now says so on that page and points at OCR.
+"No boxes" and "this page did not change" look identical, so the sentence
+cannot be left out.
+
+### One piece of setup copied eight times; the eighth copy broke a whole test
+
+The headless-browser tests each had their own copy of "find the browser" and
+"pick a directory the browser can read". The new copy only compared path
+strings instead of reading the file, so it could not tell that Ubuntu's
+`/usr/bin/chromium-browser` is a **shell wrapper** around the snap build. The
+fixtures were written where the browser could not read them; the upload
+"succeeded", the filename even showed up, and only the submit failed — so the
+whole test **skipped**, which looks exactly like success in pytest output.
+
+It is now one shared `tools/browser_probe.py`, used by all eight, with a guard
+against a ninth copy.
+
 ## [1.15.55] - 2026-09-16
 
 ### Tool renamed: "Document straightening" is now **Scan cleanup**

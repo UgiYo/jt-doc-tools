@@ -921,7 +921,19 @@ curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span c
 <pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/doc-diff/api/doc-diff</span> \
   <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
   <span class="hl-flag">-F</span> <span class="hl-str">&quot;file_a=@v1.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;file_b=@v2.pdf&quot;</span> | jq</code></pre>
-<p>回應 JSON：逐段差異結構。</p>
+<p>回應 JSON：逐段差異結構。每一頁除了 <code>diff</code>（逐行的文字差異）之外還帶著：</p>
+<div class="table-wrap"><table><thead><tr><th>欄位</th><th>說明</th></tr></thead><tbody><tr><td><code>uid</code></td><td>這次比對的識別碼（<strong>回應最上層</strong>），拿去抓頁面圖</td></tr><tr><td><code>pages[].marks.a</code> / <code>.b</code></td><td>那一頁的差異框。每筆是 <code>{tag, line, rects}</code>，<code>tag</code> 是 <code>delete</code> / <code>insert</code> / <code>replace</code></td></tr><tr><td><code>pages[].marks[].rects</code></td><td><code>[x, y, w, h]</code>，<strong>0~1 的比例</strong>（不是畫素）—— 乘上你顯示的頁面圖尺寸就是位置</td></tr><tr><td><code>pages[].size.a</code> / <code>.b</code></td><td>該頁的 pt 尺寸 <code>[寬, 高]</code></td></tr></tbody></table></div>
+<p>抽不到文字座標時（掃描件、文字被轉成外框）<code>marks</code> 會是空陣列 —— <strong>那不代表沒有差異</strong>，<code>diff</code> 那邊還是有的。</p>
+<h5 id="頁面圖">頁面圖</h5>
+<pre><code class="lang-text"><span class="hl-method">GET</span> /tools/doc-diff/page-image/{uid}/{slot}/{page}</code></pre>
+<div class="table-wrap"><table><thead><tr><th>參數</th><th>說明</th></tr></thead><tbody><tr><td><code>uid</code></td><td>上面那次比對回的識別碼</td></tr><tr><td><code>slot</code></td><td><code>a</code>（舊版）或 <code>b</code>（新版）</td></tr><tr><td><code>page</code></td><td>從 1 開始</td></tr></tbody></table></div>
+<p>回 <code>image/png</code>（150 dpi）。Office 檔回的是<strong>轉成 PDF 之後</strong>的版面。 檔案過期會回 <code>410</code>；<code>uid</code> / <code>slot</code> / <code>page</code> 不合法一律 <code>404</code>。</p>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/doc-diff/api/doc-diff</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file_a=@v1.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;file_b=@v2.pdf&quot;</span> &gt; diff.json
+UID=$(jq <span class="hl-flag">-r</span> .uid diff.json)
+curl <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-str">&quot;http://localhost:8765/tools/doc-diff/page-image/$UID/b/1&quot;</span> <span class="hl-flag">-o</span> page1.png</code></pre>
       </section>
       <section class="doc-section" data-sec="清單處理" data-title="清單處理" hidden>
 <div class="doc-crumb">8. 文字與比對 API</div>

@@ -112,7 +112,7 @@
       if (!r.ok) throw new Error(await window.friendlyServerError(r, tr('載入工作區失敗')));
       files = (await r.json()).files || [];
     } catch (e) { status.textContent = e.message || tr('載入工作區失敗'); return; }
-    if (!files.length) { status.textContent = tr('工作區內沒有符合的檔案（') + exts.join(' / ').toUpperCase() + '）。'; return; }
+    if (!files.length) { status.textContent = tr('工作區內沒有符合的檔案（{0}）。').replace('{0}', exts.join(' / ').toUpperCase()); return; }
     status.hidden = true;
     grid.innerHTML = files.map(f => {
       const ext = (f.ext || '').replace('.', '');

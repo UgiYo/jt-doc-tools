@@ -32,16 +32,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from tools.repo_paths import public_root  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from tools.browser_probe import browser as _browser  # noqa: E402
+
 DOCS = public_root(ROOT) / "docs"
-_BROWSERS = ("/usr/bin/chromium-browser", "/usr/bin/chromium",
-             "/snap/bin/chromium", "/usr/bin/google-chrome")
-
-
-def _browser():
-    for b in _BROWSERS:
-        if os.path.exists(b):
-            return b
-    return shutil.which("chromium") or shutil.which("google-chrome")
 
 
 def _free_port() -> int:

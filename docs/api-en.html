@@ -921,7 +921,19 @@ curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span c
 <pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/doc-diff/api/doc-diff</span> \
   <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
   <span class="hl-flag">-F</span> <span class="hl-str">&quot;file_a=@v1.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;file_b=@v2.pdf&quot;</span> | jq</code></pre>
-<p>JSON response: the differences, section by section.</p>
+<p>Response JSON: the per-segment diff structure. Besides <code>diff</code> (the line-level text differences), each page also carries:</p>
+<div class="table-wrap"><table><thead><tr><th>Field</th><th>Description</th></tr></thead><tbody><tr><td><code>uid</code></td><td>the id of this comparison (<strong>at the top level of the response</strong>), used to fetch the page images</td></tr><tr><td><code>pages[].marks.a</code> / <code>.b</code></td><td>the difference boxes on that page. Each is <code>{tag, line, rects}</code>, where <code>tag</code> is <code>delete</code> / <code>insert</code> / <code>replace</code></td></tr><tr><td><code>pages[].marks[].rects</code></td><td><code>[x, y, w, h]</code>，<strong>a 0~1 ratio</strong> (not pixels): multiply by the size of the page image you are showing</td></tr><tr><td><code>pages[].size.a</code> / <code>.b</code></td><td>the page size in points, <code>[width, height]</code></td></tr></tbody></table></div>
+<p>When no text coordinates can be read (a scan, or text converted to outlines) <code>marks</code> is an empty array. <strong>That does not mean there are no differences</strong> — they are still in <code>diff</code>.</p>
+<h5 id="頁面圖">Page image</h5>
+<pre><code class="lang-text"><span class="hl-method">GET</span> /tools/doc-diff/page-image/{uid}/{slot}/{page}</code></pre>
+<div class="table-wrap"><table><thead><tr><th>Parameter</th><th>Description</th></tr></thead><tbody><tr><td><code>uid</code></td><td>the id returned by the comparison above</td></tr><tr><td><code>slot</code></td><td><code>a</code> (old version) or <code>b</code> (new version)</td></tr><tr><td><code>page</code></td><td>1-based</td></tr></tbody></table></div>
+<p>Returns <code>image/png</code> (150 dpi). For office files this is the layout <strong>after conversion to PDF</strong>. An expired file returns <code>410</code>; an invalid <code>uid</code> / <code>slot</code> / <code>page</code> always returns <code>404</code>.</p>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/doc-diff/api/doc-diff</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file_a=@v1.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;file_b=@v2.pdf&quot;</span> &gt; diff.json
+UID=$(jq <span class="hl-flag">-r</span> .uid diff.json)
+curl <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-str">&quot;http://localhost:8765/tools/doc-diff/page-image/$UID/b/1&quot;</span> <span class="hl-flag">-o</span> page1.png</code></pre>
       </section>
       <section class="doc-section" data-sec="清單處理" data-title="List tools" hidden>
 <div class="doc-crumb">8. Text and comparison API</div>

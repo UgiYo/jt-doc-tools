@@ -257,7 +257,29 @@ def _keys_in_scripts() -> set[str]:
         for m in _JS_BLOCK.finditer(p.read_text(encoding="utf-8")):
             out |= {k.group(2)
                     for k in _JS_CALL.finditer(strip_js_comments(m.group(1)))}
+    # **`static/js/*.js` 也要收。** 這裡原本只掃樣板，於是共用元件
+    # （上傳、作業進度、工作區挑選、錯誤訊息）裡的 `tr('…')`
+    # **從來沒有被檢查過** —— 2026-09-16 補上時當場抓到 22 條沒翻，
+    # 而那幾支幾乎每一個工具頁都會載，等於每一頁都看得到中文。
+    # 範圍太窄跟沒有守門一樣。
+    for p in sorted(ROOT.glob("static/js/*.js")):
+        out |= {k.group(2)
+                for k in _JS_CALL.finditer(strip_js_comments(p.read_text(encoding="utf-8")))}
     return out
+
+
+def test_the_js_scan_reaches_the_shared_scripts():
+    """**「掃 0 個檔」跟「掃過都乾淨」在 pytest 輸出裡長得一模一樣。**
+
+    門檻是**量出來的**（實際 17 支 `.js`、其中 11 支有 `tr()`）——
+    寫一個好看的整數會變成「永遠成立」或「動不動就紅」。
+    """
+    js = sorted(ROOT.glob("static/js/*.js"))
+    assert len(js) >= 12, f"只收到 {len(js)} 支共用 JS"
+    from tools.source_text import strip_js_comments
+    withtr = [p for p in js
+              if _JS_CALL.search(strip_js_comments(p.read_text(encoding="utf-8")))]
+    assert len(withtr) >= 6, f"只有 {len(withtr)} 支共用 JS 收得到 tr()"
 
 
 def test_every_js_key_is_translated():

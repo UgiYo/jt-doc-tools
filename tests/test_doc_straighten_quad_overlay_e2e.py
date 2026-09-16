@@ -39,39 +39,15 @@ import urllib.request
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-_BROWSERS = ("/usr/bin/chromium-browser", "/usr/bin/chromium",
-             "/snap/bin/chromium", "/usr/bin/google-chrome",
-             "/usr/bin/google-chrome-stable")
-
-
-def _browser() -> str | None:
-    for b in _BROWSERS:
-        if os.path.exists(b):
-            return b
-    return shutil.which("chromium") or shutil.which("google-chrome")
+sys.path.insert(0, ROOT)
+from tools.browser_probe import (  # noqa: E402
+    browser as _browser,
+    uploadable_dir as _uploadable_dir,
+)
 
 
-def _uploadable_dir() -> str:
-    """挑一個**瀏覽器讀得到**的目錄放測試素材。
 
-    snap 版 chromium 讀不到 `/opt`，而且它看到的 `/tmp` 是它自己的 ——
-    檔案放錯地方的症狀是 `net::ERR_FILE_NOT_FOUND`，看起來像我們的上傳
-    程式壞掉（CLAUDE.md 慣例第⑲條）。
-    """
-    b = _browser() or ""
-    snapish = "snap" in b
-    if not snapish and os.path.exists(b):
-        try:
-            snapish = "snap" in open(b, "rb").read(400).decode("utf-8", "ignore")
-        except OSError:
-            snapish = False
-    if snapish:
-        d = os.path.expanduser("~/snap/chromium/common/jtdt-test")
-    else:
-        d = os.path.join(tempfile.gettempdir(), "jtdt-test")
-    os.makedirs(d, exist_ok=True)
-    return d
+
 
 
 def _free_port() -> int:

@@ -14,10 +14,12 @@ from pathlib import Path
 
 import fitz
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
 from ...config import settings
-from ...core import office_convert
+from ...core import office_convert, pdf_preview
+from ...core.safe_paths import require_uuid_hex
+from . import highlight as _hl
 
 
 router = APIRouter()
@@ -168,6 +170,73 @@ def _page_lines(doc: "fitz.Document") -> list[list[str]]:
     return pages
 
 
+def _page_boxes(doc: "fitz.Document",
+                pages: list[list[str]]) -> list[list[list | None] | None]:
+    """每一行的**每個字**的座標，跟 `_page_lines` 的行索引對齊。
+
+    比對本身完全不碰 —— 行還是從 `get_text("text")` 來（行為零改變），
+    這裡只是另外用 `rawdict` 取座標，靠「第幾個非空行」把兩份對起來
+    （實測 5 份真實 PDF 15 頁 ＋ 4 份 Office 檔 6 頁，非空行逐行相同）。
+
+    **對不起來就整頁回 `None`** —— 沒有框只是少一個功能，
+    **框畫錯位置是騙人**（使用者會以為那裡改過）。
+    """
+    out: list[list[list | None] | None] = []
+    for pno in range(doc.page_count):
+        try:
+            rich = _hl.line_char_boxes(doc[pno])
+        except Exception:                      # 壞掉的字型表之類
+            out.append(None)
+            continue
+        text_lines = pages[pno] if pno < len(pages) else []
+        per_line: list[list | None] = [None] * len(text_lines)
+        ri = 0
+        ok = True
+        for li, ln in enumerate(text_lines):
+            if not ln.strip():
+                continue
+            if ri >= len(rich) or rich[ri][0] != ln:
+                ok = False
+                break
+            per_line[li] = rich[ri][1]
+            ri += 1
+        out.append(per_line if ok and ri == len(rich) else None)
+    return out
+
+
+def _page_marks(rows: list[dict], boxes: list | None,
+                page_rect) -> list[dict]:
+    """把一頁的差異列換成**頁面上的框**（0~1 的比例）。
+
+    `boxes` 是 `None` 時（抽不到座標、或行對不起來）回空清單 ——
+    **寧可沒有框，也不要畫錯位置**。
+    """
+    if not boxes or page_rect is None:
+        return []
+    out: list[dict] = []
+    for row in rows:
+        tag = row.get("tag")
+        if tag not in ("delete", "insert", "replace"):
+            continue
+        li = row.get("i")
+        if li is None or li >= len(boxes):
+            continue
+        chars = boxes[li]
+        if not chars:
+            continue
+        ops = row.get("ops")
+        if tag == "replace" and ops:
+            rects = []
+            for a, b in ops:
+                rects += _hl.char_range_rects(chars, a, b)
+        else:                                   # 整行不見 / 整行新增
+            rects = _hl.char_range_rects(chars, 0, len(chars))
+        if rects:
+            out.append({"tag": tag, "line": li,
+                        "rects": [_hl.normalise(r, page_rect) for r in rects]})
+    return out
+
+
 def _diff_pages(a_lines: list[str], b_lines: list[str]) -> dict:
     """Return a line-level diff structure for two pages:
 
@@ -193,13 +262,14 @@ def _diff_pages(a_lines: list[str], b_lines: list[str]) -> dict:
     for tag, i1, i2, j1, j2 in sm.get_opcodes():
         if tag == "equal":
             for k in range(i1, i2):
-                a_out.append({"text": a_lines[k], "tag": "equal"})
-                b_out.append({"text": b_lines[j1 + (k - i1)], "tag": "equal"})
+                a_out.append({"text": a_lines[k], "tag": "equal", "i": k})
+                b_out.append({"text": b_lines[j1 + (k - i1)], "tag": "equal",
+                              "i": j1 + (k - i1)})
                 chars_a += len(a_lines[k])
                 chars_b += len(b_lines[j1 + (k - i1)])
         elif tag == "delete":
             for k in range(i1, i2):
-                a_out.append({"text": a_lines[k], "tag": "delete"})
+                a_out.append({"text": a_lines[k], "tag": "delete", "i": k})
                 b_out.append({"text": "", "tag": "blank"})
                 removed += 1
                 chars_removed += len(a_lines[k])
@@ -207,7 +277,7 @@ def _diff_pages(a_lines: list[str], b_lines: list[str]) -> dict:
         elif tag == "insert":
             for k in range(j1, j2):
                 a_out.append({"text": "", "tag": "blank"})
-                b_out.append({"text": b_lines[k], "tag": "insert"})
+                b_out.append({"text": b_lines[k], "tag": "insert", "i": k})
                 added += 1
                 chars_added += len(b_lines[k])
                 chars_b += len(b_lines[k])
@@ -221,10 +291,16 @@ def _diff_pages(a_lines: list[str], b_lines: list[str]) -> dict:
                 bi = j1 + k if k < lb else None
                 a_text = a_lines[ai] if ai is not None else ""
                 b_text = b_lines[bi] if bi is not None else ""
-                a_out.append({"text": a_text,
-                              "tag": "replace" if ai is not None else "blank"})
-                b_out.append({"text": b_text,
-                              "tag": "replace" if bi is not None else "blank"})
+                a_row = {"text": a_text,
+                         "tag": "replace" if ai is not None else "blank"}
+                b_row = {"text": b_text,
+                         "tag": "replace" if bi is not None else "blank"}
+                if ai is not None:
+                    a_row["i"] = ai
+                if bi is not None:
+                    b_row["i"] = bi
+                a_out.append(a_row)
+                b_out.append(b_row)
                 chars_a += len(a_text)
                 chars_b += len(b_text)
                 if ai is not None and bi is not None:
@@ -234,9 +310,14 @@ def _diff_pages(a_lines: list[str], b_lines: list[str]) -> dict:
                     # up the same as a fully-rewritten paragraph.
                     s = difflib.SequenceMatcher(None, a_text, b_text,
                                                 autojunk=False)
+                    # 這些範圍**本來就算出來了，只是算完就丟掉** ——
+                    # 留著才標得出「這一行的第幾個字改了」（頁面模式用）。
+                    a_row["ops"], b_row["ops"] = [], []
                     for t2, ai2, ai3, bi2, bi3 in s.get_opcodes():
                         if t2 == "equal":
                             continue
+                        a_row["ops"].append([ai2, ai3])
+                        b_row["ops"].append([bi2, bi3])
                         if t2 == "delete":
                             chars_removed += ai3 - ai2
                         elif t2 == "insert":
@@ -292,6 +373,11 @@ async def compare(
         with fitz.open(str(pa)) as da, fitz.open(str(pb)) as db:
             a_pages = _page_lines(da)
             b_pages = _page_lines(db)
+            # 座標：頁面模式用。抽不到就整頁回 None，畫面自動退回只有文字模式。
+            a_boxes = _page_boxes(da, a_pages)
+            b_boxes = _page_boxes(db, b_pages)
+            a_rects = [fitz.Rect(da[i].rect) for i in range(da.page_count)]
+            b_rects = [fitz.Rect(db[i].rect) for i in range(db.page_count)]
             meta_diff = _metadata_diff(dict(da.metadata or {}),
                                        dict(db.metadata or {}))
             a_page_count = da.page_count
@@ -314,11 +400,28 @@ async def compare(
                 "a_exists": i < a_page_count,
                 "b_exists": i < b_page_count,
                 "diff": d,
+                "marks": {
+                    "a": _page_marks(d["a"],
+                                     a_boxes[i] if i < a_page_count else None,
+                                     a_rects[i] if i < a_page_count else None),
+                    "b": _page_marks(d["b"],
+                                     b_boxes[i] if i < b_page_count else None,
+                                     b_rects[i] if i < b_page_count else None),
+                },
+                "size": {
+                    "a": ([round(a_rects[i].width, 2), round(a_rects[i].height, 2)]
+                          if i < a_page_count else None),
+                    "b": ([round(b_rects[i].width, 2), round(b_rects[i].height, 2)]
+                          if i < b_page_count else None),
+                },
             })
         return a_page_count, b_page_count, pages_out, totals, meta_diff
     a_page_count, b_page_count, pages_out, totals, meta_diff = await _asyncio.to_thread(_do_diff)
 
     out = {
+        # 頁面模式要拿它去抓頁面圖（`/page-image/{uid}/{slot}/{page}`）。
+        # 歸屬驗證走的是 `_uo.record(uid, request)` 那一筆，不是這個值。
+        "uid": uid,
         "filename_a": file_a.filename,
         "filename_b": file_b.filename,
         "pages": pages_out,
@@ -343,6 +446,42 @@ async def compare(
 
 
 # ---- 對外 API：單次 upload 兩份文件 + JSON 回傳差異 ----
+#: 頁面模式的解析度。150 dpi 實測暖機後彩色 7.3 ms／頁、6.5 MB／頁，
+#: 而且看得清楚小字；再高只是變慢。
+_PAGE_DPI = 150
+#: 一次最多算幾頁圖 —— 使用者只看得到眼前幾頁，整份先算完是白費工。
+_MAX_PAGE_IMAGE = 400
+
+
+@router.get("/page-image/{uid}/{slot}/{page}")
+async def page_image(uid: str, slot: str, page: int, request: Request):
+    """頁面模式左右兩邊的頁面圖。
+
+    **PDF 與 Office 在這裡已經收斂成同一種東西** —— `/compare` 會把 Office
+    先轉成 `diff_{uid}_{slot}.pdf`，所以這裡不必分兩條路。
+
+    歸屬驗證用的是 `/compare` 當下就寫好的那筆 owner record；
+    `slot` 走白名單、`uid` 走固定格式，兩個都不能讓使用者自由組路徑。
+    """
+    from ...core import upload_owner as _uo
+    require_uuid_hex(uid, "uid")
+    if slot not in ("a", "b"):
+        raise HTTPException(404, "not found")
+    if page < 1 or page > _MAX_PAGE_IMAGE:
+        raise HTTPException(404, "page out of range")
+    _uo.require(uid, request)
+    src = settings.temp_dir / f"diff_{uid}_{slot}.pdf"
+    if not src.exists():
+        raise HTTPException(410, "檔案已過期，請重新上傳比對")
+    out = settings.temp_dir / f"diff_{uid}_{slot}_p{page}_{_PAGE_DPI}.png"
+    if not out.exists():
+        # 超出頁數時 `render_page_png` 會丟 `PageOutOfRange`，全域處理器回 404
+        await pdf_preview.render_page_png_async(src, out, page - 1,
+                                                dpi=_PAGE_DPI)
+    return FileResponse(str(out), media_type="image/png",
+                        headers={"Cache-Control": "no-store"})
+
+
 @router.post("/api/doc-diff", include_in_schema=True)
 async def api_doc_diff(
     request: Request,

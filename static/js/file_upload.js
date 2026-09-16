@@ -85,7 +85,7 @@
           // 工作區挑選器本來就有依 accept 過濾，交接這條路漏了。
           if (!this._acceptsFile(f)) {
             if (window.showAlert) {
-              window.showAlert(tr('這個工具不接受「') + f.name + tr('」這種檔案格式。'));
+              window.showAlert(tr('這個工具不接受「{0}」這種檔案格式。').replace('{0}', f.name));
             }
             return;
           }
@@ -270,7 +270,7 @@
         if (pct < 100) {
           self._setProgress({pct: pct, label: tr('上傳中… ') + fmt(loaded) + ' / ' + fmt(total)});
         } else {
-          self._setProgress({indeterminate: true, label: opts.processingLabel || tr('處理中…（') + fmt(total) + '）'});
+          self._setProgress({indeterminate: true, label: opts.processingLabel || tr('處理中…（{0}）').replace('{0}', fmt(total))});
         }
       }, opts).finally(function () {
         // Hide progress shortly after; tool's own UI will take over.

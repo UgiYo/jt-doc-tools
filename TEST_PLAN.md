@@ -543,7 +543,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 
 <!-- BEGIN test-index (由 tools/build_test_plan_index.py 產生，不要手改) -->
 
-共 **289 支測試檔**。說明取自每支檔案自己的開頭說明，
+共 **292 支測試檔**。說明取自每支檔案自己的開頭說明，
 跑 `python tools/build_test_plan_index.py` 重建。
 
 > 這裡**刻意不列函式數** —— 那個數字每加一條測試就會變，
@@ -630,6 +630,8 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_doc_deident_japanese.py` | 去識別化支援**日文文件**（使用者 2026-09-14 交代、09-15 指示動工） |
 | `test_doc_deident_table_labels.py` | 標籤與值分屬兩個表格儲存格時也要偵測得到（GitHub issue #43） |
 | `test_doc_diff.py` | Tests for the renamed 文件差異比對 tool (formerly pdf-diff). |
+| `test_doc_diff_page_marks.py` | 頁面模式：差異的框要**真的壓在改掉的那幾個字上** |
+| `test_doc_diff_page_mode_e2e.py` | 頁面模式在**真的瀏覽器裡真的畫得出來** |
 | `test_doc_straighten.py` | 掃描修正（v1.15.33，第一期：只有自動模式） |
 | `test_doc_straighten_border_is_white.py` | 旋轉 / 透視補在邊緣的顏色必須是白的，不可以是紅的 |
 | `test_doc_straighten_enhance.py` | 掃描修正的「清晰化」—— 判準是**文字辨識率**與**內容有沒有被毀掉** |
@@ -707,6 +709,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_office_convert_output_first.py` | soffice 的離開碼不可靠 —— 判準是「有沒有拿到可用的檔案」 |
 | `test_office_source_validation.py` | 辦公文件的**來源檔**壞掉時，要在送進 soffice 之前就擋下來 |
 | `test_one_label_can_map_to_several_keys.py` | 一個標籤對應到**多個** canonical key 是刻意支援的，不要「修掉」 |
+| `test_one_shared_browser_probe.py` | 無頭瀏覽器的設定只能有**一份** |
 | `test_one_shared_lightbox.py` | 放大檢視（lightbox）只留一份共用實作 |
 | `test_online_sessions.py` | 在線人數、某人的登入裝置清單、強制登出 |
 | `test_open_redirect.py` | Open-redirect regression — closes CodeQL alerts #14 / #15 |
@@ -1243,6 +1246,13 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 - [ ] 並排顯示 opcodes（紅=刪 / 綠=增 / 黃=改）
 - [ ] Metadata 差異區塊
 - [ ] 跨頁也能比對
+- [ ] **切到「頁面模式」**：左右各一張原本的頁面圖，差異直接框在頁面上
+- [ ] 頁面模式的框**真的壓在改掉的那幾個字上**（不是整行、也不是空白處）
+- [ ] **轉向過的 PDF**（`/Rotate` 90 / 180 / 270）在頁面模式下框一樣落得準
+- [ ] 切回文字模式，文字那一份還在（**切模式是開關不是刪除鍵**）
+- [ ] **掃描件**（抽不到文字）切到頁面模式會說「抽不到文字座標」並指路 OCR，
+      **不可以顯示成「沒有差異」**
+- [ ] Office 檔（.docx / .xlsx）在頁面模式下看到的是**轉檔後的版面**
 
 ### 2.6 設定 (admin)
 
@@ -1868,7 +1878,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 目前沒有自動化測試碰過，跑 `python tools/report_endpoint_test_coverage.py`，
 那份是**提示不是判決**。
 
-共 **265 支**（工具首頁不列，§2 已逐支驗收）。
+共 **266 支**（工具首頁不列，§2 已逐支驗收）。
 
 **全站（認證 / 帳號 / 工作區 / 介面語言）**
 
@@ -1923,6 +1933,10 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 **doc-diff（文件差異比對）**
 
 - [ ] `POST /tools/doc-diff/compare`
+- [ ] `GET /tools/doc-diff/page-image/{uid}/{slot}/{page}` —— 頁面模式的頁面圖。
+      判準：回 `image/png` 且**圖真的載得進來**（`naturalWidth > 0`）；
+      `slot` 只吃 `a` / `b`、`uid` 走固定格式、頁碼超範圍一律 404（**不可以 5xx**）；
+      別人的 `uid` 抓不到（走 `upload_owner`）
 
 **doc-straighten（掃描修正）**
 

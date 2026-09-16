@@ -69,7 +69,7 @@
       if (!ext) return;                        // 拿不到就維持模板原本的字
       const label = ext === 'pdf' ? tr('下載 PDF')
                   : ext === 'zip' ? tr('下載 ZIP')
-                  : tr('下載 .') + ext;
+                  : tr('下載 .{0}').replace('{0}', ext);
       const node = [...this.dlBtn.childNodes]
         .reverse().find((n) => n.nodeType === 3 && n.textContent.trim());
       if (node) node.textContent = label;
@@ -86,17 +86,20 @@
       this._startedAt = Date.now();
       this.elapsed.hidden = false;
       const paint = () => {
-        this.elapsed.textContent = tr('已過 ') + this._fmtElapsed(Date.now() - this._startedAt);
+        this.elapsed.textContent = tr('已過 {0}')
+          .replace('{0}', this._fmtElapsed(Date.now() - this._startedAt));
       };
       paint();
       this._elapsedTimer = setInterval(paint, 1000);
     }
-    _finishElapsed(label) {
+    // `tpl` 是**整句**的樣板（`'耗時 {0}'`），不是前綴 —— 把片語接起來的話
+    // 英文與日文的語序不同，接出來不成句（CLAUDE.md 記過這條）。
+    _finishElapsed(tpl) {
       if (!this.elapsed) return;
       if (this._elapsedTimer) { clearInterval(this._elapsedTimer); this._elapsedTimer = null; }
       if (this._startedAt) {
-        this.elapsed.textContent = (label || tr('耗時 '))
-          + this._fmtElapsed(Date.now() - this._startedAt);
+        this.elapsed.textContent = (tpl || tr('耗時 {0}'))
+          .replace('{0}', this._fmtElapsed(Date.now() - this._startedAt));
       }
     }
     // Show + wire 「存至工作區」 for a finished job whose result is a PDF/PNG.
@@ -161,7 +164,7 @@
           else if (j.status === 'done') {
             this.bar.style.width = '100%';
             this.status.textContent = tr(j.message || tr('完成'));
-            this._finishElapsed(tr('耗時 '));
+            this._finishElapsed(tr('耗時 {0}'));
             this.dlBtn.hidden = false;
             this.dlBtn.href = this.downloadUrl(jobId);
             this._labelDownload(j);
@@ -180,7 +183,7 @@
             try { this.onDone(j); } catch (_) {}
           } else if (j.status === 'error') {
             this.status.textContent = tr('失敗：') + (j.error || tr('未知錯誤'));
-            this._finishElapsed(tr('已過 '));
+            this._finishElapsed(tr('已過 {0}'));
             this.bar.style.background = '#dc2626';
             // 作業已經結束 —— 沒有「要不要繼續等」的問題了，收起提示
             if (this.bgNote) this.bgNote.hidden = true;
@@ -188,7 +191,7 @@
             try { this.onError(j); } catch (_) {}
           } else if (j.status === 'cancelled') {
             this.status.textContent = tr(j.message || tr('已停止'));
-            this._finishElapsed(tr('已過 '));
+            this._finishElapsed(tr('已過 {0}'));
             // 作業已經結束 —— 沒有「要不要繼續等」的問題了，收起提示
             if (this.bgNote) this.bgNote.hidden = true;
             this._stop();
@@ -199,7 +202,7 @@
             // 使用者只看到一個卡住的頁面，不知道該重送。
             this.status.textContent =
               tr('服務已重新啟動，這個作業被中斷，請重新送出');
-            this._finishElapsed(tr('已過 '));
+            this._finishElapsed(tr('已過 {0}'));
             this.bar.style.background = '#f59e0b';
             // 作業已經結束 —— 沒有「要不要繼續等」的問題了，收起提示
             if (this.bgNote) this.bgNote.hidden = true;

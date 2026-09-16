@@ -25,31 +25,15 @@ import urllib.request
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-_BROWSERS = ("/usr/bin/chromium-browser", "/usr/bin/chromium", "/snap/bin/chromium",
-             "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable")
-
-
-def _browser() -> str | None:
-    for b in _BROWSERS:
-        if os.path.exists(b):
-            return b
-    return shutil.which("chromium") or shutil.which("google-chrome")
+sys.path.insert(0, ROOT)
+from tools.browser_probe import (  # noqa: E402
+    browser as _browser,
+    uploadable_dir as _uploadable_dir,
+)
 
 
-def _uploadable_dir() -> str:
-    """snap 版 chromium 讀不到 `/opt`，而且它的 `/tmp` 是它自己的。"""
-    b = _browser() or ""
-    snapish = "snap" in b
-    if not snapish and os.path.exists(b):
-        try:
-            snapish = "snap" in open(b, "rb").read(400).decode("utf-8", "ignore")
-        except OSError:
-            snapish = False
-    d = (os.path.expanduser("~/snap/chromium/common/jtdt-test") if snapish
-         else os.path.join(tempfile.gettempdir(), "jtdt-test"))
-    os.makedirs(d, exist_ok=True)
-    return d
+
+
 
 
 def _free_port() -> int:

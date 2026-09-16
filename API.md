@@ -1312,7 +1312,41 @@ curl -X POST http://localhost:8765/tools/doc-diff/api/doc-diff \
   -F "file_a=@v1.pdf" -F "file_b=@v2.pdf" | jq
 ```
 
-回應 JSON：逐段差異結構。
+回應 JSON：逐段差異結構。每一頁除了 `diff`（逐行的文字差異）之外還帶著：
+
+| 欄位 | 說明 |
+|---|---|
+| `uid` | 這次比對的識別碼（**回應最上層**），拿去抓頁面圖 |
+| `pages[].marks.a` / `.b` | 那一頁的差異框。每筆是 `{tag, line, rects}`，`tag` 是 `delete` / `insert` / `replace` |
+| `pages[].marks[].rects` | `[x, y, w, h]`，**0~1 的比例**（不是畫素）—— 乘上你顯示的頁面圖尺寸就是位置 |
+| `pages[].size.a` / `.b` | 該頁的 pt 尺寸 `[寬, 高]` |
+
+抽不到文字座標時（掃描件、文字被轉成外框）`marks` 會是空陣列 ——
+**那不代表沒有差異**，`diff` 那邊還是有的。
+
+#### 頁面圖
+
+```text
+GET /tools/doc-diff/page-image/{uid}/{slot}/{page}
+```
+
+| 參數 | 說明 |
+|---|---|
+| `uid` | 上面那次比對回的識別碼 |
+| `slot` | `a`（舊版）或 `b`（新版） |
+| `page` | 從 1 開始 |
+
+回 `image/png`（150 dpi）。Office 檔回的是**轉成 PDF 之後**的版面。
+檔案過期會回 `410`；`uid` / `slot` / `page` 不合法一律 `404`。
+
+```bash
+curl -X POST http://localhost:8765/tools/doc-diff/api/doc-diff \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file_a=@v1.pdf" -F "file_b=@v2.pdf" > diff.json
+UID=$(jq -r .uid diff.json)
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  "http://localhost:8765/tools/doc-diff/page-image/$UID/b/1" -o page1.png
+```
 
 ### 清單處理
 

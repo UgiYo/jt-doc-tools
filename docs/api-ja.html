@@ -921,7 +921,19 @@ curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span c
 <pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/doc-diff/api/doc-diff</span> \
   <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
   <span class="hl-flag">-F</span> <span class="hl-str">&quot;file_a=@v1.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;file_b=@v2.pdf&quot;</span> | jq</code></pre>
-<p>レスポンス JSON：段落ごとの差分の構造。</p>
+<p>レスポンス JSON：区間ごとの差分構造。各ページには <code>diff</code>（行単位のテキスト差分）のほかに次が含まれます：</p>
+<div class="table-wrap"><table><thead><tr><th>項目</th><th>説明</th></tr></thead><tbody><tr><td><code>uid</code></td><td>今回の比較の識別子（<strong>レスポンスの最上位</strong>）。ページ画像の取得に使います</td></tr><tr><td><code>pages[].marks.a</code> / <code>.b</code></td><td>そのページの差分の囲み。各要素は <code>{tag, line, rects}</code> で、<code>tag</code> は <code>delete</code> / <code>insert</code> / <code>replace</code> です</td></tr><tr><td><code>pages[].marks[].rects</code></td><td><code>[x, y, w, h]</code>，<strong>0〜1 の比率</strong>（ピクセルではありません）—— 表示しているページ画像のサイズを掛ければ位置になります</td></tr><tr><td><code>pages[].size.a</code> / <code>.b</code></td><td>そのページの pt 単位のサイズ <code>[幅, 高さ]</code></td></tr></tbody></table></div>
+<p>文字の座標が取得できない場合（スキャン、アウトライン化された文字）<code>marks</code> は空配列になります。<strong>差分が無いという意味ではありません</strong> —— 差分は <code>diff</code> にあります。</p>
+<h5 id="頁面圖">ページ画像</h5>
+<pre><code class="lang-text"><span class="hl-method">GET</span> /tools/doc-diff/page-image/{uid}/{slot}/{page}</code></pre>
+<div class="table-wrap"><table><thead><tr><th>パラメータ</th><th>説明</th></tr></thead><tbody><tr><td><code>uid</code></td><td>上の比較で返された識別子</td></tr><tr><td><code>slot</code></td><td><code>a</code>（旧版）または <code>b</code>（新版）</td></tr><tr><td><code>page</code></td><td>1 から始まります</td></tr></tbody></table></div>
+<p><code>image/png</code>（150 dpi）を返します。オフィス文書では<strong>PDF に変換したあと</strong>のレイアウトです。期限切れは <code>410</code>、<code>uid</code> / <code>slot</code> / <code>page</code> が不正な場合は必ず <code>404</code> を返します。</p>
+<pre><code class="lang-bash">curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span class="hl-url">http://localhost:8765/tools/doc-diff/api/doc-diff</span> \
+  <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-flag">-F</span> <span class="hl-str">&quot;file_a=@v1.pdf&quot;</span> <span class="hl-flag">-F</span> <span class="hl-str">&quot;file_b=@v2.pdf&quot;</span> &gt; diff.json
+UID=$(jq <span class="hl-flag">-r</span> .uid diff.json)
+curl <span class="hl-flag">-H</span> <span class="hl-str">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span> \
+  <span class="hl-str">&quot;http://localhost:8765/tools/doc-diff/page-image/$UID/b/1&quot;</span> <span class="hl-flag">-o</span> page1.png</code></pre>
       </section>
       <section class="doc-section" data-sec="清單處理" data-title="リスト処理" hidden>
 <div class="doc-crumb">8. テキストと比較 API</div>

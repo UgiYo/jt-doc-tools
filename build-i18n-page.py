@@ -284,6 +284,10 @@ def build(src: Path, cat_path: Path, dst: Path, lang: str = "en") -> int:
     out = _localised_screenshots(out, dst.parent, lang)
     dst.write_text(out, encoding="utf-8")
     print(f"{dst.name}: 產生完成（{len(missing)} 條還沒翻，暫時保留中文）")
+    import os as _os
+    if missing and _os.environ.get("JTDT_SHOW_MISSING"):
+        for _k in missing:
+            print("   缺: " + repr(_k))
     return len(missing)
 
 

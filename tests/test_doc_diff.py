@@ -199,3 +199,58 @@ def test_migration_idempotent_when_doc_diff_already_exists(tmp_path):
     rp = conn.execute(
         "SELECT tool_id FROM role_perms WHERE role_id='legal-sec'").fetchall()
     assert {r["tool_id"] for r in rp} == {"doc-diff"}
+
+
+# --------------------------------------------------------------------------
+# 頁面模式（v1.15.56）：左右並排的頁面圖 ＋ 差異框
+# --------------------------------------------------------------------------
+
+def test_compare_returns_marks_and_a_uid_for_the_page_view(client):
+    """比對結果要帶著 `uid` 與 `marks`，頁面模式才畫得出來。"""
+    a = _pdf_with_text(["alpha", "beta", "gamma"])
+    b = _pdf_with_text(["alpha", "BETA-changed", "gamma"])
+    r = client.post("/tools/doc-diff/compare", files={
+        "file_a": ("a.pdf", a, "application/pdf"),
+        "file_b": ("b.pdf", b, "application/pdf")})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert len(body.get("uid", "")) == 32, "沒有 uid 的話頁面圖抓不到"
+    page = body["pages"][0]
+    assert "marks" in page and "size" in page
+    marks = page["marks"]["a"] + page["marks"]["b"]
+    assert marks, "有差異卻一個框都沒有"
+    for m in marks:
+        for x, y, w, h in m["rects"]:
+            # 正規化座標：**不可以送畫素**，前端顯示的是縮小圖
+            assert 0.0 <= x <= 1.0 and 0.0 <= y <= 1.0, (x, y)
+            assert 0.0 < w <= 1.0 and 0.0 < h <= 1.0, (w, h)
+
+
+def test_page_image_endpoint_returns_a_png(client):
+    a = _pdf_with_text(["alpha"])
+    b = _pdf_with_text(["beta"])
+    r = client.post("/tools/doc-diff/compare", files={
+        "file_a": ("a.pdf", a, "application/pdf"),
+        "file_b": ("b.pdf", b, "application/pdf")})
+    uid = r.json()["uid"]
+    for slot in ("a", "b"):
+        img = client.get(f"/tools/doc-diff/page-image/{uid}/{slot}/1")
+        assert img.status_code == 200, img.text
+        assert img.headers["content-type"] == "image/png"
+        assert img.content[:8] == b"\x89PNG\r\n\x1a\n", "回的不是 PNG"
+
+
+def test_page_image_rejects_a_bad_slot_or_page(client):
+    """`slot` 走白名單、`uid` 走固定格式 —— 不可以讓使用者自由組路徑。"""
+    a = _pdf_with_text(["alpha"])
+    r = client.post("/tools/doc-diff/compare", files={
+        "file_a": ("a.pdf", a, "application/pdf"),
+        "file_b": ("b.pdf", a, "application/pdf")})
+    uid = r.json()["uid"]
+    for bad in (f"/tools/doc-diff/page-image/{uid}/c/1",
+                f"/tools/doc-diff/page-image/{uid}/a/0",
+                f"/tools/doc-diff/page-image/{uid}/a/99999",
+                "/tools/doc-diff/page-image/..%2F..%2Fetc/a/1"):
+        resp = client.get(bad)
+        assert resp.status_code in (400, 404, 410), (bad, resp.status_code)
+        assert resp.status_code < 500, f"{bad} 回了 {resp.status_code}（5xx 是伺服器壞了）"

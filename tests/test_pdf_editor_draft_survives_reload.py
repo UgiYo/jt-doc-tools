@@ -24,6 +24,12 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, ROOT)
+from tools.browser_probe import (  # noqa: E402
+    browser as _browser,
+    uploadable_dir as _uploadable_dir,
+)
+
 sys.path.insert(0, str(ROOT))
 
 CHROME = "/usr/bin/chromium-browser"

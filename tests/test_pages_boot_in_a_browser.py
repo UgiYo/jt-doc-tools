@@ -53,17 +53,10 @@ import urllib.request
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-_BROWSERS = ("/usr/bin/chromium-browser", "/usr/bin/chromium",
-             "/snap/bin/chromium", "/usr/bin/google-chrome",
-             "/usr/bin/google-chrome-stable")
+sys.path.insert(0, str(ROOT))
+from tools.browser_probe import browser as _browser  # noqa: E402
 
 
-def _browser() -> str | None:
-    for b in _BROWSERS:
-        if os.path.exists(b):
-            return b
-    return shutil.which("chromium") or shutil.which("google-chrome")
 
 
 def _free_port() -> int:
