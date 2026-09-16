@@ -96,7 +96,8 @@ def convert_via_jtdt_reform(pdf_path: Path, docx_path: Path) -> dict:
     return stats
 
 
-def convert_via_jtdt_reform_to_odt(pdf_path: Path, odt_path: Path) -> dict:
+def convert_via_jtdt_reform_to_odt(pdf_path: Path, odt_path: Path,
+                                   progress_cb=None) -> dict:
     """轉 PDF → ODT，用 jtdt-reform engine。
 
     ODT 是 LibreOffice / OxOffice native format，渲染 100% 確定，沒 OOXML quirks。
@@ -106,12 +107,22 @@ def convert_via_jtdt_reform_to_odt(pdf_path: Path, odt_path: Path) -> dict:
     odt_path = Path(odt_path)
     if not pdf_path.exists():
         raise FileNotFoundError(str(pdf_path))
+
+    def _tick(msg: str, frac: float) -> None:
+        # 進度是**附屬品不是產出** —— 回報壞掉絕不可以讓轉檔失敗。
+        if progress_cb:
+            try:
+                progress_cb(msg, frac)
+            except Exception:  # noqa: BLE001
+                pass
+
     try:
-        truth = extract_pdf_truth(pdf_path)
+        truth = extract_pdf_truth(pdf_path, progress_cb=progress_cb)
     except Exception as e:
         log.exception("PDFTruth extraction failed")
         return {"ok": False, "engine": "jtdt-reform-odt",
                 "error": f"pdf_truth: {e}", "pages_converted": 0}
+    _tick("整理版面結構…", 0.48)
     try:
         doc_model = build_document_model(truth)
     except Exception as e:
@@ -121,7 +132,8 @@ def convert_via_jtdt_reform_to_odt(pdf_path: Path, odt_path: Path) -> dict:
     page_links = _extract_links(pdf_path)
     try:
         stats = build_odt(doc_model, pdf_path, odt_path,
-                            page_links_by_page=page_links)
+                            page_links_by_page=page_links,
+                            progress_cb=progress_cb)
     except Exception as e:
         log.exception("build_odt failed")
         return {"ok": False, "engine": "jtdt-reform-odt",

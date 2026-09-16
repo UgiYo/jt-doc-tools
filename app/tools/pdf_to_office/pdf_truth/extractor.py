@@ -450,8 +450,13 @@ def _body_font_stats(pages: list[PDFPage]) -> tuple[str, float]:
     return _dominant(items)
 
 
-def extract_pdf_truth(pdf_path: Path | str) -> PDFTruth:
-    """主入口：解析 PDF → PDFTruth。失敗回傳空 PDFTruth + log warning。"""
+def extract_pdf_truth(pdf_path: Path | str, progress_cb=None) -> PDFTruth:
+    """主入口：解析 PDF → PDFTruth。失敗回傳空 PDFTruth + log warning。
+
+    `progress_cb`: ``cb(message, frac)`` —— **逐頁**回報給 UI。
+    大檔動輒數分鐘，沒有逐頁回饋使用者會以為當掉（`jtdt-reform` 引擎原本
+    只有頭尾兩個點，v1.15.59 補上）。**回報失敗絕不可影響轉檔**。
+    """
     pdf_path = Path(pdf_path)
     doc = fitz.open(str(pdf_path))
     has_encryption = bool(doc.is_encrypted)
@@ -463,6 +468,17 @@ def extract_pdf_truth(pdf_path: Path | str) -> PDFTruth:
             pass
 
     pages: list[PDFPage] = []
+    _total = doc.page_count or 1
+
+    def _tick(pno: int) -> None:
+        if not progress_cb:
+            return
+        try:                      # 進度是附屬品，壞掉不可以讓轉檔失敗
+            progress_cb("解析第 %d/%d 頁…" % (pno + 1, _total),
+                        0.05 + 0.40 * (pno + 1) / _total)
+        except Exception:  # noqa: BLE001
+            pass
+
     for pno in range(doc.page_count):
         try:
             page = doc.load_page(pno)
@@ -470,6 +486,8 @@ def extract_pdf_truth(pdf_path: Path | str) -> PDFTruth:
         except Exception as e:
             log.warning("extract page %d failed: %s", pno, e)
             continue
+        finally:
+            _tick(pno)
 
     fonts = inspect_fonts(doc)
     body_font, body_size = _body_font_stats(pages)

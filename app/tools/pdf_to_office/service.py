@@ -105,7 +105,8 @@ def convert_pdf_to_office(
                 _orig_handler = None
         final_odt = work_dir / "final.odt"
         try:
-            res = convert_via_jtdt_reform_to_odt(pdf_path, final_odt)
+            res = convert_via_jtdt_reform_to_odt(pdf_path, final_odt,
+                                                 progress_cb=progress_cb)
         except TimeoutError as e:
             log.error("jtdt-reform timeout: %s", e)
             return ConvertResult(

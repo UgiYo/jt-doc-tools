@@ -182,7 +182,7 @@ def _normalize_color(hex_str: str, default: str = "") -> str:
 
 # --- 主入口 ---
 def build_odt(doc_model, pdf_path: Path, output_path: Path,
-                page_links_by_page: dict | None = None) -> dict:
+                page_links_by_page: dict | None = None, progress_cb=None) -> dict:
     """從 DocumentModel 寫出 .odt 檔。
 
     args:
@@ -483,7 +483,19 @@ def build_odt(doc_model, pdf_path: Path, output_path: Path,
     _eff_pages = [pg for pg in doc_model.pages
                     if (pg.free_blocks or pg.tables or pg.images
                           or pg.banner_rects)]
+    _n_eff = len(_eff_pages) or 1
+
+    def _tick(i: int) -> None:
+        if not progress_cb:
+            return
+        try:                      # 進度是附屬品，壞掉不可以讓轉檔失敗
+            progress_cb("產生文書檔：第 %d/%d 頁…" % (i + 1, _n_eff),
+                        0.55 + 0.40 * (i + 1) / _n_eff)
+        except Exception:  # noqa: BLE001
+            pass
+
     for pi, page in enumerate(_eff_pages):
+        _tick(pi)
         # v1.9.26 C：直書 / 田字格 練習卷 fallback —
         # v1.9.86：raster fallback **只保留 bad-CMap**（文字 decode 成 garbage，
         # 抽出來無意義，raster 至少保視覺）。**移除 vertical_text raster** —

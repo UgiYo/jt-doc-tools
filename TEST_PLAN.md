@@ -543,7 +543,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 
 <!-- BEGIN test-index (由 tools/build_test_plan_index.py 產生，不要手改) -->
 
-共 **294 支測試檔**。說明取自每支檔案自己的開頭說明，
+共 **295 支測試檔**。說明取自每支檔案自己的開頭說明，
 跑 `python tools/build_test_plan_index.py` 重建。
 
 > 這裡**刻意不列函式數** —— 那個數字每加一條測試就會變，
@@ -679,6 +679,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_job_timestamps.py` | 作業的三個時間點：送出 / 開始 / 結束 |
 | `test_js_set_attributes_go_through_tr.py` | JS 設定的**顯示屬性**（title / placeholder / aria-label / alt）要走 `tr()` |
 | `test_json_error_handling.py` | 非 JSON / 壞掉的 request body 應回 400（而非 500） |
+| `test_jtdt_reform_reports_page_progress.py` | `jtdt-reform` 引擎要**逐頁**回報進度 |
 | `test_latin_ext_garbled_recovery.py` | 擷取結果被映到拉丁擴充區、而且每個 span 都很短 —— 舊的判準抓不到 |
 | `test_ldap_attribute_portability.py` | LDAP 查詢的屬性清單不可以夾帶 AD 專屬屬性 |
 | `test_ldap_failover.py` | 多台 DC 容錯與連線逾時 |

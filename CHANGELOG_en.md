@@ -11,6 +11,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.59] - 2026-09-17
+
+### The `jtdt-reform` engine now reports progress page by page, like the other two
+
+In `pdf-to-office`, `pdf2docx-refine` and `jtdt-layout` had reported per page for
+a while; **`jtdt-reform` only ever reported twice** — at the start and at the end.
+Large files take minutes, during which the screen does not move at all, and
+"nothing appears to be happening" is the hardest symptom to diagnose: users
+assume it has hung.
+
+Both phases (reading the PDF, writing the document) now report per page. Measured
+on a 20-page file: 41 updates, progress 0.07 → 0.95.
+
+> **Progress is a side channel, not the output**: if the reporting callback
+> itself raises, the conversion must still succeed. There is a guard that
+> deliberately makes the callback blow up.
+>
+> **Written-down status needs checking too.** Our own notes claimed all three
+> engines reported per page; reading the code showed only two did. What is
+> written down becomes what the next person believes.
+
 ## [1.15.58] - 2026-09-16
 
 ### ⚠⚠ Document diff: inserting one page made every page after it look different
