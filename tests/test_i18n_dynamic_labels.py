@@ -119,6 +119,22 @@ def _profile_section_titles() -> list[str]:
     return [t for t, _keys in SECTIONS]
 
 
+def _profile_field_labels() -> list[str]:
+    """公司資料的**欄位標題**（`profile_manager.DEFAULT_FIELDS`）。
+
+    分區標題早就在上面收了，欄位標題卻一直沒有 —— 於是表單自動填寫那一頁的
+    公司資料卡在英文 / 日文介面下整片是中文（2026-09-16 用真瀏覽器逐頁掃
+    抓到，en 45 條、ja 9 條）。
+
+    **只收出貨的那份預設清單**：使用者可以自己改欄位名稱（改完存在
+    `profile.json` 裡），那是**使用者資料**，永遠不會在語系檔裡 ——
+    收進來的話「只要有人把欄位改成中文名字就紅」。顯示端是
+    `tr(row.label)`，查不到就原樣顯示，所以自訂名稱照樣正確。
+    """
+    from app.core.profile_manager import DEFAULT_FIELDS
+    return [lab for _k, lab, _v in DEFAULT_FIELDS]
+
+
 def _notify_channel_labels() -> list[str]:
     import app.core.notify_channels as nc
     out: list[str] = []
@@ -253,6 +269,7 @@ def _straighten_dpi_notes() -> list[str]:
     ("OCR 語言", _ocr_language_labels),
     ("上傳上限說明", _upload_limit_labels),
     ("公司資料分區", _profile_section_titles),
+    ("公司資料欄位", _profile_field_labels),
     ("通知管道", _notify_channel_labels),
     ("字型名稱", _font_labels),
     ("掃描工具欄位", _scan_tool_column_labels),

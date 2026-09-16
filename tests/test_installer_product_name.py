@@ -98,15 +98,51 @@ def test_the_recorded_path_is_validated_before_deleting():
         '路徑可疑時要留下痕跡（那時 $4 記錄檔已經關了，要用 DetailPrint）')
 
 
-def test_the_legacy_chinese_folder_is_still_cleaned_up():
-    """v1.15.30 以前的安裝沒有記那個值，資料夾名是寫死的中文。
+def test_every_language_folder_name_is_cleaned_up_on_uninstall():
+    """解除安裝要試著刪掉**每一種語言**的開始功能表資料夾，加上舊的中文名。
 
-    **這條退路不可以省** —— 不然從舊版升級上來的人會留下刪不掉的資料夾。
+    ## 為什麼
+
+    資料夾名同時是路徑，而登錄檔只記得住「最後一次安裝建的那一個」。
+    先用語言 A 裝、再用語言 B 裝、然後解除安裝 —— **A 的資料夾就變成刪不掉
+    的孤兒**。2026-09-16 在 `.154` 實機上真的發生了：英文的
+    `Jason Tools Document Toolbox` 留在開始功能表裡。
+
+    **判準走宣告的語言清單**（不要寫死語言數）：每宣告一種語言，就要有對應的
+    `SM_FOLDER_xx` 而且出現在清理清單裡 —— 加第四種語言時這條會先紅。
+    """
+    from tools.nsis_source import declared_languages
+    code = _nsi_code()
+    raw = _nsi()
+
+    suffix = {"TRADCHINESE": "ZH", "ENGLISH": "EN", "JAPANESE": "JA"}
+    langs = declared_languages(raw)
+    assert langs, "解析不到語言宣告"
+
+    missing = []
+    for lang in sorted(langs):
+        sfx = suffix.get(lang)
+        assert sfx, f"新語言 {lang} 還沒有對應的 SM_FOLDER_ 後綴，補在這裡"
+        if f"!define SM_FOLDER_{sfx}" not in code:
+            missing.append(f"少了 !define SM_FOLDER_{sfx}")
+        elif f"_RmSmFolder \"${{SM_FOLDER_{sfx}}}\"" not in code:
+            missing.append(f"解除安裝沒有清理 SM_FOLDER_{sfx}")
+    assert "LEGACY_SM_FOLDER" in code
+    if '_RmSmFolder "${LEGACY_SM_FOLDER}"' not in code:
+        missing.append("解除安裝沒有清理舊版寫死的中文資料夾")
+    assert not missing, "\n".join(missing)
+
+
+def test_the_installer_also_removes_the_previously_recorded_folder():
+    """安裝時如果登錄檔記的是**別的**資料夾，要先清掉它。
+
+    只靠解除安裝清是不夠的：換語言重裝之後，兩個資料夾會同時掛在開始功能表
+    上，而使用者不會知道哪一個是活的。
     """
     code = _nsi_code()
-    assert "LEGACY_SM_FOLDER" in code
-    assert re.search(r'RMDir /r "\$SMPROGRAMS\\\$\{LEGACY_SM_FOLDER\}"', code), (
-        "沒有清理舊版寫死的中文資料夾")
+    assert 'ReadRegStr $R0 HKLM "${ARP_KEY}" "${SM_FOLDER_VALUE}"' in code, (
+        "安裝時沒有讀回上一次記下的資料夾")
+    assert 'RMDir /r "$R0"' in code, "讀了卻沒有清掉舊的那一個"
 
 
 def test_paths_and_identity_still_use_the_fixed_short_name():
@@ -138,8 +174,11 @@ def test_no_hard_coded_chinese_is_left_outside_language_strings():
             continue
         if not cjk.search(ln):
             continue
-        if "LEGACY_SM_FOLDER" in ln or "!define APPNAME" in ln:
-            continue        # 舊版相容用的字面值，刻意保留
+        # 這幾個 `!define` 是**名字同時是路徑**的那一類（開始功能表資料夾）：
+        # 它們必須是固定的字面值，解除安裝才刪得掉。顯示用的字走 LangString。
+        if any(k in ln for k in ("LEGACY_SM_FOLDER", "!define APPNAME",
+                                 "!define SM_FOLDER_")):
+            continue
         bad.append(f"{n}: {ln.strip()[:60]}")
     assert not bad, "安裝程式裡還有寫死的中文：\n" + "\n".join(bad)
 

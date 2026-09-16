@@ -422,14 +422,14 @@ function renderMulti(r) {
   $('mChars').textContent = fmt(a.char_total);
   $('mAvgFile').textContent = fmt(a.avg_words_per_file);
   const m = a.reading_min;
-  $('mRead').textContent = m < 1 ? '<1 分' : (m >= 60 ? (Math.floor(m/60)+'時'+Math.round(m%60)+'分') : (m + tr(' 分')));
+  $('mRead').textContent = m < 1 ? tr('<1 分') : (m >= 60 ? tr('{0}時{1}分').replace('{0}', Math.floor(m/60)).replace('{1}', Math.round(m%60)) : (m + tr(' 分')));
   const tb = $('mRankingBody');
   tb.innerHTML = '';
   r.ranking.forEach((row, i) => {
     const rowEl = document.createElement('tr');
     rowEl.style.borderBottom = '1px solid #e2e8f0';
     const rd = row.reading_min;
-    const rdTxt = rd < 1 ? '<1 分' : (rd >= 60 ? (Math.floor(rd/60)+'時'+Math.round(rd%60)+'分') : (rd + tr(' 分')));
+    const rdTxt = rd < 1 ? tr('<1 分') : (rd >= 60 ? tr('{0}時{1}分').replace('{0}', Math.floor(rd/60)).replace('{1}', Math.round(rd%60)) : (rd + tr(' 分')));
     rowEl.innerHTML = `
       <td data-s="s01015751">${i+1}</td>
       <td data-s="s607685be">${row.filename.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</td>
@@ -460,7 +460,7 @@ function render(r) {
   $('sCharsNoWs').textContent = tr('不含空白 ') + fmt(s.char_no_ws);
   $('sAvgSent').textContent   = fmt(s.avg_sent_len);
   const m = s.reading_min;
-  $('sRead').textContent = m < 1 ? '<1 分' : (m >= 60 ? (Math.floor(m/60)+'時'+Math.round(m%60)+'分') : (m + tr(' 分')));
+  $('sRead').textContent = m < 1 ? tr('<1 分') : (m >= 60 ? tr('{0}時{1}分').replace('{0}', Math.floor(m/60)).replace('{1}', Math.round(m%60)) : (m + tr(' 分')));
 
   if (!s.has_text) {
     $('wcError').textContent = tr('⚠ 此 PDF 沒有可擷取的文字層 (可能是掃描檔)。請先用 OCR 工具處理後再分析。');

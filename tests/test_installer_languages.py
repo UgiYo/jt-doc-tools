@@ -36,6 +36,9 @@ _CJK = re.compile(r"[　-〿一-鿿＀-￯]")
 # 「安裝時記進登錄檔、解除安裝時讀回來」，所以不再需要寫死中文。
 _DEFERRED = (
     '!define APPNAME',
+    # 開始功能表資料夾名：**名字同時是路徑**，必須是固定字面值，
+    # 解除安裝才刪得掉（每一種語言一個，見 `test_installer_product_name`）。
+    '!define SM_FOLDER_',
     '!define LEGACY_SM_FOLDER',
 )
 

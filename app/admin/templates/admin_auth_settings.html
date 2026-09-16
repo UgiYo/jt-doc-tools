@@ -467,7 +467,7 @@ if (lkSave) lkSave.addEventListener('click', async () => {
     const r = await fetch('/admin/auth-settings/policy-save', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify(body)});
-    $('lkMsg').textContent = r.ok ? '✓ 已儲存' : ('✗ ' + await window.friendlyServerError(r, tr('儲存失敗')));
+    $('lkMsg').textContent = r.ok ? tr('✓ 已儲存') : ('✗ ' + await window.friendlyServerError(r, tr('儲存失敗')));
   } catch(e){ $('lkMsg').textContent = '✗ ' + e; }
   finally { lkSave.disabled = false; }
 });

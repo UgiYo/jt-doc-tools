@@ -1024,7 +1024,7 @@ const PO_ICON_WARN = {{ icon('warn', size=12) | tojson }};
           statusEl.textContent = tr('啟動中（首次載入模型約 5-30 秒）… 已等 {0}s').replace('{0}', elapsed);
         } else if (jj.status === 'pending') {
           const elapsed = Math.round((Date.now() - t0) / 1000);
-          statusEl.textContent = elapsed >= 3 ? `排隊中… 已等 ${elapsed}s` : tr('排隊中…');
+          statusEl.textContent = elapsed >= 3 ? tr('排隊中… 已等 {0}s').replace('{0}', elapsed) : tr('排隊中…');
         }
         if (jj.status === 'done') {
           progressInner.style.width = '100%';

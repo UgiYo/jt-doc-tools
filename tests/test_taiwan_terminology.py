@@ -141,7 +141,12 @@ def _files() -> list[pathlib.Path]:
     介紹站的 `docs/index.html` 同理，那是對外的門面。
     """
     out: list[pathlib.Path] = []
-    for pat in ("app/**/*.html", "app/**/*.py", "static/js/*.js"):
+    for pat in ("app/**/*.html", "app/**/*.py", "static/js/*.js",
+                # `tools/` 也要掃：`seed_demo_data.py` 產的是**要拿去拍截圖
+                # 公開**的畫面，它的欄位標題曾經寫成大陸用語「郵箱」
+                # （2026-09-16）。範圍太窄跟沒有守門一樣 —— 安裝說明那次
+                # 也是這樣躲掉的。
+                "tools/*.py"):
         out += list(ROOT.glob(pat))
     # 公開樹的文件：**開發樹在 `github/` 底下，clone 下來就在根目錄**。
     # 寫死 `github/*.md` 的話，公開版這兩行 glob 一個檔案都收不到 ——
@@ -328,6 +333,10 @@ def test_the_scan_actually_reaches_every_class_of_file():
     for kind, suffix in (("templates", ".html"), ("python", ".py"),
                          ("js", ".js"), ("docs", ".md")):
         got[kind] = sum(1 for f in _files() if f.suffix == suffix)
+    # `tools/` 在上面那個表裡會被算進 `python` 那一類 —— 只看副檔名的話，
+    # 它整個收不到也看不出來。
+    got["tools"] = sum(1 for f in _files()
+                       if f.relative_to(ROOT).as_posix().startswith("tools/"))
     empty = [k for k, n in got.items() if n == 0]
     assert not empty, (
         f"這幾類一個檔案都沒收到，那一類的檢查等於沒跑：{empty}（實收 {got}）")

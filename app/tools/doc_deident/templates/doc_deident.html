@@ -558,7 +558,7 @@ document.querySelectorAll('.dd-mode').forEach(m => {
     chosenMode = m.dataset.mode;
     const isReplace = chosenMode === 'replace';
     $('ddReplaceOpts').hidden = !isReplace;
-    $('ddLastCol').textContent = isReplace ? '替換為（可直接修改）' : tr('遮罩預覽');
+    $('ddLastCol').textContent = isReplace ? tr('替換為（可直接修改）') : tr('遮罩預覽');
     renderRows();
   });
 });

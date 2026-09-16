@@ -11,6 +11,81 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.54] - 2026-09-16
+
+### Uninstalling could leave an undeletable Start Menu folder behind
+
+The folder name is also a path, and the registry only remembers **the one the
+last install created**. So "install under language A, install again under
+language B, then uninstall" orphans A's folder: it survives the uninstall and
+nothing will ever remove it.
+
+**This actually happened on the test machine** (2026-09-16): after uninstalling,
+`Jason Tools Document Toolbox` was still there, with two shortcuts pointing at
+an install directory that no longer existed.
+
+Both sides are fixed:
+
+* **Uninstall** now tries **every language's folder name** after the one in the
+  registry (plus the pre-v1.15.30 hard-coded Chinese name), each behind the same
+  "must live under `$SMPROGRAMS\`" check — we do not touch what is not ours.
+* **Install** reads back the previously recorded folder and removes it when it
+  differs, so reinstalling under another language does not leave two entries
+  with no way to tell which one is live.
+
+Verified on the machine: 2 folders before → install the fixed build → uninstall
+→ **0**, with all four SQLite files byte-identical in size (user data intact).
+
+> The guard walks the **declared language list**: every declared language must
+> have its `SM_FOLDER_xx` *and* appear in the cleanup list — adding a fourth
+> language turns it red first. Mutation-verified in five directions.
+
+### Ternary expressions were only half-wrapped: 16 spots showed Chinese in the English / Japanese UI
+
+When wrapping JS strings for translation we deliberately **do not wrap a whole
+ternary** (the lookup key would then be computed at run time and never match,
+silently). The correct form is to wrap **each branch separately**. The tool
+that wraps strings automatically skips ternaries entirely, so "only one half
+got wrapped" was a state nobody was watching.
+
+A scan found **16 of them**, every one of which shows Chinese in the English
+and Japanese UI: admin save results where only the failure half was
+translated, right-click menu headings in `pdf-fill` / `doc-deident`, the
+word-count reading time once it goes over an hour, the "N failed" tail in font
+management, and the queue message in OCR that only appears after three
+seconds.
+
+**Page-by-page scanning cannot see this class** — those strings only appear
+after a click, a toggle, or a value crossing a threshold. New guard
+`tests/test_ternary_branches_go_through_tr.py`, mutation-verified four ways.
+
+> **A scanner must not pair quotes with a regular expression.** The first
+> version used `'[^']*'`; on a line mixing quoted strings with a template
+> literal it paired two unrelated quotes and swallowed everything between
+> them, giving both a false positive and a miss. Walking the line character by
+> character (and splitting template literals, because `${…}` is code, not
+> text) found 3 more real misses and removed the false positive.
+
+### Company-profile field labels were untranslated in the English / Japanese UI
+
+The company card on the `pdf-fill` page has **50-odd field labels** that never
+had translations. The section headings were worse: the translations were
+already in the catalogue, the display side had simply forgotten to call
+`tr()`.
+
+The display side now translates; **labels the user renamed are untouched**
+(a miss returns the string as-is), and the editable label input on the admin
+page is deliberately left alone — translating it would rewrite the user's own
+field names on the next save.
+
+### The demo-data seeder kept a second copy of those labels, and it had drifted
+
+`tools/seed_demo_data.py` — which produces the screenshots we publish — kept
+its own field-label map. It had drifted from the shipped one in **6 fields**,
+two of them into mainland Chinese wording, which is on our own banned list;
+the terminology guard simply was not scanning that directory. Both are fixed:
+one source of truth, and the guard now covers it.
+
 ## [1.15.53] - 2026-09-16
 
 ### Scan an instance that actually has data, and tell data from interface

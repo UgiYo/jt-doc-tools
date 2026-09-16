@@ -363,7 +363,7 @@ function renderHeavyNotice(rep, sm) {
   box.appendChild(ic);
   const txt = document.createElement('span');
   const head = document.createElement('b');
-  head.textContent = bad ? '這份檔案物件很多，開啟會很慢　' : tr('這份檔案物件較多　');
+  head.textContent = bad ? tr('這份檔案物件很多，開啟會很慢　') : tr('這份檔案物件較多　');
   txt.appendChild(head);
   txt.appendChild(document.createTextNode(
     `共 ${objs.toLocaleString()} 個文字方塊 / 圖形（${pages} 頁，平均每頁 ${perPage} 個）。` +

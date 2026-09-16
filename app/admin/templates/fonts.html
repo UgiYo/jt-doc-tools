@@ -233,7 +233,7 @@ document.getElementById('fontUploadForm').addEventListener('submit', async (e) =
       if (r.ok) { ok++; } else { fail++; }
     } catch (_e) { fail++; }
   }
-  status.textContent = tr('完成：成功 {0} 個').replace('{0}', ok) + (fail ? `，失敗 ${fail} 個` : '');
+  status.textContent = tr('完成：成功 {0} 個').replace('{0}', ok) + (fail ? tr('，失敗 {0} 個').replace('{0}', fail) : '');
   setTimeout(() => location.reload(), 600);
 });
 

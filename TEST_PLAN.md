@@ -543,7 +543,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 
 <!-- BEGIN test-index (由 tools/build_test_plan_index.py 產生，不要手改) -->
 
-共 **286 支測試檔**。說明取自每支檔案自己的開頭說明，
+共 **288 支測試檔**。說明取自每支檔案自己的開頭說明，
 跑 `python tools/build_test_plan_index.py` 重建。
 
 > 這裡**刻意不列函式數** —— 那個數字每加一條測試就會變，
@@ -610,6 +610,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_declared_dependencies.py` | `app/` 直接 import 的第三方套件，**一定要宣告成相依** |
 | `test_deident_label_not_value.py` | 跨格配對時，欄位標籤不可以被當成值（GitHub issue #50） |
 | `test_deident_replace_mode.py` | 文件去識別化的第三種模式：替換 |
+| `test_demo_labels_come_from_the_shipped_defaults.py` | 示範資料的欄位標題必須取自出貨的那份預設清單 |
 | `test_dependency_declaration_sop.py` | 新增 Python 相依時的六處宣告，一處都不能漏 |
 | `test_dependency_declarations_agree.py` | 三份相依宣告必須互相對得上（外部稽核 F12，v1.15.30） |
 | `test_dialog_strings_go_through_tr.py` | 對話框的訊息要走 `tr()`（v1.15.51） |
@@ -796,6 +797,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_template_js_syntax.py` | Inline-JS syntax check for every Jinja2 template (v1.7.14). |
 | `test_template_renders.py` | 每一支模板都要**渲染得起來**，而且註解裡不可以寫出樣板標籤的字面寫法 |
 | `test_template_script_deps.py` | 模板用到的前端元件，那一頁必須自己載進來 |
+| `test_ternary_branches_go_through_tr.py` | 三元運算的**每一個分支**都要各自包 `tr()` |
 | `test_test_plan_coverage.py` | 測試計畫本身的守門：計畫沒涵蓋到的東西要紅燈 |
 | `test_text_deident_e2e.py` | 文字去識別化：走完整條路徑的驗收 |
 | `test_text_diff.py` | Tests for the new 文字差異比對 tool — paste-text variant of doc-diff. |

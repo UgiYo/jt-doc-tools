@@ -425,7 +425,7 @@
       msg.className = 'tp-upmsg ' + (failed.length ? 'err' : 'ok');
       msg.textContent = '';
       const line = document.createElement('div');
-      line.textContent = tr('新增 ') + j.added + tr(' 筆') + (j.duplicates ? tr('，略過重複 ') + j.duplicates + ' 筆' : '') +
+      line.textContent = tr('新增 ') + j.added + tr(' 筆') + (j.duplicates ? tr('，略過重複 ') + j.duplicates + tr(' 筆') : '') +
         (j.cap_reached ? '（已達上限）' : '') + (failed.length ? '，' + failed.length + ' 檔無法解析：' : '');
       msg.appendChild(line);
       failed.forEach(f => {

@@ -34,11 +34,11 @@
         比對台灣廠商表單上那些中文欄位標籤的依據 —— **翻掉會讓比對安靜失效**。
         中文在這裡是正確的，`data-i18n="skip"` 讓逐頁掃描跳過。 -#}
     <div class="profile-section" data-i18n="skip">
-      <h3 class="profile-section-title">{{ sec.title }}</h3>
+      <h3 class="profile-section-title">{{ tr(sec.title) }}</h3>
       <dl class="profile-dl">
         {% for row in visible_rows %}
         <div class="dl-row">
-          <dt>{{ row.label }}</dt>
+          <dt>{{ tr(row.label) }}</dt>
           <dd>{{ row.value }}</dd>
         </div>
         {% endfor %}
@@ -739,7 +739,7 @@ function openContextMenu(clientX, clientY, pt_x, pt_y, replaceIdx, pageIdx) {
   // missed a checkbox, or for per-form template overrides).
   const checkHead = document.createElement('div');
   checkHead.className = 'ctx-menu-section';
-  checkHead.textContent = isReplace ? '覆寫為：' : tr('快速插入');
+  checkHead.textContent = isReplace ? tr('覆寫為：') : tr('快速插入');
   menu.appendChild(checkHead);
   const checkItem = document.createElement('div');
   checkItem.className = 'ctx-menu-item';
@@ -753,7 +753,7 @@ function openContextMenu(clientX, clientY, pt_x, pt_y, replaceIdx, pageIdx) {
 
   const header = document.createElement('div');
   header.className = 'ctx-menu-header';
-  header.textContent = isReplace ? '或改用以下欄位：' : tr('選要插入的欄位：');
+  header.textContent = isReplace ? tr('或改用以下欄位：') : tr('選要插入的欄位：');
   menu.appendChild(header);
 
   const labelByKey = {};
@@ -765,7 +765,7 @@ function openContextMenu(clientX, clientY, pt_x, pt_y, replaceIdx, pageIdx) {
     const val = (currentProfileValues[key] || '').trim();
     const item = document.createElement('div');
     item.className = 'ctx-menu-item' + (val ? '' : ' empty');
-    item.innerHTML = `<span class="k-label">${escapeHTML(pk.label)}</span><span class="k-val">${val ? escapeHTML(val) : tr('(空)')}</span>`;
+    item.innerHTML = `<span class="k-label">${escapeHTML(tr(pk.label))}</span><span class="k-val">${val ? escapeHTML(val) : tr('(空)')}</span>`;
     item.addEventListener('click', () => {
       closeContextMenu();
       if (isReplace) replaceWithField(replaceIdx, pk.key, val);
@@ -781,7 +781,7 @@ function openContextMenu(clientX, clientY, pt_x, pt_y, replaceIdx, pageIdx) {
       if (!visibleKeys.length) return;
       const sh = document.createElement('div');
       sh.className = 'ctx-menu-section';
-      sh.textContent = sec.title;
+      sh.textContent = tr(sec.title);
       menu.appendChild(sh);
       visibleKeys.forEach(k => {
         appendItem(k);
@@ -1142,7 +1142,7 @@ function renderUnmatched(items, profileKeys) {
   box.open = false;
   if (count) count.textContent = tr('（{0} 項）').replace('{0}', items.length);
   const options = ['<option value="">' + tr('— 略過 —') + '</option>'].concat(
-    profileKeys.map(pk => `<option value="${escapeHTML(pk.key)}">${escapeHTML(pk.label)} (${escapeHTML(pk.key)})</option>`)
+    profileKeys.map(pk => `<option value="${escapeHTML(pk.key)}">${escapeHTML(tr(pk.label))} (${escapeHTML(pk.key)})</option>`)
   ).join('');
   list.innerHTML = items.map((it, i) =>
     `<div class="unmatched-row" data-label="${escapeHTML(it.text)}">

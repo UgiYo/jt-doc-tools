@@ -38,6 +38,16 @@ Unicode true
 !define SM_FOLDER_VALUE "StartMenuFolder"
 ;: v1.15.30 以前寫死的中文資料夾名 —— 升級上來的安裝要靠它才刪得掉。
 !define LEGACY_SM_FOLDER "Jason Tools 文件工具箱 (jt-doc-tools)"
+;: 開始功能表資料夾名（每個語言一個）。**這裡是唯一來源** ——
+;: 下面的 LangString 與解除安裝的清理清單都用這幾個，不要再打一次字面值。
+;:
+;: **為什麼清理要列出全部語言**：資料夾名同時是路徑。登錄檔只記得住
+;: 「最後一次安裝建的那一個」，所以「先用語言 A 裝、再用語言 B 裝、然後
+;: 解除安裝」會把 A 的資料夾孤兒化 —— 2026-09-16 在 `.154` 實機上真的發生了
+;: （英文的 `Jason Tools Document Toolbox` 被留下來刪不掉）。
+!define SM_FOLDER_ZH "Jason Tools 文件工具箱"
+!define SM_FOLDER_EN "Jason Tools Document Toolbox"
+!define SM_FOLDER_JA "Jason Tools 文書ツールボックス"
 !define PUBLISHER    "Jason Cheng"
 !define WEBSITE      "https://jasoncheng7115.github.io/jt-doc-tools/"
 !define REPOURL      "https://github.com/jasoncheng7115/jt-doc-tools"
@@ -109,9 +119,9 @@ LangString APP_DISPLAY  ${LANG_ENGLISH}     "Jason Tools Document Toolbox (jt-do
 LangString APP_DISPLAY  ${LANG_JAPANESE}    "Jason Tools 文書ツールボックス (jt-doc-tools)"
 ; 開始功能表的資料夾與兩個捷徑的檔名。**這些是路徑**，所以建出來之後要把
 ; 實際路徑寫進登錄檔，解除安裝才刪得掉（語系換了也一樣）。
-LangString SM_FOLDER    ${LANG_TRADCHINESE} "Jason Tools 文件工具箱"
-LangString SM_FOLDER    ${LANG_ENGLISH}     "Jason Tools Document Toolbox"
-LangString SM_FOLDER    ${LANG_JAPANESE}    "Jason Tools 文書ツールボックス"
+LangString SM_FOLDER    ${LANG_TRADCHINESE} "${SM_FOLDER_ZH}"
+LangString SM_FOLDER    ${LANG_ENGLISH}     "${SM_FOLDER_EN}"
+LangString SM_FOLDER    ${LANG_JAPANESE}    "${SM_FOLDER_JA}"
 LangString SM_OPEN_LNK  ${LANG_TRADCHINESE} "開啟 jt-doc-tools"
 LangString SM_OPEN_LNK  ${LANG_ENGLISH}     "Open jt-doc-tools"
 LangString SM_OPEN_LNK  ${LANG_JAPANESE}    "jt-doc-tools を開く"
@@ -299,7 +309,18 @@ Section "-DoInstall"
   ; Start menu shortcut (browser link to the local UI).
   ; **把實際建出來的資料夾寫進登錄檔** —— 解除安裝時讀它，不要重算。
   ; 重算的話，安裝與解除安裝的語系只要不同就刪不掉（那正是這批要修的事）。
+  ; **先清掉上一次記下的那一個**（如果跟這次不同）—— 換語言重裝時，
+  ; 舊語言的資料夾會留在開始功能表裡，而登錄檔只記得住最後一個。
+  ReadRegStr $R0 HKLM "${ARP_KEY}" "${SM_FOLDER_VALUE}"
   StrCpy $SM_DIR "$SMPROGRAMS\$(SM_FOLDER)"
+  ${If} $R0 != ""
+  ${AndIf} $R0 != "$SM_DIR"
+    StrLen $R8 "$SMPROGRAMS"
+    StrCpy $R9 "$R0" $R8
+    ${If} $R9 == "$SMPROGRAMS"
+      RMDir /r "$R0"
+    ${EndIf}
+  ${EndIf}
   CreateDirectory "$SM_DIR"
   CreateShortcut  "$SM_DIR\$(SM_OPEN_LNK).lnk" "http://127.0.0.1:8765/" "" "$INSTDIR\packaging\windows\assets\jtdt.ico"
   CreateShortcut  "$SM_DIR\$(SM_UNINST_LNK).lnk" "$INSTDIR\${SHORTNAME}-setup.exe" "/uninstall"
@@ -488,9 +509,26 @@ Section "-DoUninstall"
       DetailPrint "refusing to delete suspicious start menu path: $SM_DIR"
     ${EndIf}
   ${EndIf}
-  ; 退路：v1.15.30 以前的安裝沒有記這個值，資料夾名是寫死的中文。
-  ; **這條不可以省** —— 不然從舊版升級上來的人會留下一個刪不掉的資料夾。
-  RMDir /r "$SMPROGRAMS\${LEGACY_SM_FOLDER}"
+  ; 退路：**每一種語言的名字都要試一次**，加上 v1.15.30 以前寫死的那個。
+  ;
+  ; 登錄檔只記得住「最後一次安裝建的那一個」。先用語言 A 裝、再用語言 B 裝、
+  ; 然後解除安裝 —— A 的資料夾就變成刪不掉的孤兒（2026-09-16 在 `.154` 實機
+  ; 上真的發生了）。**這幾條不可以省。**
+  ;
+  ; 每一個都走同一道「必須在 `$SMPROGRAMS\` 底下」的檢查 —— 不是我們的東西
+  ; 不能碰。
+  StrLen $R8 "$SMPROGRAMS"
+  !macro _RmSmFolder name
+    StrCpy $R1 "$SMPROGRAMS\${name}"
+    StrCpy $R9 "$R1" $R8
+    ${If} $R9 == "$SMPROGRAMS"
+      RMDir /r "$R1"
+    ${EndIf}
+  !macroend
+  !insertmacro _RmSmFolder "${SM_FOLDER_ZH}"
+  !insertmacro _RmSmFolder "${SM_FOLDER_EN}"
+  !insertmacro _RmSmFolder "${SM_FOLDER_JA}"
+  !insertmacro _RmSmFolder "${LEGACY_SM_FOLDER}"
   DeleteRegKey HKLM "${ARP_KEY}"
 
   ; 我們是從 %TEMP% 的副本跑的，所以 $UN_DIR 可以整個刪掉；萬一還有殘留

@@ -392,7 +392,7 @@
     btn.disabled = true; resultEl.textContent = tr('儲存中…');
     try {
       const r = await postJson('/admin/sso/save', collect());
-      resultEl.textContent = r.ok ? '✓ 已儲存' : ('✗ ' + await window.friendlyServerError(r, tr('儲存失敗')));
+      resultEl.textContent = r.ok ? tr('✓ 已儲存') : ('✗ ' + await window.friendlyServerError(r, tr('儲存失敗')));
     } catch(e){ resultEl.textContent = '✗ ' + e; }
     finally { btn.disabled = false; }
   }
@@ -407,7 +407,7 @@
       const r = await postJson('/admin/sso/test', {provider});
       const j = await r.json();
       const res = (j.result || {})[provider] || {};
-      resultEl.textContent = res.ok ? '✓ 通過' : ('✗ ' + (res.error || tr('失敗')));
+      resultEl.textContent = res.ok ? tr('✓ 通過') : ('✗ ' + (res.error || tr('失敗')));
     } catch(e){ resultEl.textContent = '✗ ' + e; }
   }
   $('testOidc').addEventListener('click', () => runTest('oidc', $('oidcResult')));

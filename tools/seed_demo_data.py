@@ -21,6 +21,12 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
+from app.core.profile_manager import (  # noqa: E402  （要先設好 sys.path）
+    DEFAULT_FIELDS as _SHIPPED_FIELDS,
+)
+
+_SHIPPED_LABELS = {k: lab for k, lab, _v in _SHIPPED_FIELDS}
+
 #: **全部杜撰。** 統編用不會通過檢查碼的號碼、電話用 02-1234-5678 這種
 #: 明顯是範例的號碼、地址用不存在的門牌 —— 看得出是範例，也不會撞到真人。
 DEMO_COMPANY = {
@@ -54,22 +60,11 @@ DEMO_COMPANY = {
     "invoice_title": "範例科技股份有限公司",
 }
 
-#: 欄位標題（畫面上顯示用）。只列有填的那幾個。
-LABELS = {
-    "company_name": "公司全名", "short_name": "公司簡稱",
-    "english_name": "英文名稱", "tax_id": "統一編號",
-    "founded_date": "成立日期", "capital": "資本額",
-    "owner": "負責人", "owner_title_zh": "代表人職稱",
-    "address": "公司地址", "invoice_address": "發票地址", "zip_code": "郵遞區號",
-    "phone": "公司電話", "fax": "傳真", "mobile": "行動電話",
-    "email": "聯絡人郵箱", "company_email": "公司郵箱", "company_website": "公司網站",
-    "contact": "聯絡人",
-    "bank_name": "銀行名稱", "bank_code": "銀行代碼", "bank_branch": "銀行分行",
-    "bank_branch_code": "分行代碼", "bank_account_name": "戶名",
-    "bank_account_no": "銀行帳號",
-    "payment_method": "付款方式", "payment_terms": "付款條件",
-    "vat_status": "課稅別", "invoice_title": "發票抬頭",
-}
+#: 欄位標題（畫面上顯示用）。**一定要從出貨的那份取**，不可以在這裡自己再寫
+#: 一份 —— 同一份清單放兩個地方一定會漂：2026-09-16 實際漂了 6 個欄位，其中
+#: 兩個還漂成大陸用語「郵箱」（台灣要寫「信箱」），而示範資料正是要拿去拍
+#: 截圖公開的。守門 `tests/test_demo_labels_come_from_the_shipped_defaults.py`。
+LABELS = {k: _SHIPPED_LABELS[k] for k in DEMO_COMPANY}
 
 #: 廠商資料表要填的欄位（標籤 → 右邊留白給工具填）。
 FORM_ROWS = [

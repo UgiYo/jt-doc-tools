@@ -330,7 +330,7 @@ document.addEventListener("click", function (ev) {
       const box = b.nextElementSibling;
       const show = box.style.display === "none";
       box.style.display = show ? "block" : "none";
-      b.textContent = show ? "▾ 收合細節" : tr("▸ 顯示細節");
+      b.textContent = show ? tr("▾ 收合細節") : tr("▸ 顯示細節");
       break;
     }
     case "preview": previewPage(CASE_ID, a.fid, parseInt(a.page, 10)); break;
