@@ -1,20 +1,4 @@
-/* 前端字串翻譯。
- *
- * 樣板的 `{{ tr('…') }}` 是**伺服器端渲染時**求值的，JS 執行期拿不到 ——
- * 按鈕文字、錯誤訊息、動態插進 DOM 的說明都得走這一支。
- *
- * 用法與樣板端一致：key 就是繁體中文原文。
- *
- *     btn.textContent = tr('開始轉換');
- *
- * 查不到就原樣回傳中文 —— 這一點很重要：
- *   * 繁體中文底下字典**是空的**（連載都不用載），所以零風險零成本；
- *   * 英文底下漏翻的字串會顯示中文，而不是顯示 key 或空白。
- *
- * 帶變數的句子**一律參數化**，不可以把內插後的整句當 key（內插值一變就查不到）：
- *
- *     tr('已選：{0}').replace('{0}', file.name)
- */
+/* 前端字串翻譯。 */
 (function () {
   window.__I18N__ = window.__I18N__ || {};
   window.tr = function (s) {
@@ -24,17 +8,16 @@
   };
 })();
 
-/* 共用字型選擇器。
- * PDF 編輯器已採用可搜尋、分組的 fp-* picker；PPT 圖片文字編輯的文字列是
- * 動態 render 出來的，因此用 MutationObserver 自動升級 .pite-style select.font。
- * 圖片文字編輯器目前已有自己的 .font-picker，遇到已包裝的 select 會跳過，避免
- * 重複包兩層。原生 select 保留在 DOM 中，既有 change handler / undo 邏輯完全不變。
- */
+/* 共用字型選擇器：讓動態產生的 PPT 圖片文字編輯列沿用 PDF 的
+ * 「搜尋 + CJK/西文字型分組」操作方式。原生 select 仍留在 DOM，既有
+ * change / undo / preview handler 不需改寫。 */
 (function () {
   function installStyle() {
     if (document.getElementById('jt-shared-font-picker-style')) return;
     var style = document.createElement('style');
     style.id = 'jt-shared-font-picker-style';
+    var nonceSource = document.querySelector('style[nonce],script[nonce]');
+    if (nonceSource && nonceSource.nonce) style.nonce = nonceSource.nonce;
     style.textContent =
       '.fp-wrap{position:relative;display:inline-block;min-width:190px;max-width:300px;vertical-align:middle}' +
       '.fp-wrap>select{display:none!important}' +
@@ -93,12 +76,14 @@
         item.addEventListener('click', function () {
           select.value = item.dataset.value;
           select.dispatchEvent(new Event('change', {bubbles:true}));
-          sync(); pop.hidden = true;
+          sync();
+          pop.hidden = true;
         });
       });
     }
     trigger.addEventListener('click', function (e) {
-      e.stopPropagation(); pop.hidden = !pop.hidden;
+      e.stopPropagation();
+      pop.hidden = !pop.hidden;
       if (!pop.hidden) { search.value = ''; draw(); search.focus(); }
     });
     search.addEventListener('input', draw);
