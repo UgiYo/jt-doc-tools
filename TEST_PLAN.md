@@ -543,7 +543,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 
 <!-- BEGIN test-index (由 tools/build_test_plan_index.py 產生，不要手改) -->
 
-共 **292 支測試檔**。說明取自每支檔案自己的開頭說明，
+共 **293 支測試檔**。說明取自每支檔案自己的開頭說明，
 跑 `python tools/build_test_plan_index.py` 重建。
 
 > 這裡**刻意不列函式數** —— 那個數字每加一條測試就會變，
@@ -731,6 +731,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_pdf_editor_font_subset.py` | PDF 編輯器寫進去的中文：字形要看得見、檔案不可以是十幾 MB |
 | `test_pdf_fill_positioning.py` | 表單自動填寫的定位規則 |
 | `test_pdf_form_detect.py` | Unit tests for the field detector. Builds tiny synthetic PDFs in memory |
+| `test_pdf_isolate.py` | 解析器的行程隔離（外部稽核 F04） |
 | `test_pdf_ocr_preview_acl.py` | End-to-end ACL test for pdf-ocr `/preview/{uid}.pdf` endpoint (v1.7.6). |
 | `test_pdf_page_size.py` | 頁面尺寸統一 |
 | `test_pdf_pageno_cjk.py` | pdf-pageno 中文頁碼字型回歸 |
@@ -1240,6 +1241,11 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 - [ ] 掃出 7 類：JS / 嵌入檔 / URI / launch action / 白字/頁面外 / 3D / 多媒體
 - [ ] 風險清單顯示類型 + 位置
 - [ ] 一鍵清除後再掃確認乾淨
+- [ ] **解析跑在獨立子行程裡**（v1.15.57，稽核 F04）：掃描結果與不隔離時**完全相同**
+- [ ] 子行程崩潰（訊號）時**只有這次請求失敗**，服務本身還活著、其他人不受影響
+- [ ] 超時會把子行程砍掉並說明，不會一直佔著
+- [ ] **毀損的 PDF 仍然回 400**（例外型別要跨行程留住，不可以變成 500）
+- [ ] 子行程起不來時**照舊掃得完**（隔離是防護不是功能）
 
 #### 文件差異比對 (doc-diff) 🆕
 - [ ] 上傳舊 / 新兩份 PDF

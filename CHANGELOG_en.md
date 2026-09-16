@@ -11,6 +11,77 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.57] - 2026-09-16
+
+### Japanese de-identification gained driver's licence and health insurance numbers
+
+Japanese documents were already covered (My Number and corporate number with
+their check digits, phone, postcode, address, name). This release adds the two
+remaining categories from the original plan.
+
+**Both are recognised only as "label plus value", and only the value is masked:**
+
+* A **driver's licence number is 12 digits — exactly as long as a My Number** —
+  and there is no published check-digit algorithm to validate it. Without the
+  label, any 12-digit run would have to be guessed as one or the other and
+  **both guesses would be wrong, while the screen says "processed"**.
+* **Health insurance numbers vary by insurer**: no nationwide length, no check
+  digit. That pattern additionally requires a `番号` field to follow, otherwise
+  an ordinary `記号` field in a normal document would match.
+
+> The hyphen inside the value has to use the "any kind of dash" character class:
+> what PyMuPDF extracts is a non-breaking hyphen `U+2011`, not `-`. The test
+> fixtures hard-code `\xa0` and `\u2011` rather than characters typed by hand,
+> because otherwise the test passes while real files match nothing.
+
+> The false-positive corpus is still part of the acceptance: a Japanese document
+> full of part numbers, order numbers and ISBNs must produce **zero** sensitive
+> hits. Checking only that something is detected would also pass a pattern
+> loosened until it matches everything.
+
+### Hidden-content scanning now parses in a separate process (external audit F04)
+
+The audit said "PyMuPDF upstream does not support multithreading". **Taking that
+literally and adding locks solves the wrong problem**: we do not share
+`Document` objects (every job opens and closes its own), the report itself never
+reproduced a crash, and locks scattered across tools can neither be shown to
+cover every entry point nor contain a parser crash.
+
+What is worth doing is the **blast radius**: a segfault inside MuPDF's C code
+takes down the **whole service process**, and with it every job in flight and
+everyone currently using the site. Isolated, only that one request fails.
+
+**Only the hidden-content scanner for now.** The criterion is "least trusted
+input, widest damage if it falls over", and that tool exists precisely to answer
+"this file might be dangerous, check it". Everything else is unchanged until
+this has run in production for a while.
+
+> **`subprocess`, not `multiprocessing`**: spawn makes the child **re-import the
+> parent's `__main__`**, and we start the service with `python -m app.main` — so
+> every isolated call would rebuild the entire service.
+
+> **⚠ The cost measured while planning was wrong.** It measured "spawn + import
+> PyMuPDF + open the file" at 385 ms and **left out our own import chain**. The
+> first real measurement was **1.6 seconds**, because importing
+> `app.tools.…` triggers the tool package's `__init__.py`, which pulls in the
+> web framework and the settings chain (1,375 ms for that line alone).
+> Extracting the scanner into a module that **imports only PyMuPDF**, and
+> loading it **by file path**, brought the fixed cost down to about **0.5 s**.
+> A guard now watches that module's import list.
+
+> **Isolation is a safeguard, not a feature**: if the subprocess cannot start,
+> the tool falls back to doing the work in-process. The exception type for a
+> broken file is preserved across the process boundary too — losing it would
+> turn a 400 ("your file is broken") into a 500 ("the server is broken"), and
+> users would retry forever.
+
+> **Both directions are tested**: the same crashing code must kill the parent
+> when not isolated and must not when it is. Checking only "it survived with
+> isolation" proves nothing — the crash might not have happened at all. A
+> further test **posts a real request** to confirm the endpoints actually go
+> through isolation: testing only the internal helper stays green even if the
+> endpoint is reverted (the same hole the audit's F06 recorded).
+
 ## [1.15.56] - 2026-09-16
 
 ### The document diff gained a page view that marks the changes on the page itself

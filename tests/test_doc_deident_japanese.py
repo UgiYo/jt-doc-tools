@@ -35,6 +35,8 @@ GOOD = """従業員記録（サンプル。すべて架空の値です）
 固定電話：03-1234-5678
 郵便番号：〒100-0001
 住所：東京都千代田区千代田1-1-1
+運転免許証番号：123456789012
+健康保険証　記号 12345678 番号 90
 メール：taro.yamada@example.co.jp
 """
 
@@ -43,6 +45,8 @@ GOOD = """従業員記録（サンプル。すべて架空の値です）
 BAD = """製品カタログ（機微情報は含みません）
 
 型番：ABC-123456789012
+免許のない社用車：3 台
+記号：A のみ（番号なし）
 注文番号：2026091500123
 ISBN：978-4-7741-9876-5
 バージョン：1.15.48
@@ -52,7 +56,7 @@ ISBN：978-4-7741-9876-5
 """
 
 _JP_IDS = {"jp_mynumber", "jp_corp_no", "jp_phone", "jp_postcode",
-           "jp_addr", "jp_name"}
+           "jp_addr", "jp_name", "jp_driver_license", "jp_health_insurance"}
 
 
 def _scan(locale: str, text: str) -> list[tuple[str, str]]:
@@ -173,7 +177,9 @@ def test_it_works_on_text_extracted_from_a_real_pdf():
             "法人番号：5835678256246\n"
             "電話番号：090\u20111234\u20115678\n"
             "郵便番号：〒100\u20110001\n"
-            "住所：東京都千代田区千代田1\u20111\u20111\n")
+            "住所：東京都千代田区千代田1\u20111\u20111\n"
+            "運転免許証番号：1234\xa05678\xa09012\n"
+            "健康保険証\u3000記号\xa0ABC\u2011123\xa0番号\xa090\n")
     found = {pid for pid, _v in _scan("ja", text)}
     missing = _JP_IDS - found
     assert not missing, f"PDF 的分隔符讓這幾類漏掉了：{sorted(missing)}"
@@ -188,3 +194,41 @@ def test_a_part_number_with_a_trailing_dash_is_not_a_phone_number():
     hits = [v for pid, v in _scan("ja", "社内コード：03-1234-5678-X-99")
             if pid == "jp_phone"]
     assert hits == [], f"型號被當成電話：{hits}"
+
+
+# --------------------------------------------------------------------------
+# 只靠標籤定位的兩類（v1.15.57）
+# --------------------------------------------------------------------------
+
+@pytest.mark.parametrize("text,expect", [
+    ("運転免許証番号：123456789012", "123456789012"),
+    ("免許番号 987654321098", "987654321098"),
+    ("運転免許証番号 1234 5678 9012", "1234 5678 9012"),
+    # **沒有標籤就不可以抓** —— 12 碼跟マイナンバー一樣長，
+    # 裸數字抓了必然在兩類之間誤判，而畫面會顯示「已處理」。
+    ("型番 123456789012", None),
+    ("123456789012", None),
+])
+def test_the_driver_licence_needs_its_label(text: str, expect):
+    got = [v for pid, v in _scan("ja", text) if pid == "jp_driver_license"]
+    assert (got[0] if got else None) == (expect.strip() if expect else None)
+
+
+@pytest.mark.parametrize("text,expect", [
+    ("健康保険証　記号 12345678 番号 90", "12345678"),
+    ("記号：ABC-123 番号：45", "ABC-123"),
+    # 只有「記号」沒有「番号」時不算 —— 一般文件裡的「記号：A」會誤判
+    ("記号：A のところ", None),
+    ("番号：90", None),
+])
+def test_the_health_insurance_needs_both_labels(text: str, expect):
+    got = [v for pid, v in _scan("ja", text) if pid == "jp_health_insurance"]
+    assert (got[0] if got else None) == expect
+
+
+def test_these_two_do_not_fire_on_other_locales():
+    """**日文專屬的式子不可以在中文 / 英文文件上出現。**"""
+    for loc in ("zh-Hant", "en"):
+        ids = {p.id for p in catalog_for(loc)}
+        assert "jp_driver_license" not in ids
+        assert "jp_health_insurance" not in ids

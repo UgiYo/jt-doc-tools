@@ -9,140 +9,11 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
 
 from ...config import settings
+from .scan_core import _scan, scan_path
 
 
 router = APIRouter()
 
-
-def _scan(doc: "fitz.Document") -> dict:
-    """Walk the document and collect every class of hidden / risky
-    content we support removing. Returns {category: [findings]}."""
-    js_events: list[dict] = []
-    embeds: list[dict] = []
-    uri_links: list[dict] = []
-    launch_actions: list[dict] = []
-    hidden_text: list[dict] = []
-    annot_details: list[dict] = []
-    threed_multi: list[dict] = []
-
-    # 1) Document-level JS (/OpenAction, /AA, /Names/JavaScript)
-    try:
-        cat = doc.pdf_catalog()
-        cat_obj = doc.xref_object(cat, compressed=False) if cat else ""
-        if "/JavaScript" in cat_obj or "/JS" in cat_obj:
-            js_events.append({"scope": "document", "kind": "catalog-js",
-                              "detail": "Catalog 內含 JavaScript 或 Names tree /JavaScript"})
-        if "/OpenAction" in cat_obj:
-            js_events.append({"scope": "document", "kind": "open-action",
-                              "detail": "/OpenAction（開檔即執行動作）"})
-    except Exception:
-        pass
-
-    # 2) Embedded files
-    try:
-        for name in doc.embfile_names():
-            try:
-                meta = doc.embfile_info(name) or {}
-                embeds.append({
-                    "name": name,
-                    "size": meta.get("size"),
-                    "subtype": meta.get("subject") or meta.get("description") or "",
-                })
-            except Exception:
-                embeds.append({"name": name})
-    except Exception:
-        pass
-
-    for pno in range(doc.page_count):
-        page = doc[pno]
-        # 3) Link actions — URI or Launch
-        try:
-            for link in page.get_links() or []:
-                kind = link.get("kind")
-                # PyMuPDF: link["kind"] — 1=GOTO, 2=GOTOR, 3=LAUNCH, 4=URI, ...
-                if kind == fitz.LINK_LAUNCH:
-                    launch_actions.append({"page": pno + 1,
-                                           "target": link.get("file", "")})
-                elif kind == fitz.LINK_URI:
-                    uri_links.append({"page": pno + 1,
-                                      "uri": link.get("uri", "")})
-        except Exception:
-            pass
-
-        # 4) Annotations with triggers
-        try:
-            for annot in (page.annots() or []):
-                t = annot.type
-                info = annot.info or {}
-                annot_details.append({
-                    "page": pno + 1,
-                    "type": t[1] if isinstance(t, (list, tuple)) else str(t),
-                    "author": info.get("title", ""),
-                    "content": (info.get("content") or "")[:80],
-                })
-        except Exception:
-            pass
-
-        # 5) White-on-white / outside-page text
-        try:
-            prect = page.rect
-            td = page.get_text("dict")
-            for block in td.get("blocks", []):
-                if block.get("type") != 0:
-                    continue
-                for line in block.get("lines", []):
-                    for sp in line.get("spans", []):
-                        txt = (sp.get("text") or "").strip()
-                        if not txt:
-                            continue
-                        col = int(sp.get("color", 0) or 0)
-                        # White text (0xFFFFFF)
-                        if col == 0xFFFFFF:
-                            hidden_text.append({
-                                "page": pno + 1, "reason": "white",
-                                "text": txt[:60]
-                            })
-                            continue
-                        bbox = sp.get("bbox", [0, 0, 0, 0])
-                        bx0, by0, bx1, by1 = bbox
-                        # Entirely outside the page (common smuggling trick)
-                        if bx1 < 0 or by1 < 0 or bx0 > prect.width or by0 > prect.height:
-                            hidden_text.append({
-                                "page": pno + 1, "reason": "outside-page",
-                                "text": txt[:60]
-                            })
-                            continue
-                        # Font size zero or near-zero
-                        if float(sp.get("size", 0) or 0) < 0.5:
-                            hidden_text.append({
-                                "page": pno + 1, "reason": "zero-size",
-                                "text": txt[:60]
-                            })
-        except Exception:
-            pass
-
-    # 6) 3D / RichMedia — look for /Type /3D or /RichMedia in page contents
-    try:
-        for pno in range(doc.page_count):
-            try:
-                page_xref = doc.page_xref(pno)
-                obj = doc.xref_object(page_xref, compressed=False) or ""
-                if "/3D" in obj or "/RichMedia" in obj or "/Movie" in obj:
-                    threed_multi.append({"page": pno + 1})
-            except Exception:
-                continue
-    except Exception:
-        pass
-
-    return {
-        "js_events": js_events,
-        "embeds": embeds,
-        "uri_links": uri_links,
-        "launch_actions": launch_actions,
-        "hidden_text": hidden_text,
-        "annot_details": annot_details,
-        "threed_multi": threed_multi,
-    }
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -174,13 +45,35 @@ async def scan(request: Request, file: UploadFile = File(...)):
     except Exception:
         pass
     import asyncio as _asyncio
-    def _run_scan():
-        with fitz.open(str(src)) as doc:
-            return _scan(doc)
-    findings = await _asyncio.to_thread(_run_scan)
+    findings = await _asyncio.to_thread(_scan_isolated_or_inline, src)
     totals = {k: len(v) for k, v in findings.items()}
     return {"upload_id": uid, "filename": file.filename,
             "findings": findings, "totals": totals}
+
+
+def _scan_isolated_or_inline(src) -> dict:
+    """優先在**獨立行程**裡掃，跑不起來就退回同一個行程。
+
+    這支工具的用途就是「這份檔案可能有問題，幫我看一下」——**輸入最不可信**。
+    MuPDF 在 C 層 segfault 會把**整個 uvicorn 行程**帶走（所有進行中的作業與
+    網頁一起沒了）；隔離之後只有這一次請求失敗。
+
+    **隔離是防護不是功能** —— 子行程起不來時要能照舊做完，不可以因為它壞掉
+    就整支工具不能用。
+    """
+    from ...core import pdf_isolate
+    if not pdf_isolate.available():
+        return scan_path(str(src))
+    try:
+        return pdf_isolate.run_isolated("hidden_scan", {"src": str(src)},
+                                        timeout=120.0)
+    except pdf_isolate.IsolatedError:
+        raise
+    except Exception:                       # 隔離機制本身出問題 → 照舊做
+        import logging as _lg
+        _lg.getLogger(__name__).warning("隔離掃描起不來，退回同一個行程",
+                                        exc_info=True)
+        return scan_path(str(src))
 
 
 def _clean_sync(src, out, strip):
@@ -346,9 +239,8 @@ async def api_pdf_hidden_scan(request: Request, file: UploadFile = File(...)):
     src = settings.temp_dir / f"hid_{uid}_in.pdf"
     src.write_bytes(data)
     import asyncio as _asyncio
-    def _do():
-        with fitz.open(str(src)) as doc:
-            return _scan(doc)
-    findings = await _asyncio.to_thread(_do)
+    # 對外 API 走同一條隔離路徑 —— **兩個入口要一致**，
+    # 不然「網頁安全、API 不安全」這種差別不會有人發現。
+    findings = await _asyncio.to_thread(_scan_isolated_or_inline, src)
     totals = {k: len(v) for k, v in findings.items()}
     return {"filename": file.filename, "findings": findings, "totals": totals}

@@ -746,6 +746,28 @@ RE_JP_NAME = re.compile(
     r"([\u4e00-\u9fff]{1,5}[ \u3000][\u4e00-\u9fff]{1,5})")
 
 
+#: 運転免許証番号 —— **一定要靠標籤定位**。它是 12 碼，跟マイナンバー**一樣長**，
+#: 而且公開資料裡沒有可驗的檢查碼演算法。沒有標籤的話，任何 12 碼數字都會在
+#: 「個人番号」與「免許証番号」之間二選一，兩邊都會誤判 —— 而畫面會顯示
+#: 「已處理」。所以只收「標籤 ＋ 值」的形狀（`value_group=1` 只遮值那一段）。
+RE_JP_DRIVER_LICENSE = re.compile(
+    r"(?:運転免許証番号|運転免許番号|免許証番号|免許番号)"
+    + _SEP + r"*[:：]?" + _SEP + r"*"
+    + r"(\d(?:" + _SEP + r"*\d){11})")
+
+#: 健康保険証（記号・番号）—— 格式依保險者而異（`記号 12345678 番号 90` 這種），
+#: **沒有一個全國統一的長度或檢查碼**，所以同樣只靠標籤定位。
+RE_JP_HEALTH_INSURANCE = re.compile(
+    r"(?:健康保険証|保険証|被保険者証)?" + _SEP + r"*"
+    r"記号" + _SEP + r"*[:：]?" + _SEP + r"*"
+    # 值裡面的連字號要用 `_DASH` —— PDF 抽出來的是 `\u2011` 不是 `-`
+    r"((?:[0-9A-Za-z]|" + _DASH + r"){2,12})"
+    # **要求後面確實跟著「番号」** —— 只認「記号」的話，一般文件裡的
+    # 「記号：A」也會中。遮的只有記号那一段（`value_group=1`），
+    # 標籤本身不遮，不然遮完看不出那一格原本是什麼。
+    r"(?=" + _SEP + r"*番号)")
+
+
 def _jp_mynumber_valid(v: str) -> bool:
     """マイナンバーの検査用数字（総務省令の算式）。
 
@@ -864,6 +886,13 @@ CATALOG: list[Pattern] = [
             True, group="聯絡方式", icon="map-pin", locales=("ja",)),
     Pattern("jp_name", "姓名（日本）", RE_JP_NAME, _always, _mask_name,
             False, value_group=1, group="其他", icon="user", locales=("ja",)),
+    # 這兩個**只認「標籤 ＋ 值」** —— 沒有檢查碼可驗，裸數字抓了必誤判。
+    Pattern("jp_driver_license", "駕照號碼（日本）", RE_JP_DRIVER_LICENSE,
+            _always, _mask_passport, True, value_group=1, group="個人身分",
+            icon="car", locales=("ja",)),
+    Pattern("jp_health_insurance", "健保證號（日本）", RE_JP_HEALTH_INSURANCE,
+            _always, _mask_passport, True, value_group=1, group="個人身分",
+            icon="heart", locales=("ja",)),
     Pattern("ip",        "IP 位址",       RE_IP,        _always,       _mask_ip,    False, group="IT 資料", icon="globe"),
     Pattern("plate",     "車牌",          RE_PLATE,     _always,       _mask_plate, False, group="其他", icon="car", locales=("zh-Hant",)),
     Pattern("vin",       "車輛 VIN 碼",   RE_VIN,       _always,
