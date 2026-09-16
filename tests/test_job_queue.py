@@ -209,7 +209,12 @@ def test_office_tool_list_matches_actual_imports():
 
 def test_job_row_written_on_submit_and_completion(mgr):
     j = mgr.submit("pdf-merge", lambda job: None, meta={"count": 3})
-    assert _wait(lambda: j.status == "done")
+    # **等 DB 那一列**，不是等記憶體狀態 —— 同 `test_error_is_persisted`。
+    # 狀態先寫進記憶體、`finally` 才寫 DB，中間有個很短的窗口；整包一起跑
+    # （機器忙、GIL 切換間隔又設成 1ms）就會撞到，**單跑永遠是綠的**。
+    # 這條在 v1.15.55 之前寫成等 `j.status`，於是每隔幾次完整測試就紅一次。
+    assert _wait(lambda: (job_store.get(j.id) or {}).get("status") == "done"), \
+        "作業完成沒有被寫進資料庫"
     row = job_store.get(j.id)
     assert row is not None, "工作沒寫進 jobs.sqlite"
     assert row["tool_id"] == "pdf-merge"
@@ -280,7 +285,9 @@ def test_owner_recorded_at_submit_not_on_first_poll(mgr, monkeypatch):
     assert j.owner_id == 42
     assert "alice" in j.owner_label
     assert j.client_ip == "10.1.2.3"
-    assert _wait(lambda: j.status == "done")
+    # 同上：等 DB 那一列出現，不要等記憶體狀態（送出時就會 upsert，
+    # 但形狀一致比較不會有人照著抄出下一個偶發紅燈）。
+    assert _wait(lambda: job_store.get(j.id) is not None)
     assert job_store.get(j.id)["owner_id"] == 42
 
 

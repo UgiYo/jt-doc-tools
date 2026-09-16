@@ -1,6 +1,6 @@
 [繁體中文](README.md) ｜ **English** ｜ [日本語](README_ja.md)
 
-# Jason Tools Document Toolbox v1.15.54
+# Jason Tools Document Toolbox v1.15.55
 
 > ### ⚠ Installed with git before 2026-09-13? Run one command before this upgrade
 >
@@ -106,7 +106,7 @@ Detailed installation notes are in **[INSTALL.md](INSTALL.md)** (required tools,
 - **Page editor**: text boxes, shapes, whiteout, highlighter, signatures, annotations, genuine object deletion
 - **Organise / rotate pages, page numbers, N-up**
 - **Page borders** [needs OxOffice/LibreOffice]: a border on every page: width, colour, style, rounded corners, double lines and shadow, inset from the edge or flush with the content, selected pages and skip-first-page; especially for slides. Accepts PDF and office files (office input needs the engine).
-- **Straighten documents** [needs OxOffice/LibreOffice]: straightens photographed or crookedly scanned pages, crops the black edges and evens out uneven background; for phone photos it finds the four corners of the sheet and corrects the perspective, reporting the correction angle and the residual skew page by page. Takes PDFs, images and office documents (the engine is only needed for office input).
+- **Scan cleanup** [needs OxOffice/LibreOffice]: crops the black edges off a photographed or crookedly scanned page, straightens it and evens out uneven background; for phone photos it finds the four corners of the sheet and corrects the perspective, reporting the correction angle and the residual skew page by page. Takes PDFs, images and office documents (the engine is only needed for office input).
 - **Seam stamp** [needs OxOffice/LibreOffice]: one stamp split across consecutive pages, so **a swapped or missing page is obvious** (that slice no longer lines up); side seams and spreads, a configurable page span, and fixed or random position and angle. The stamp can come from the asset library, your own upload, or be generated from text (office input needs the engine).
 - **Unify page size** [needs OxOffice/LibreOffice]: bring mixed page sizes onto one paper size (A4 / A3 / custom): scale to fit, centre without scaling, or crop to fill; mixed orientations rotate automatically and **the content stays vector, so text is still selectable** (not turned into images). Tenders often mix A3 drawings with A4 text; unify them before printing and binding (office input needs the engine).
 - **Merge files / split pages**

@@ -139,12 +139,12 @@ def _ensure_pdf(upload: UploadFile, data: bytes, uid: str, slot: str) -> Path:
     src.write_bytes(data)
     try:
         office_convert.convert_to_pdf(src, out)
-    except FileNotFoundError as e:
-        raise HTTPException(
-            500,
-            "找不到 Office 引擎（OxOffice / LibreOffice）— Office / ODF 檔案"
-            "需要 soffice 才能轉成 PDF 後比對。",
-        ) from e
+    except office_convert.OfficeUnavailableError:
+        # **不要包成 500** —— 那是「這台機器缺東西」不是「使用者送錯東西」，
+        # 500 會讓人以為服務掛了而一直重試，監控端也全是假警報。
+        # 全域處理器（`app/main.py`）會把它變成 503 並說出要裝什麼；
+        # 包成 HTTPException 的話處理器根本看不到這個例外（v1.14.x 踩過）。
+        raise
     except Exception as e:
         raise HTTPException(
             500,

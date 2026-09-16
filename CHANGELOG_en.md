@@ -11,6 +11,42 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ---
 
+## [1.15.55] - 2026-09-16
+
+### Tool renamed: "Document straightening" is now **Scan cleanup**
+
+The old name had two problems. It **collided conceptually with "Page rotation"**
+(both sound like they straighten a page, but that one only turns the whole page
+90/180 degrees), and it did not say what the tool actually does: **crop, deskew
+and even out the background shading**. The Japanese name had the same fault.
+
+The new name puts it in the same family as "Scan merge". Japanese: `スキャン補正`.
+
+> **The tool id and API path `doc-straighten` did not change** — changing an id
+> means moving built-in roles, a database migration and every existing install's
+> permissions, whereas this is only a display name. The old name stays in the
+> search keywords so anyone who types it still finds the tool.
+
+### The "copy all" buttons in both diff tools were never translated
+
+`Copy all (old)` / `Copy all (new)` and their confirmation toasts showed Chinese
+in the English and Japanese UI. They were written as an interpolated template
+literal starting with a Jinja icon call, so the sentence as a whole could never
+be looked up and nobody had wrapped it. **They only appear once a comparison has
+finished**, which is why page-by-page scanning never saw them.
+
+### Missing Office engine returned 500 from the document diff; it is now 503
+
+500 means "the server is broken": users retry and monitoring fills with false
+alarms. A missing soffice is a **deployment** problem, and the message should say
+what to install. The project already had `OfficeUnavailableError` and a global
+handler, but this tool caught it with a bare `except Exception` and wrapped it in
+a 500, so **the handler never saw it**.
+
+> The guard actually posts an Office file with soffice made unavailable and
+> checks the status code, rather than grepping the source for "503".
+> Mutation-verified: revert the fix and it returns 500 and the guard fails.
+
 ## [1.15.54] - 2026-09-16
 
 ### Uninstalling could leave an undeletable Start Menu folder behind

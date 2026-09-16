@@ -333,13 +333,13 @@ function renderResult(d) {
       <div class="col left">
         <span>${tr('舊版內容')}</span>
         <span class="col-actions">
-          <button class="btn btn-small" type="button" id="btnCopyAllOld" data-text="${esc(_oldLines.join('\\n'))}">{{ icon('paperclip', size=12) }} 複製舊版全文</button>
+          <button class="btn btn-small" type="button" id="btnCopyAllOld" data-text="${esc(_oldLines.join('\\n'))}">{{ icon('paperclip', size=12) }} ${tr('複製舊版全文')}</button>
         </span>
       </div>
       <div class="col right">
         <span>${tr('新版內容')}</span>
         <span class="col-actions">
-          <button class="btn btn-small" type="button" id="btnCopyAllNew" data-text="${esc(_newLines.join('\\n'))}">{{ icon('paperclip', size=12) }} 複製新版全文</button>
+          <button class="btn btn-small" type="button" id="btnCopyAllNew" data-text="${esc(_newLines.join('\\n'))}">{{ icon('paperclip', size=12) }} ${tr('複製新版全文')}</button>
         </span>
       </div>
     </div>`;
@@ -400,12 +400,12 @@ $('diffBox').addEventListener('click', (e) => {
   // 全文複製按鈕（用 event delegation 因標題在 innerHTML 內動態生成）
   const allOld = e.target.closest('#btnCopyAllOld');
   if (allOld) {
-    _copyAndFlash(allOld, allOld.dataset.text || '', '已複製舊版全文');
+    _copyAndFlash(allOld, allOld.dataset.text || '', tr('已複製舊版全文'));
     return;
   }
   const allNew = e.target.closest('#btnCopyAllNew');
   if (allNew) {
-    _copyAndFlash(allNew, allNew.dataset.text || '', '已複製新版全文');
+    _copyAndFlash(allNew, allNew.dataset.text || '', tr('已複製新版全文'));
     return;
   }
 });

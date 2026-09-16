@@ -120,7 +120,7 @@
             <a class="nav-ep" href="#pdf-頁面加框">PDF page borders</a>
             <a class="nav-ep" href="#pdf-書籤與目錄">PDF bookmarks and contents</a>
             <a class="nav-ep" href="#pdf-騎縫章">PDF seam stamp</a>
-            <a class="nav-ep" href="#文件擺正">Document straightening</a>
+            <a class="nav-ep" href="#掃描修正">Scan cleanup</a>
             <a class="nav-ep" href="#pdf-頁面尺寸統一">Unify PDF page size</a>
             <a class="nav-ep" href="#pdf-多頁合一n-up">PDF N-up</a>
             <a class="nav-ep" href="#pdf-壓縮">Compress PDF</a>
@@ -568,9 +568,9 @@ curl <span class="hl-flag">-X</span> <span class="hl-method">POST</span> <span c
   <span class="hl-flag">--output</span> contract_seam.pdf</code></pre>
 <p>Response: the PDF with the seam stamp.</p>
       </section>
-      <section class="doc-section" data-sec="文件擺正" data-title="Document straightening" hidden>
+      <section class="doc-section" data-sec="掃描修正" data-title="Scan cleanup" hidden>
 <div class="doc-crumb">4. PDF editing API</div>
-<h4 id="文件擺正">Document straightening</h4>
+<h4 id="掃描修正">Scan cleanup</h4>
 <p>Straightens documents that were photographed or scanned at an angle, trims dark borders and evens out uneven background. For phone photos it finds the four corners of the sheet and corrects the perspective. <strong>No AI and no GPU involved</strong> (classical image processing; about 0.8 s per page on CPU at 200 dpi).</p>
 <pre><code class="lang-text"><span class="hl-method">POST</span> /tools/doc-straighten/api/doc-straighten</code></pre>
 <div class="table-wrap"><table><thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead><tbody><tr><td><code>file</code></td><td>file</td><td>✓</td><td>PDF, an image (including HEIC from a phone) or an office document</td></tr><tr><td><code>dpi</code></td><td>int</td><td></td><td>Processing resolution: 150 / 200 (default) / 300</td></tr><tr><td><code>binarize</code></td><td>bool</td><td></td><td>Convert to black and white. <strong>Off by default</strong>: measurements show it erases thin Chinese strokes and clearly lowers OCR accuracy; its purpose is a smaller file, not clearer text</td></tr><tr><td><code>detect_quad</code></td><td>bool</td><td></td><td>Detect the sheet edges and correct the perspective (on by default). Falls back to straightening only when the edges cannot be found</td></tr><tr><td><code>enhance</code></td><td>bool</td><td></td><td>Clean up: flatten uneven background and shadows (<strong>on by default</strong>). Measured on a phone photo with a hard one-sided shadow, text recognition went from 0.472 to 0.982; scans that are already even are left bit-for-bit identical</td></tr></tbody></table></div>

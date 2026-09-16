@@ -115,7 +115,7 @@ JTDT_DATA_DIR=$(mktemp -d) JTDT_CSRF_DISABLE=1 \
 
 > **「頁面渲染得出來」跟「頁面活著」是兩件事，而我們從來只驗前者。**
 >
-> v1.15.36 使用者回報「文件擺正拉檔案進去沒反應、點選檔案也沒反應」。根因是
+> v1.15.36 使用者回報「掃描修正拉檔案進去沒反應、點選檔案也沒反應」。根因是
 > 那支模板漏了兩行 `<script src>` —— `new FileUpload(...)` 在行內腳本第一行丟
 > `ReferenceError`，**整段腳本停在那裡**（上傳沒接線、選項面板不出現、
 > 作業進度不會動）。而**當時每一關都是綠的**：
@@ -251,7 +251,7 @@ JTDT_DATA_DIR=$(mktemp -d) JTDT_CSRF_DISABLE=1 \
 - [ ] `pytest tests/test_i18n_dynamic_labels.py` 全綠 —— 它驗兩件事：
       **①每一份「程式算出來的標籤」在每一個語言的語系檔裡都有**
       （側欄管理區、資料庫清單、對照字典的語言、去識別化的文件語言、
-      文件擺正的解析度說明…），**②`<option>` 裡的運算式有沒有走 `tr()`**
+      掃描修正的解析度說明…），**②`<option>` 裡的運算式有沒有走 `tr()`**
 - [ ] 真的是資料的（使用者名稱、工具 id、事件代號、模型名稱、**語言的自稱**）
       列進 `_OPTION_RAW_OK` 並**寫下理由** —— 沒有理由的豁免會變成永久的洞
 - [ ] **同一個家族要一次掃完**：文件去識別化與文字去識別化各有一份同樣的樣板，
@@ -543,7 +543,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 
 <!-- BEGIN test-index (由 tools/build_test_plan_index.py 產生，不要手改) -->
 
-共 **288 支測試檔**。說明取自每支檔案自己的開頭說明，
+共 **289 支測試檔**。說明取自每支檔案自己的開頭說明，
 跑 `python tools/build_test_plan_index.py` 重建。
 
 > 這裡**刻意不列函式數** —— 那個數字每加一條測試就會變，
@@ -630,12 +630,12 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_doc_deident_japanese.py` | 去識別化支援**日文文件**（使用者 2026-09-14 交代、09-15 指示動工） |
 | `test_doc_deident_table_labels.py` | 標籤與值分屬兩個表格儲存格時也要偵測得到（GitHub issue #43） |
 | `test_doc_diff.py` | Tests for the renamed 文件差異比對 tool (formerly pdf-diff). |
-| `test_doc_straighten.py` | 文件擺正（v1.15.33，第一期：只有自動模式） |
+| `test_doc_straighten.py` | 掃描修正（v1.15.33，第一期：只有自動模式） |
 | `test_doc_straighten_border_is_white.py` | 旋轉 / 透視補在邊緣的顏色必須是白的，不可以是紅的 |
-| `test_doc_straighten_enhance.py` | 文件擺正的「清晰化」—— 判準是**文字辨識率**與**內容有沒有被毀掉** |
-| `test_doc_straighten_overlay_geometry.py` | 文件擺正：拖曳四個角的座標對映（要真的瀏覽器才量得到） |
-| `test_doc_straighten_page_strip_e2e.py` | 文件擺正：**多頁 / 多檔的每一頁都要看得到**，而且模式切回去要真的切回去 |
-| `test_doc_straighten_quad_overlay_e2e.py` | 文件擺正的四邊形疊圖：**在真的瀏覽器裡真的畫得出來** |
+| `test_doc_straighten_enhance.py` | 掃描修正的「清晰化」—— 判準是**文字辨識率**與**內容有沒有被毀掉** |
+| `test_doc_straighten_overlay_geometry.py` | 掃描修正：拖曳四個角的座標對映（要真的瀏覽器才量得到） |
+| `test_doc_straighten_page_strip_e2e.py` | 掃描修正：**多頁 / 多檔的每一頁都要看得到**，而且模式切回去要真的切回去 |
+| `test_doc_straighten_quad_overlay_e2e.py` | 掃描修正的四邊形疊圖：**在真的瀏覽器裡真的畫得出來** |
 | `test_doc_translate.py` | 文件翻譯：產出**同格式、同版面**的檔案 |
 | `test_doc_translate_spreadsheet_view.py` | 試算表翻譯的兩件事：預覽要看得到東西、產出要開在內容的開頭 |
 | `test_docs_english_pages.py` | 介紹站與 API 手冊的英文版（GitHub Pages） |
@@ -686,6 +686,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 | `test_llm_url_ssrf.py` | SSRF defence — admin-supplied LLM base URL must reject suspicious schemes |
 | `test_looks_garbled.py` | Regression tests for pdf_editor._looks_garbled(). |
 | `test_migration_fk_cascade.py` | 重建資料表的 migration 一律要關掉外鍵，否則升級會**清空子表** |
+| `test_missing_office_engine_is_503.py` | 缺 Office 引擎要回 **503**，不可以回 500 |
 | `test_nav_visibility_and_whoami.py` | Tests for v1.1.5 - v1.1.7 visibility / identity changes. |
 | `test_nested_group_permissions.py` | 巢狀群組的權限要往上繼承 |
 | `test_net_ssl_corp_tls.py` | 企業 TLS 攔截環境的 Python 端信任修正（2026-06-30 客戶回報） |
@@ -1108,7 +1109,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 - [ ] 辦公文件來源先轉 PDF 再加框
 - [ ] 邊框不會蓋到原本的內容
 
-#### 文件擺正 (doc-straighten) 🆕 v1.15.33
+#### 掃描修正 (doc-straighten) 🆕 v1.15.33
 - [ ] 歪斜的掃描件 → **修正後殘留角接近 0**（實測 0.10°）。
       **這是主要判準**：轉錯方向時「角度」看起來有變化，只有殘留角會現形
 - [ ] 手機翻拍（透視變形）→ 抓到四個角、拉正後四邊平行
@@ -1923,7 +1924,7 @@ v1.12.0 的 `_m8` 就是這樣過關的：它重建 `users` 表時沒關外鍵�
 
 - [ ] `POST /tools/doc-diff/compare`
 
-**doc-straighten（文件擺正）**
+**doc-straighten（掃描修正）**
 
 - [ ] `/tools/doc-straighten/load` —— 上傳（PDF / 圖片 / 文書檔）；
       回頁數與檔名。**壞檔要回 400 不可以 500**
