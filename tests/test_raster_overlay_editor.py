@@ -42,11 +42,70 @@ def test_inserted_image_renders():
     assert r > 200 and g < 80 and b < 80
 
 
+def test_image_resize_rotation_and_opacity_render():
+    icon = _png((20, 10), "red")
+    data_url = "data:image/png;base64," + base64.b64encode(icon).decode("ascii")
+    out = apply_overlays(_png(), [{
+        "overlay_type": "image",
+        "left": 80,
+        "top": 40,
+        "width": 100,
+        "height": 50,
+        "data_url": data_url,
+        "opacity": 0.5,
+        "rotation": 30,
+    }])
+    # The transformed image must affect the expected center while remaining blended.
+    r, g, b = _pixel(out, (130, 65))
+    assert r > 200 and 70 < g < 220 and 70 < b < 220
+
+
+def test_rotated_shape_renders_away_from_unrotated_corner():
+    out = apply_overlays(_png(), [{
+        "overlay_type": "rect",
+        "left": 100,
+        "top": 50,
+        "width": 80,
+        "height": 40,
+        "color": "#000000",
+        "stroke_width": 6,
+        "rotation": 45,
+    }])
+    # Rotation expands around the same center; a pixel outside the original box is touched.
+    with Image.open(io.BytesIO(out)) as im:
+        pixels = im.convert("RGB")
+        changed = 0
+        for y in range(35, 105):
+            for x in range(85, 195):
+                if pixels.getpixel((x, y)) != (255, 255, 255):
+                    changed += 1
+        assert changed > 100
+
+
 def test_ppt_overlay_sentinel_uses_existing_edit_pipeline():
     obj = {"overlay_type": "rect", "left": 40, "top": 40, "width": 80, "height": 40, "color": "#ff0000", "stroke_width": 5, "z": 1}
     sentinel = "__JT_OVERLAY__" + json.dumps(obj)
     out = edit_text(_png(), box=(0, 0, 1, 1), new_text=sentinel, output_format="PNG")
     assert _pixel(out, (40, 40))[0] > 200
+
+
+def test_ppt_sentinel_preserves_transform_properties():
+    obj = {
+        "overlay_type": "ellipse",
+        "left": 60,
+        "top": 40,
+        "width": 90,
+        "height": 50,
+        "color": "#0000ff",
+        "stroke_width": 5,
+        "opacity": 0.6,
+        "rotation": -25,
+        "z": 2,
+    }
+    sentinel = "__JT_OVERLAY__" + json.dumps(obj)
+    out = edit_text(_png(), box=(0, 0, 1, 1), new_text=sentinel, output_format="PNG")
+    assert out.startswith(b"\x89PNG")
+    assert any(_pixel(out, (x, 65)) != (255, 255, 255) for x in range(50, 165))
 
 
 def test_jpeg_output_supported():
