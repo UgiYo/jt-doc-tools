@@ -8,18 +8,32 @@ from PIL import Image, ImageDraw, ImageFont
 
 _FORMAT_BY_EXT = {".png":"PNG",".jpg":"JPEG",".jpeg":"JPEG",".bmp":"BMP",".gif":"GIF",".tif":"TIFF",".tiff":"TIFF",".webp":"WEBP"}
 _FONT_CANDIDATES = {
+    "Noto Sans CJK": ["/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", "NotoSansCJK-Regular.ttc", "C:/Windows/Fonts/msjh.ttc"],
+    "Noto Sans CJK Bold": ["/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc", "NotoSansCJK-Bold.ttc", "C:/Windows/Fonts/msjhbd.ttc"],
+    "Noto Serif CJK": ["/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc", "NotoSerifCJK-Regular.ttc", "C:/Windows/Fonts/mingliu.ttc"],
+    "Noto Serif CJK Bold": ["/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc", "NotoSerifCJK-Bold.ttc"],
+    "DejaVu Sans": ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "DejaVuSans.ttf", "C:/Windows/Fonts/arial.ttf"],
+    "DejaVu Sans Bold": ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "DejaVuSans-Bold.ttf", "C:/Windows/Fonts/arialbd.ttf"],
+    "DejaVu Serif": ["/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf", "DejaVuSerif.ttf"],
+    "DejaVu Serif Bold": ["/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf", "DejaVuSerif-Bold.ttf"],
     "Noto Sans CJK TC": ["/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", "NotoSansCJK-Regular.ttc", "C:/Windows/Fonts/msjh.ttc"],
     "Noto Serif CJK TC": ["/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc", "NotoSerifCJK-Regular.ttc", "C:/Windows/Fonts/mingliu.ttc"],
 }
 _BOLD_CANDIDATES = {
+    "Noto Sans CJK": ["/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc", "NotoSansCJK-Bold.ttc", "C:/Windows/Fonts/msjhbd.ttc"],
+    "Noto Serif CJK": ["/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc", "NotoSerifCJK-Bold.ttc"],
+    "DejaVu Sans": ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "DejaVuSans-Bold.ttf"],
+    "DejaVu Serif": ["/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf", "DejaVuSerif-Bold.ttf"],
     "Noto Sans CJK TC": ["/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc", "NotoSansCJK-Bold.ttc", "C:/Windows/Fonts/msjhbd.ttc"],
     "Noto Serif CJK TC": ["/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc", "NotoSerifCJK-Bold.ttc"],
 }
+_LEGACY_FONT_NAMES = {"Noto Sans CJK TC", "Noto Serif CJK TC"}
 
 
 def available_fonts() -> list[dict[str, str]]:
     result=[]
     for name, candidates in _FONT_CANDIDATES.items():
+        if name in _LEGACY_FONT_NAMES: continue
         for path in candidates:
             try:
                 ImageFont.truetype(path, 16)
@@ -58,7 +72,9 @@ def estimate_foreground(img,box,background):
 def _font_paths(font_family=None,bold=False,font_path=None):
     result=[]
     if font_path: result.append(font_path)
-    if font_family and font_family!="default": result.extend((_BOLD_CANDIDATES if bold else _FONT_CANDIDATES).get(font_family,[]))
+    if font_family and font_family!="default":
+        if font_family.endswith(" Bold"): result.extend(_FONT_CANDIDATES.get(font_family,[]))
+        else: result.extend((_BOLD_CANDIDATES if bold else _FONT_CANDIDATES).get(font_family,[]))
     if bold:
         result += ["/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc","NotoSansCJK-Bold.ttc","C:/Windows/Fonts/msjhbd.ttc"]
     result += ["/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc","NotoSansCJK-Regular.ttc","C:/Windows/Fonts/msjh.ttc","DejaVuSans.ttf","Arial.ttf"]
