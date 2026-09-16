@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import io
 import math
 from pathlib import Path
@@ -75,8 +76,7 @@ def _font_paths(font_family=None,bold=False,font_path=None):
     if font_family and font_family!="default":
         if font_family.endswith(" Bold"): result.extend(_FONT_CANDIDATES.get(font_family,[]))
         else: result.extend((_BOLD_CANDIDATES if bold else _FONT_CANDIDATES).get(font_family,[]))
-    if bold:
-        result += ["/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc","NotoSansCJK-Bold.ttc","C:/Windows/Fonts/msjhbd.ttc"]
+    if bold: result += ["/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc","NotoSansCJK-Bold.ttc","C:/Windows/Fonts/msjhbd.ttc"]
     result += ["/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc","NotoSansCJK-Regular.ttc","C:/Windows/Fonts/msjh.ttc","DejaVuSans.ttf","Arial.ttf"]
     return result
 
@@ -102,6 +102,11 @@ def _parse_color(value):
         except ValueError:return None
     return None
 
+def _save(img,fmt):
+    out=io.BytesIO(); fmt=(fmt or "PNG").upper()
+    if fmt=="JPEG" and img.mode not in ("RGB","L"): img=img.convert("RGB")
+    img.save(out,format=fmt,**({"quality":95} if fmt=="JPEG" else {})); return out.getvalue()
+
 def edit_text(image_bytes: bytes, *, box: tuple[int,int,int,int], new_text: str, font_path: str|None=None,
               font_family: str|None=None, font_size: int|None=None, text_color: str|None=None, bold: bool=False,
               pad_px: int=2, output_format: str="PNG") -> bytes:
@@ -114,4 +119,45 @@ def edit_text(image_bytes: bytes, *, box: tuple[int,int,int,int], new_text: str,
         font=_load_font(max(5,min(300,int(font_size))),font_family,bold,font_path) if font_size else _fit_font(draw,new_text,tw,th,font_family,bold,font_path)
         tb=draw.textbbox((0,0),new_text,font=font); w,h=tb[2]-tb[0],tb[3]-tb[1]; tx=erase[0]+max(1,(tw-w)//2); ty=erase[1]+max(1,(th-h)//2)-tb[1]
         draw.text((tx,ty),new_text,font=font,fill=fg)
-    out=io.BytesIO(); fmt=(output_format or "PNG").upper(); img.save(out,format=fmt,**({"quality":95} if fmt=="JPEG" else {})); return out.getvalue()
+    return _save(img,output_format)
+
+
+def apply_overlays(image_bytes: bytes, overlays: list[dict], output_format: str="PNG") -> bytes:
+    """Rasterize user-inserted objects. Coordinates are source-image pixels."""
+    img=Image.open(io.BytesIO(image_bytes)).convert("RGBA")
+    for obj in sorted(overlays,key=lambda o:int(o.get("z",0))):
+        kind=str(obj.get("overlay_type") or "").lower()
+        try:
+            x=max(0,int(float(obj.get("left",0)))); y=max(0,int(float(obj.get("top",0))))
+            w=max(1,int(float(obj.get("width",1)))); h=max(1,int(float(obj.get("height",1))))
+        except (TypeError,ValueError): continue
+        x2=min(img.width,x+w); y2=min(img.height,y+h)
+        if x>=img.width or y>=img.height or x2<=x or y2<=y: continue
+        color=_parse_color(obj.get("color")) or (0,0,0); stroke=max(1,min(30,int(obj.get("stroke_width") or 3)))
+        layer=Image.new("RGBA",img.size,(0,0,0,0)); draw=ImageDraw.Draw(layer)
+        if kind=="text":
+            text=str(obj.get("text") or "")
+            if text:
+                size=max(5,min(300,int(obj.get("font_size") or max(12,h*.65))))
+                font=_load_font(size,obj.get("font_family") or None,bool(obj.get("bold")))
+                draw.multiline_text((x,y),text,font=font,fill=(*color,255),spacing=max(2,size//5))
+        elif kind=="image":
+            src=str(obj.get("data_url") or "")
+            if src.startswith("data:image/") and "," in src:
+                try:
+                    raw=base64.b64decode(src.split(",",1)[1],validate=True)
+                    if len(raw)<=12*1024*1024:
+                        pasted=Image.open(io.BytesIO(raw)).convert("RGBA"); pasted.thumbnail((x2-x,y2-y),Image.Resampling.LANCZOS)
+                        layer.alpha_composite(pasted,(x,y))
+                except Exception: pass
+        elif kind=="whiteout": draw.rectangle((x,y,x2,y2),fill=(255,255,255,255))
+        elif kind=="rect": draw.rectangle((x,y,x2,y2),outline=(*color,255),width=stroke)
+        elif kind=="ellipse": draw.ellipse((x,y,x2,y2),outline=(*color,255),width=stroke)
+        elif kind in {"line","arrow"}:
+            draw.line((x,y,x2,y2),fill=(*color,255),width=stroke)
+            if kind=="arrow":
+                ang=math.atan2(y2-y,x2-x); head=max(8,stroke*4)
+                pts=[(x2,y2),(x2-head*math.cos(ang-.55),y2-head*math.sin(ang-.55)),(x2-head*math.cos(ang+.55),y2-head*math.sin(ang+.55))]
+                draw.polygon(pts,fill=(*color,255))
+        img=Image.alpha_composite(img,layer)
+    return _save(img,output_format)
