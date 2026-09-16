@@ -9,98 +9,60 @@
 })();
 
 /* 共用字型選擇器：讓動態產生的 PPT 圖片文字編輯列沿用 PDF 的
- * 「搜尋 + CJK/西文字型分組」操作方式。原生 select 仍留在 DOM，既有
- * change / undo / preview handler 不需改寫。 */
+ * 「搜尋 + CJK/西文字型分組」操作方式。原生 select 仍留在 DOM。 */
 (function () {
   function installStyle() {
     if (document.getElementById('jt-shared-font-picker-style')) return;
-    var style = document.createElement('style');
-    style.id = 'jt-shared-font-picker-style';
-    var nonceSource = document.querySelector('style[nonce],script[nonce]');
-    if (nonceSource && nonceSource.nonce) style.nonce = nonceSource.nonce;
-    style.textContent =
-      '.fp-wrap{position:relative;display:inline-block;min-width:190px;max-width:300px;vertical-align:middle}' +
-      '.fp-wrap>select{display:none!important}' +
-      '.fp-trigger{width:100%;min-height:34px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 9px;background:#fff;border:1px solid #cbd5e1;border-radius:6px;color:#0f172a;cursor:pointer;text-align:left}' +
-      '.fp-cur{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
-      '.fp-pop{position:absolute;z-index:9500;top:calc(100% + 4px);left:0;width:300px;max-width:min(360px,90vw);max-height:360px;display:flex;flex-direction:column;overflow:hidden;background:#fff;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 12px 30px rgba(15,23,42,.2)}' +
-      '.fp-search-row{padding:8px;border-bottom:1px solid #f1f5f9}.fp-search{width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px}' +
-      '.fp-list{overflow:auto;min-height:0}.fp-group{padding:5px 9px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:700;position:sticky;top:0}' +
-      '.fp-item{padding:7px 10px;cursor:pointer;color:#0f172a}.fp-item:hover,.fp-item.is-active{background:#dbeafe}.fp-empty{padding:10px;color:#64748b}';
+    var style = document.createElement('style'); style.id = 'jt-shared-font-picker-style';
+    var nonceSource = document.querySelector('style[nonce],script[nonce]'); if (nonceSource && nonceSource.nonce) style.nonce = nonceSource.nonce;
+    style.textContent = '.fp-wrap{position:relative;display:inline-block;min-width:190px;max-width:300px;vertical-align:middle}.fp-wrap>select{display:none!important}.fp-trigger{width:100%;min-height:34px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 9px;background:#fff;border:1px solid #cbd5e1;border-radius:6px;color:#0f172a;cursor:pointer;text-align:left}.fp-cur{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fp-pop{position:absolute;z-index:9500;top:calc(100% + 4px);left:0;width:300px;max-width:min(360px,90vw);max-height:360px;display:flex;flex-direction:column;overflow:hidden;background:#fff;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 12px 30px rgba(15,23,42,.2)}.fp-search-row{padding:8px;border-bottom:1px solid #f1f5f9}.fp-search{width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px}.fp-list{overflow:auto;min-height:0}.fp-group{padding:5px 9px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:700;position:sticky;top:0}.fp-item{padding:7px 10px;cursor:pointer;color:#0f172a}.fp-item:hover,.fp-item.is-active{background:#dbeafe}.fp-empty{padding:10px;color:#64748b}';
     document.head.appendChild(style);
   }
-  function esc(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function groupName(text){return /noto|cjk|source han|han sans|han serif|jheng|ming|hei|song|kai|tc|sc|jp|kr/i.test(text)?tr('開源 CJK 字型'):tr('西文開源字型')}
+  function enhance(select){
+    if(!select||select.dataset.sharedFontPicker==='1'||select.closest('.font-picker')||select.closest('.fp-wrap'))return;select.dataset.sharedFontPicker='1';installStyle();
+    var wrap=document.createElement('span');wrap.className='fp-wrap';select.parentNode.insertBefore(wrap,select);wrap.appendChild(select);wrap.insertAdjacentHTML('beforeend','<button type="button" class="fp-trigger"><span class="fp-cur">Auto</span><span>▾</span></button><div class="fp-pop" hidden><div class="fp-search-row"><input type="search" class="fp-search" placeholder="'+esc(tr('搜尋字型名稱…'))+'"></div><div class="fp-list"></div></div>');
+    var trigger=wrap.querySelector('.fp-trigger'),current=wrap.querySelector('.fp-cur'),pop=wrap.querySelector('.fp-pop'),search=wrap.querySelector('.fp-search'),list=wrap.querySelector('.fp-list');
+    function optionText(value){var found=Array.prototype.find.call(select.options,function(o){return o.value===value});return found?found.textContent:'Auto'} function sync(){current.textContent=optionText(select.value)}
+    function draw(){var q=search.value.trim().toLowerCase(),options=Array.prototype.slice.call(select.options).filter(function(o){return o.value});if(q)options=options.filter(function(o){return o.textContent.toLowerCase().indexOf(q)!==-1});var html='<div class="fp-item'+(select.value===''?' is-active':'')+'" data-value="">Auto</div>';[tr('開源 CJK 字型'),tr('西文開源字型')].forEach(function(g){var items=options.filter(function(o){return groupName(o.textContent)===g});if(!items.length)return;html+='<div class="fp-group">'+esc(g)+'</div>';items.forEach(function(o){html+='<div class="fp-item'+(select.value===o.value?' is-active':'')+'" data-value="'+esc(o.value)+'">'+esc(o.textContent)+'</div>'})});if(q&&!options.length)html+='<div class="fp-empty">'+esc(tr('找不到符合的字型'))+'</div>';list.innerHTML=html;Array.prototype.forEach.call(list.querySelectorAll('.fp-item'),function(item){item.onclick=function(){select.value=item.dataset.value;select.dispatchEvent(new Event('change',{bubbles:true}));sync();pop.hidden=true}})}
+    trigger.onclick=function(e){e.stopPropagation();pop.hidden=!pop.hidden;if(!pop.hidden){search.value='';draw();search.focus()}};search.oninput=draw;select.addEventListener('change',sync);document.addEventListener('click',function(e){if(!wrap.contains(e.target))pop.hidden=true});sync();
   }
-  function groupName(text) {
-    return /noto|cjk|source han|han sans|han serif|jheng|ming|hei|song|kai|tc|sc|jp|kr/i.test(text)
-      ? tr('開源 CJK 字型') : tr('西文開源字型');
+  function scan(root){if(!root||root.nodeType!==1)return;if(root.matches&&root.matches('.pite-style select.font'))enhance(root);if(root.querySelectorAll)Array.prototype.forEach.call(root.querySelectorAll('.pite-style select.font'),enhance)}
+  function start(){scan(document.body);new MutationObserver(function(records){records.forEach(function(r){Array.prototype.forEach.call(r.addedNodes,scan)})}).observe(document.body,{childList:true,subtree:true})}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+})();
+
+/* 圖片 / PPT 圖片共用物件層：插入文字、圖片、圖形、遮罩，拖曳/縮放、圖層、Undo/Redo。
+ * 不改既有 OCR editor 的資料模型；送 preview/export 時把物件序列化進 edits_json。
+ * PPT 後端沿用既有 edit pipeline，透過 __JT_OVERLAY__ sentinel rasterize。 */
+(function(){
+  var path=location.pathname;if(path.indexOf('/tools/image-text-editor')!==0&&path.indexOf('/tools/ppt-image-text-editor')!==0)return;
+  var store={},hist={},histPos={},selected=null,seq=0,origFetch=window.fetch.bind(window),PREFIX='__JT_OVERLAY__';
+  function style(){if(document.getElementById('jt-raster-object-style'))return;var s=document.createElement('style');s.id='jt-raster-object-style';var n=document.querySelector('style[nonce],script[nonce]');if(n&&n.nonce)s.nonce=n.nonce;s.textContent='.jt-ro-toolbar{position:relative;z-index:30;display:flex;gap:5px;align-items:center;flex-wrap:wrap;padding:7px;margin:0 0 8px;background:#fff;border:1px solid #cbd5e1;border-radius:8px;line-height:1.3;text-align:left}.jt-ro-toolbar button,.jt-ro-toolbar select,.jt-ro-toolbar input{min-height:30px}.jt-ro-toolbar button{padding:4px 8px;border:1px solid #cbd5e1;border-radius:5px;background:#fff;cursor:pointer}.jt-ro-toolbar button:hover{background:#eff6ff}.jt-ro-toolbar .jt-sep{width:1px;height:24px;background:#cbd5e1}.jt-ro-toolbar input[type=color]{width:36px;padding:2px}.jt-ro-toolbar input[type=number]{width:62px}.jt-ro-file{display:none}.jt-ro{position:absolute;z-index:20;box-sizing:border-box;cursor:move;line-height:1.2;text-align:left;transform-origin:0 0}.jt-ro.is-selected{outline:2px solid #2563eb;outline-offset:2px}.jt-ro-handle{position:absolute;right:-7px;bottom:-7px;width:13px;height:13px;border:2px solid #fff;background:#2563eb;border-radius:2px;cursor:nwse-resize}.jt-ro-text{white-space:pre-wrap;overflow:hidden}.jt-ro-whiteout{background:#fff}.jt-ro-rect{border:3px solid #111;background:transparent}.jt-ro-ellipse{border:3px solid #111;border-radius:50%}.jt-ro-line svg{width:100%;height:100%;overflow:visible;display:block}.jt-ro-image img{width:100%;height:100%;object-fit:fill;display:block;pointer-events:none}';document.head.appendChild(s)}
+  function key(stage){var c=stage.closest('.pite-card');return c?'ppt:'+c.dataset.imageIndex:'image'} function arr(k){return store[k]||(store[k]=[])}
+  function snap(k){var a=JSON.stringify(arr(k));hist[k]=hist[k]||[];if(hist[k][hist[k].length-1]===a)return;hist[k].push(a);if(hist[k].length>50)hist[k].shift();histPos[k]=hist[k].length-1}
+  function restore(k,pos){if(!hist[k]||pos<0||pos>=hist[k].length)return;store[k]=JSON.parse(hist[k][pos]);histPos[k]=pos;selected=null;scan(document.body)}
+  function dims(stage){var im=stage.querySelector(':scope > img');return im&&im.naturalWidth?{nw:im.naturalWidth,nh:im.naturalHeight,dw:im.clientWidth,dh:im.clientHeight}:null}
+  function trigger(stage){var root=stage.closest('.pite-card')||document;var inp=root.querySelector('.new');if(inp)inp.dispatchEvent(new Event('input',{bubbles:true}))}
+  function add(stage,type,extra){var d=dims(stage);if(!d)return;var k=key(stage),z=arr(k).length?Math.max.apply(null,arr(k).map(function(o){return o.z||0}))+1:1,w=Math.max(40,Math.round(d.nw*.22)),h=Math.max(30,Math.round(d.nh*.12));var o=Object.assign({id:'ro'+(++seq),overlay_type:type,left:Math.round((d.nw-w)/2),top:Math.round((d.nh-h)/2),width:w,height:h,color:'#111111',stroke_width:3,z:z,font_size:Math.max(16,Math.round(d.nh*.035)),font_family:'',bold:false},extra||{});arr(k).push(o);snap(k);render(stage);trigger(stage)}
+  function objectEl(stage,o){var d=dims(stage);if(!d)return null,sx=d.dw/d.nw,sy=d.dh/d.nh,el=document.createElement('div');el.className='jt-ro jt-ro-'+o.overlay_type+(selected&&selected.k===key(stage)&&selected.id===o.id?' is-selected':'');el.dataset.id=o.id;el.style.left=(o.left*sx)+'px';el.style.top=(o.top*sy)+'px';el.style.width=(o.width*sx)+'px';el.style.height=(o.height*sy)+'px';el.style.zIndex=20+(o.z||0);
+    if(o.overlay_type==='text'){el.textContent=o.text||'';el.style.color=o.color;el.style.fontSize=(o.font_size*sy)+'px';el.style.fontWeight=o.bold?'700':'400';if(o.font_family)el.style.fontFamily='"'+o.font_family+'"'}
+    else if(o.overlay_type==='image'){el.innerHTML='<img alt="">';el.querySelector('img').src=o.data_url}
+    else if(o.overlay_type==='rect'||o.overlay_type==='ellipse'){el.style.borderColor=o.color;el.style.borderWidth=Math.max(1,o.stroke_width*sx)+'px'}
+    else if(o.overlay_type==='line'||o.overlay_type==='arrow'){el.innerHTML='<svg viewBox="0 0 100 100" preserveAspectRatio="none"><line x1="0" y1="0" x2="100" y2="100" stroke="'+o.color+'" stroke-width="3" vector-effect="non-scaling-stroke"/>'+(o.overlay_type==='arrow'?'<polygon points="100,100 83,96 96,83" fill="'+o.color+'"/>':'')+'</svg>'}
+    var h=document.createElement('span');h.className='jt-ro-handle';el.appendChild(h);el.onpointerdown=function(e){if(e.target===h)return;select(stage,o);var sx0=e.clientX,sy0=e.clientY,ox=o.left,oy=o.top;el.setPointerCapture(e.pointerId);el.onpointermove=function(m){o.left=Math.max(0,Math.min(d.nw-o.width,ox+(m.clientX-sx0)/sx));o.top=Math.max(0,Math.min(d.nh-o.height,oy+(m.clientY-sy0)/sy));render(stage)};el.onpointerup=function(){el.onpointermove=null;snap(key(stage));trigger(stage)}};h.onpointerdown=function(e){e.stopPropagation();select(stage,o);var x=e.clientX,y=e.clientY,ow=o.width,oh=o.height;h.setPointerCapture(e.pointerId);h.onpointermove=function(m){o.width=Math.max(10,Math.min(d.nw-o.left,ow+(m.clientX-x)/sx));o.height=Math.max(10,Math.min(d.nh-o.top,oh+(m.clientY-y)/sy));render(stage)};h.onpointerup=function(){h.onpointermove=null;snap(key(stage));trigger(stage)}};el.ondblclick=function(e){e.stopPropagation();if(o.overlay_type==='text'){var v=prompt(tr('編輯文字'),o.text||'');if(v!==null){o.text=v;snap(key(stage));render(stage);trigger(stage)}}};return el}
+  function select(stage,o){selected={k:key(stage),id:o.id};render(stage)}
+  function render(stage){if(!stage||!stage.isConnected)return;Array.prototype.forEach.call(stage.querySelectorAll('.jt-ro'),function(x){x.remove()});arr(key(stage)).sort(function(a,b){return(a.z||0)-(b.z||0)}).forEach(function(o){var el=objectEl(stage,o);if(el)stage.appendChild(el)});syncToolbar(stage)}
+  function current(stage){if(!selected||selected.k!==key(stage))return null;return arr(key(stage)).find(function(o){return o.id===selected.id})||null}
+  function syncToolbar(stage){var tb=stage.previousElementSibling;if(!tb||!tb.classList.contains('jt-ro-toolbar'))return;var o=current(stage),color=tb.querySelector('.jt-color'),size=tb.querySelector('.jt-size'),bold=tb.querySelector('.jt-bold');if(o){color.value=o.color||'#111111';size.value=o.font_size||24;bold.checked=!!o.bold}tb.querySelector('.jt-delete').disabled=!o}
+  function toolbar(stage){if(stage.dataset.jtRasterReady==='1')return;stage.dataset.jtRasterReady='1';style();var tb=document.createElement('div');tb.className='jt-ro-toolbar';tb.innerHTML='<button type="button" data-add="text">＋ '+tr('文字')+'</button><button type="button" class="jt-image">＋ '+tr('圖片')+'</button><input class="jt-ro-file" type="file" accept="image/png,image/jpeg,image/webp"><button type="button" data-add="rect">□ '+tr('矩形')+'</button><button type="button" data-add="ellipse">○ '+tr('橢圓')+'</button><button type="button" data-add="line">╱ '+tr('線段')+'</button><button type="button" data-add="arrow">→ '+tr('箭頭')+'</button><button type="button" data-add="whiteout">▭ '+tr('遮罩')+'</button><span class="jt-sep"></span><label>'+tr('顏色')+' <input class="jt-color" type="color" value="#111111"></label><label>'+tr('大小')+' <input class="jt-size" type="number" min="5" max="300" value="24"></label><label><input class="jt-bold" type="checkbox"> '+tr('粗體')+'</label><span class="jt-sep"></span><button type="button" class="jt-up">↑ '+tr('上層')+'</button><button type="button" class="jt-down">↓ '+tr('下層')+'</button><button type="button" class="jt-undo">↶</button><button type="button" class="jt-redo">↷</button><button type="button" class="jt-delete" disabled>🗑 '+tr('刪除')+'</button>';stage.parentNode.insertBefore(tb,stage);snap(key(stage));
+    Array.prototype.forEach.call(tb.querySelectorAll('[data-add]'),function(b){b.onclick=function(){var t=b.dataset.add;if(t==='text'){var v=prompt(tr('輸入文字'),'文字');if(v!==null)add(stage,'text',{text:v})}else add(stage,t)}});var fi=tb.querySelector('.jt-ro-file');tb.querySelector('.jt-image').onclick=function(){fi.click()};fi.onchange=function(){var f=fi.files[0];if(!f)return;if(f.size>8*1024*1024){alert(tr('插入圖片請小於 8 MB'));fi.value='';return}var r=new FileReader();r.onload=function(){add(stage,'image',{data_url:r.result});fi.value=''};r.readAsDataURL(f)};
+    function change(fn){var o=current(stage);if(!o)return;fn(o);snap(key(stage));render(stage);trigger(stage)}tb.querySelector('.jt-color').onchange=function(){change(function(o){o.color=tb.querySelector('.jt-color').value})};tb.querySelector('.jt-size').onchange=function(){change(function(o){o.font_size=Math.max(5,Math.min(300,+tb.querySelector('.jt-size').value||24))})};tb.querySelector('.jt-bold').onchange=function(){change(function(o){o.bold=tb.querySelector('.jt-bold').checked})};tb.querySelector('.jt-up').onclick=function(){change(function(o){o.z+=1})};tb.querySelector('.jt-down').onclick=function(){change(function(o){o.z-=1})};tb.querySelector('.jt-delete').onclick=function(){var o=current(stage);if(!o)return;store[key(stage)]=arr(key(stage)).filter(function(x){return x.id!==o.id});selected=null;snap(key(stage));render(stage);trigger(stage)};tb.querySelector('.jt-undo').onclick=function(){var k=key(stage),p=(histPos[k]||0)-1;if(p>=0){restore(k,p);render(stage);trigger(stage)}};tb.querySelector('.jt-redo').onclick=function(){var k=key(stage),p=(histPos[k]||0)+1;if(hist[k]&&p<hist[k].length){restore(k,p);render(stage);trigger(stage)}};render(stage)
   }
-  function enhance(select) {
-    if (!select || select.dataset.sharedFontPicker === '1' || select.closest('.font-picker') || select.closest('.fp-wrap')) return;
-    select.dataset.sharedFontPicker = '1';
-    installStyle();
-    var wrap = document.createElement('span');
-    wrap.className = 'fp-wrap';
-    select.parentNode.insertBefore(wrap, select);
-    wrap.appendChild(select);
-    wrap.insertAdjacentHTML('beforeend',
-      '<button type="button" class="fp-trigger"><span class="fp-cur">Auto</span><span class="fp-caret">▾</span></button>' +
-      '<div class="fp-pop" hidden><div class="fp-search-row"><input type="search" class="fp-search" placeholder="' + esc(tr('搜尋字型名稱…')) + '"></div><div class="fp-list"></div></div>');
-    var trigger = wrap.querySelector('.fp-trigger');
-    var current = wrap.querySelector('.fp-cur');
-    var pop = wrap.querySelector('.fp-pop');
-    var search = wrap.querySelector('.fp-search');
-    var list = wrap.querySelector('.fp-list');
-    function optionText(value) {
-      var found = Array.prototype.find.call(select.options, function (o) { return o.value === value; });
-      return found ? found.textContent : 'Auto';
-    }
-    function sync() { current.textContent = optionText(select.value); }
-    function draw() {
-      var q = search.value.trim().toLowerCase();
-      var options = Array.prototype.slice.call(select.options).filter(function (o) { return o.value; });
-      if (q) options = options.filter(function (o) { return o.textContent.toLowerCase().indexOf(q) !== -1; });
-      var html = '<div class="fp-item' + (select.value === '' ? ' is-active' : '') + '" data-value="">Auto</div>';
-      [tr('開源 CJK 字型'), tr('西文開源字型')].forEach(function (g) {
-        var items = options.filter(function (o) { return groupName(o.textContent) === g; });
-        if (!items.length) return;
-        html += '<div class="fp-group">' + esc(g) + '</div>';
-        items.forEach(function (o) {
-          html += '<div class="fp-item' + (select.value === o.value ? ' is-active' : '') + '" data-value="' + esc(o.value) + '">' + esc(o.textContent) + '</div>';
-        });
-      });
-      if (q && !options.length) html += '<div class="fp-empty">' + esc(tr('找不到符合的字型')) + '</div>';
-      list.innerHTML = html;
-      Array.prototype.forEach.call(list.querySelectorAll('.fp-item'), function (item) {
-        item.addEventListener('click', function () {
-          select.value = item.dataset.value;
-          select.dispatchEvent(new Event('change', {bubbles:true}));
-          sync();
-          pop.hidden = true;
-        });
-      });
-    }
-    trigger.addEventListener('click', function (e) {
-      e.stopPropagation();
-      pop.hidden = !pop.hidden;
-      if (!pop.hidden) { search.value = ''; draw(); search.focus(); }
-    });
-    search.addEventListener('input', draw);
-    select.addEventListener('change', sync);
-    document.addEventListener('click', function (e) { if (!wrap.contains(e.target)) pop.hidden = true; });
-    sync();
-  }
-  function scan(root) {
-    if (!root || root.nodeType !== 1) return;
-    if (root.matches && root.matches('.pite-style select.font')) enhance(root);
-    if (root.querySelectorAll) Array.prototype.forEach.call(root.querySelectorAll('.pite-style select.font'), enhance);
-  }
-  function start() {
-    scan(document.body);
-    new MutationObserver(function (records) {
-      records.forEach(function (r) { Array.prototype.forEach.call(r.addedNodes, scan); });
-    }).observe(document.body, {childList:true, subtree:true});
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+  function scan(root){if(!root||root.nodeType!==1)return;var stages=[];if(root.matches&&root.matches('.ite-stage,.pite-stage'))stages.push(root);if(root.querySelectorAll)stages=stages.concat(Array.prototype.slice.call(root.querySelectorAll('.ite-stage,.pite-stage')));stages.forEach(toolbar)}
+  function entriesFor(k,imageIndex){return arr(k).map(function(o){var copy=JSON.parse(JSON.stringify(o));return {kind:'overlay',image_index:imageIndex,left:0,top:-(o.z||0),width:1,height:1,new_text:PREFIX+JSON.stringify(copy),overlay_type:o.overlay_type,z:o.z||0,color:o.color,stroke_width:o.stroke_width,font_size:o.font_size,font_family:o.font_family,bold:o.bold,text:o.text,data_url:o.data_url}})}
+  window.fetch=function(input,init){try{var url=typeof input==='string'?input:(input&&input.url)||'',body=init&&init.body;if(body instanceof FormData&&body.has('edits_json')&&(url.indexOf('/tools/image-text-editor/')>=0||url.indexOf('/tools/ppt-image-text-editor/')>=0)){var edits=JSON.parse(body.get('edits_json')||'[]');if(url.indexOf('/tools/image-text-editor/')>=0)edits=edits.concat(entriesFor('image',null));else if(/\/preview\/[^/]+\/(\d+)/.test(url)){var idx=RegExp.$1;edits=edits.concat(entriesFor('ppt:'+idx,+idx))}else Object.keys(store).filter(function(k){return k.indexOf('ppt:')===0}).forEach(function(k){var idx=+k.split(':')[1];edits=edits.concat(entriesFor(k,idx))});body.set('edits_json',JSON.stringify(edits))}}catch(e){console.warn('[raster-object-editor] serialize failed',e)}return origFetch(input,init)};
+  function start(){scan(document.body);new MutationObserver(function(rs){rs.forEach(function(r){Array.prototype.forEach.call(r.addedNodes,scan)})}).observe(document.body,{childList:true,subtree:true});document.addEventListener('click',function(e){if(e.target&&e.target.id==='resetBtn'){store={};hist={};histPos={};selected=null}if(e.target&&e.target.id==='analyze'&&path.indexOf('/image-text-editor')>=0){store={};hist={};histPos={};selected=null}});window.addEventListener('resize',function(){document.querySelectorAll('.ite-stage,.pite-stage').forEach(render)})}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();
