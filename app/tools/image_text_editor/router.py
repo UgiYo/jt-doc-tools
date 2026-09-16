@@ -7,7 +7,7 @@ from PIL import Image
 from ...config import settings
 from ...core import upload_owner as _uo
 from ...core import ocr_engine as _oe
-from ..ppt_image_text_editor.image_edit import available_fonts,edit_text,image_format_for_path,to_png
+from ..ppt_image_text_editor.image_edit import apply_overlays,available_fonts,edit_text,image_format_for_path,to_png
 router=APIRouter(); _ID_RE=re.compile(r"^[a-f0-9]{32}$"); _ALLOWED={".png",".jpg",".jpeg",".webp",".bmp",".tif",".tiff"}; _MEDIA={"PNG":"image/png","JPEG":"image/jpeg","WEBP":"image/webp","BMP":"image/bmp","TIFF":"image/tiff"}
 def _work_dir():
  p=settings.temp_dir/"image_text_editor";p.mkdir(parents=True,exist_ok=True);return p
@@ -32,11 +32,16 @@ def _style(e):
  except (TypeError,ValueError):size=None
  return {"font_family":e.get("font_family") or None,"font_size":size,"text_color":e.get("text_color") or None,"bold":bool(e.get("bold",False))}
 def _apply(raw,edits,output_format="PNG"):
- current,_=to_png(raw);ordered=sorted(edits,key=lambda x:int(x.get("top",0)),reverse=True)
- for i,e in enumerate(ordered):
+ text_edits=[e for e in edits if e.get("kind")!="overlay"];overlays=[e for e in edits if e.get("kind")=="overlay"]
+ current,_=to_png(raw);ordered=sorted(text_edits,key=lambda x:int(x.get("top",0)),reverse=True)
+ for e in ordered:
   try:left,top,width,height=int(e["left"]),int(e["top"]),int(e["width"]),int(e["height"])
   except (KeyError,TypeError,ValueError) as exc:raise HTTPException(400,"修改座標格式錯誤") from exc
-  current=edit_text(current,box=(left,top,left+width,top+height),new_text=str(e.get("new_text","")),output_format=output_format if i==len(ordered)-1 else "PNG",**_style(e))
+  current=edit_text(current,box=(left,top,left+width,top+height),new_text=str(e.get("new_text","")),output_format="PNG",**_style(e))
+ if overlays:return apply_overlays(current,overlays,output_format)
+ if text_edits:
+  with Image.open(io.BytesIO(current)) as im:
+   buf=io.BytesIO();fmt=(output_format or "PNG").upper();im=im.convert("RGB") if fmt=="JPEG" else im;im.save(buf,format=fmt,**({"quality":95} if fmt=="JPEG" else {}));return buf.getvalue()
  return current
 @router.get("/",response_class=HTMLResponse)
 async def index(request:Request):return request.app.state.templates.TemplateResponse(request,"image_text_editor.html",{"request":request})
