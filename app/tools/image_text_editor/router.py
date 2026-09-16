@@ -8,7 +8,7 @@ from ...config import settings
 from ...core import upload_owner as _uo
 from ...core import ocr_engine as _oe
 from ..ppt_image_text_editor.image_edit import apply_overlays,available_fonts,edit_text,image_format_for_path,to_png
-router=APIRouter(); _ID_RE=re.compile(r"^[a-f0-9]{32}$"); _ALLOWED={".png",".jpg",".jpeg",".webp",".bmp",".tif",".tiff"}; _MEDIA={"PNG":"image/png","JPEG":"image/jpeg","WEBP":"image/webp","BMP":"image/bmp","TIFF":"image/tiff"}
+router=APIRouter(); _ID_RE=re.compile(r"^[a-f0-9]{32}$"); _ALLOWED={".png",".jpg",".jpeg",".webp",".bmp",".tif",".tiff"}; _MEDIA={"PNG":"image/png","JPEG":"image/jpeg","WEBP":"image/webp","BMP":"image/bmp","TIFF":"image/tiff"};_OVERLAY_PREFIX="__JT_OVERLAY__"
 def _work_dir():
  p=settings.temp_dir/"image_text_editor";p.mkdir(parents=True,exist_ok=True);return p
 def _safe_id(uid):
@@ -31,8 +31,14 @@ def _style(e):
  try:size=int(size) if size not in (None,"","auto") else None
  except (TypeError,ValueError):size=None
  return {"font_family":e.get("font_family") or None,"font_size":size,"text_color":e.get("text_color") or None,"bold":bool(e.get("bold",False))}
+def _overlay_payload(e):
+ s=e.get("new_text")
+ if isinstance(s,str) and s.startswith(_OVERLAY_PREFIX):
+  try:return json.loads(s[len(_OVERLAY_PREFIX):])
+  except (json.JSONDecodeError,TypeError):return None
+ return e
 def _apply(raw,edits,output_format="PNG"):
- text_edits=[e for e in edits if e.get("kind")!="overlay"];overlays=[e for e in edits if e.get("kind")=="overlay"]
+ text_edits=[e for e in edits if e.get("kind")!="overlay"];overlays=[_overlay_payload(e) for e in edits if e.get("kind")=="overlay"];overlays=[e for e in overlays if isinstance(e,dict)]
  current,_=to_png(raw);ordered=sorted(text_edits,key=lambda x:int(x.get("top",0)),reverse=True)
  for e in ordered:
   try:left,top,width,height=int(e["left"]),int(e["top"]),int(e["width"]),int(e["height"])
