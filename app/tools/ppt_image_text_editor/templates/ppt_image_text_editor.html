@@ -161,6 +161,7 @@ async function restoreLinkedVersion(){
  const r=await fetch(`/tools/ppt-image-text-editor/output/${linkedUpload}/version/${linkedVersion}`);
  if(!r.ok)throw new Error(await responseError(r,'version not found'));
  const version=await r.json();
+ if(window.JTRasterEditor&&window.JTRasterEditor.restorePptVersion)window.JTRasterEditor.restorePptVersion(version.edits||[]);
  (version.edits||[]).forEach(e=>{if(e.word_index===undefined||String(e.new_text||'').startsWith('__JT_OVERLAY__'))return;const key=`${e.image_index}:${e.word_index}`;draftValues.set(key,String(e.new_text??''));draftStyles.set(key,{font_family:e.font_family||'',font_size:e.font_size||'',text_color:e.text_color||'',bold:!!e.bold})});
 }
 
