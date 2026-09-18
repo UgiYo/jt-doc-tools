@@ -2003,6 +2003,8 @@ async def _sweep_temp_files_loop():
         try:
             cutoff = _time.time() - ttl
             removed = 0
+            ppt_session_dir = settings.temp_dir / "ppt_image_text_editor"
+            ppt_session_ttl = max(ttl, int(settings.job_ttl_seconds))
             for p in settings.temp_dir.iterdir():
                 try:
                     if not p.is_file():
@@ -2012,6 +2014,25 @@ async def _sweep_temp_files_loop():
                         removed += 1
                 except Exception:
                     continue
+            # PPT 圖片文字編輯是一個「整組 session」：原始 PPT、OCR manifest、
+            # 各版本 edits snapshot 與 modified PPTX 彼此相依。不能套一般 temp 的
+            # 2 小時 TTL，否則「我的作業」還在 6 小時內，開啟歷史版本卻已失效。
+            # 這個子目錄至少跟 Job TTL 一樣久，並以每個 upload uid 為單位整組清理。
+            if ppt_session_dir.is_dir():
+                session_cutoff = _time.time() - ppt_session_ttl
+                manifests = list(ppt_session_dir.glob("*.json"))
+                for manifest in manifests:
+                    try:
+                        uid = manifest.stem
+                        members = [x for x in ppt_session_dir.glob(f"{uid}*") if x.is_file()]
+                        newest = max((x.stat().st_mtime for x in members), default=manifest.stat().st_mtime)
+                        if newest >= session_cutoff:
+                            continue
+                        for x in members:
+                            x.unlink(missing_ok=True)
+                            removed += 1
+                    except Exception:
+                        continue
             if removed:
                 logger.info("temp sweep: removed %d stale file(s)", removed)
         except Exception as e:  # pragma: no cover
