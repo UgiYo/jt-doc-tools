@@ -16,6 +16,9 @@ def _safe_id(uid):
  if not _ID_RE.fullmatch(uid or ""):raise HTTPException(400,"invalid upload id")
  return uid
 def _manifest(uid):return _work_dir()/f"{uid}.json"
+def _read_manifest(uid):return json.loads(_manifest(uid).read_text(encoding="utf-8"))
+def _save_version(uid,job_id,**values):
+ m=_read_manifest(uid);versions=m.setdefault("output_versions",{});item=dict(versions.get(job_id) or {});item.update(values);item["job_id"]=job_id;versions[job_id]=item;m["output_job"]=item;_manifest(uid).write_text(json.dumps(m,ensure_ascii=False),encoding="utf-8");return item
 def _source(uid,m):return _work_dir()/f"{uid}{m['suffix']}"
 def _load(uid,request):
  uid=_safe_id(uid);_uo.require(uid,request);p=_manifest(uid)
@@ -82,7 +85,7 @@ def _run_export(job,uid,edits,m,raw):
     if fmt=="JPEG" and im.mode not in ("RGB","L"):im=im.convert("RGB")
     im.save(buf,format=fmt,**({"quality":95} if fmt=="JPEG" else {}));out=buf.getvalue()
   if job.cancelled:return
-  stem=Path(m["filename"]).stem;out_path=_export_path(uid,job.id,m["suffix"]);out_path.write_bytes(out);job.result_path=out_path;job.result_filename=f"{stem}_edited{m['suffix']}";job.progress=.95;job.message="修改後圖片已完成"
+  stem=Path(m["filename"]).stem;out_path=_export_path(uid,job.id,m["suffix"]);out_path.write_bytes(out);job.result_path=out_path;job.result_filename=f"{stem}_edited{m['suffix']}";job.progress=.95;job.message="修改後圖片已完成";_save_version(uid,job.id,status="done",filename=job.result_filename,edits=edits)
  except Exception as exc:
   job.message=f"圖片輸出失敗：{exc}";raise
 
@@ -91,5 +94,17 @@ async def export(uid:str,request:Request,edits_json:str=Form(...)):
  m,raw=_load(uid,request);edits=_parse_edits(edits_json);ready=threading.Event()
  def run(j):ready.wait(timeout=10);_run_export(j,uid,edits,m,raw)
  job=job_manager.submit("image-text-editor",run,meta={"filename":f"圖片文字修改｜{m['filename']}","upload_id":uid,"operation":"image-edit","view_url":f"/tools/image-text-editor/?upload={uid}&version=__JOB_ID__"},request=request)
- job.meta["version_id"]=job.id;job.meta["view_url"]=f"/tools/image-text-editor/?upload={uid}&version={job.id}";ready.set()
+ job.meta["version_id"]=job.id;job.meta["view_url"]=f"/tools/image-text-editor/?upload={uid}&version={job.id}";_save_version(uid,job.id,status="queued",filename=f"{Path(m['filename']).stem}_edited{m['suffix']}",edits=edits);ready.set()
  return {"job_id":job.id,"status":"queued","filename":f"{Path(m['filename']).stem}_edited{m['suffix']}"}
+
+@router.get("/version/{uid}/{job_id}")
+async def version(uid:str,job_id:str,request:Request):
+ m,_=_load(uid,request);item=(m.get("output_versions") or {}).get(job_id)
+ if not item:raise HTTPException(404,"version not found")
+ return item
+
+@router.get("/session/{uid}")
+async def session(uid:str,request:Request):
+ m,raw=_load(uid,request);png,(width,height)=to_png(raw)
+ words,engine=_oe.recognize_image(png,"chi_tra+eng",preprocess=True,allow_local_easyocr=_oe.local_easyocr_safe())
+ return {"upload_id":uid,"filename":m["filename"],"width":width,"height":height,"engine":engine,"words":words,"fonts":available_fonts(),"preview_url":f"/tools/image-text-editor/preview/{uid}"}
