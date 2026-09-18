@@ -145,35 +145,43 @@ async def export(uid:str,request:Request,edits_json:str=Form(...)):
   by_media.setdefault(path,[]).append(e)
  replacements={path:_apply_edits(read_media(raw,path),es,image_format_for_path(path)) for path,es in by_media.items()};out=replace_media(raw,replacements);out_path=_work_dir()/f"{uid}_edited.pptx";out_path.write_bytes(out);base=Path(m.get("filename") or "edited.pptx").stem;return FileResponse(str(out_path),media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",filename=f"{base}_edited.pptx")
 
-def _output_path(uid):return _work_dir()/f"{uid}_modified.pptx"
-def _convert_view(uid):
+def _output_path(uid,job_id=None):return _work_dir()/f"{uid}_{job_id}_modified.pptx" if job_id else _work_dir()/f"{uid}_modified.pptx"
+def _version(uid,job_id):
+ data=_read_manifest(uid);return (data.get("output_versions") or {}).get(job_id)
+def _convert_view(uid,job_id=None):
  try:data=_read_manifest(uid)
  except FileNotFoundError:return None
- saved=data.get("output_job") or {};jid=saved.get("job_id");job=job_manager.get(jid) if jid else None
+ saved=(_version(uid,job_id) if job_id else data.get("output_job")) or {};jid=job_id or saved.get("job_id");job=job_manager.get(jid) if jid else None
  if job:
   job_manager.mark_polled(job.id)
   status={"pending":"queued","error":"failed","interrupted":"failed"}.get(job.status,job.status)
-  return {"uid":uid,"job_id":job.id,"status":status,"created_at":job.created_at,"completed_at":job.updated_at if job.status in {"done","error","cancelled","interrupted"} else None,"error":job.error,"signature":saved.get("signature"),"filename":job.result_filename or saved.get("filename")}
- if saved.get("status")=="done" and _output_path(uid).exists():return saved
+  return {"uid":uid,"job_id":job.id,"status":status,"created_at":job.created_at,"completed_at":job.updated_at if job.status in {"done","error","cancelled","interrupted"} else None,"error":job.error,"signature":saved.get("signature"),"filename":job.result_filename or saved.get("filename"),"edits":saved.get("edits") or []}
+ path=_output_path(uid,jid) if jid else None
+ if saved.get("status")=="done" and path and path.exists():return saved
  return None
-def _build_image_output(uid,media_map,edits):
+def _save_output_version(uid,job_id,**values):
+ with _MANIFEST_LOCK:
+  data=json.loads(_manifest(uid).read_text(encoding="utf-8"));versions=data.setdefault("output_versions",{});item=dict(versions.get(job_id) or {});item.update(values);item["job_id"]=job_id;versions[job_id]=item;data["output_job"]=item
+  _manifest(uid).write_text(json.dumps(data,ensure_ascii=False),encoding="utf-8")
+ return item
+def _build_image_output(uid,job_id,media_map,edits):
  raw=_src(uid).read_bytes();by_media={}
  for e in edits:
   path=media_map.get(str(e.get("image_index")))
   if not path:raise ValueError("找不到指定圖片；請重新執行 OCR 分析")
   by_media.setdefault(path,[]).append(e)
  replacements={path:_apply_edits(read_media(raw,path),es,image_format_for_path(path)) for path,es in by_media.items()}
- _output_path(uid).write_bytes(replace_media(raw,replacements) if replacements else raw)
+ _output_path(uid,job_id).write_bytes(replace_media(raw,replacements) if replacements else raw)
 def _run_image_output(job,uid,media_map,edits,filename,signature):
  if not _wait_heavy_slot(job):return
  try:
   if job.cancelled:return
   job.message="正在將修改寫回原始投影片圖片…";job.progress=.15
-  _build_image_output(uid,media_map,edits)
+  _build_image_output(uid,job.id,media_map,edits)
   if job.cancelled:
-   _output_path(uid).unlink(missing_ok=True);return
-  job.result_path=_output_path(uid);job.result_filename=filename;job.progress=.95;job.message="修改後 PPTX 已完成"
-  _patch_manifest(uid,output_job={"job_id":job.id,"status":"done","signature":signature,"filename":filename})
+   _output_path(uid,job.id).unlink(missing_ok=True);return
+  job.result_path=_output_path(uid,job.id);job.result_filename=filename;job.progress=.95;job.message="修改後 PPTX 已完成"
+  _save_output_version(uid,job.id,status="done",signature=signature,filename=filename,edits=edits)
  finally:_PPT_HEAVY_LIMIT.release()
 
 @router.post("/output/{uid}")
@@ -181,19 +189,19 @@ def _run_image_output(job,uid,media_map,edits,filename,signature):
 async def output(uid:str,request:Request,edits_json:str=Form("[]")):
  uid=_safe_id(uid);_uo.require(uid,request);edits=_parse_edits(edits_json);m=_read_manifest(uid);media_map=m.get("media_map") or {}
  if not m.get("analysis") or not media_map:raise HTTPException(400,"請先執行 OCR 分析")
- signature=hashlib.sha256((_IMAGE_OUTPUT_VERSION+"\n"+json.dumps(edits,ensure_ascii=False,sort_keys=True)).encode()).hexdigest()
+ signature=hashlib.sha256((_IMAGE_OUTPUT_VERSION+"\\n"+json.dumps(edits,ensure_ascii=False,sort_keys=True)).encode()).hexdigest()
  existing=_convert_view(uid)
  if existing and existing["status"] in {"queued","running"}:
   if existing["signature"]!=signature:raise HTTPException(409,"這份簡報正在轉換，請等待完成")
   return existing
- if existing and existing["status"]=="done" and existing["signature"]==signature and _output_path(uid).exists():return existing
  original=Path(m.get("filename") or "presentation.pptx");filename=f"{original.stem}_modified.pptx"
  ready=threading.Event()
  def run(j):ready.wait(timeout=10);_run_image_output(j,uid,media_map,edits,filename,signature)
- job=job_manager.submit("ppt-image-text-editor",run,meta={"filename":f"圖片文字修改｜{original.name}","upload_id":uid,"operation":"image-pptx","view_url":f"/tools/ppt-image-text-editor/?upload={uid}"},request=request)
- try:_patch_manifest(uid,output_job={"job_id":job.id,"status":"queued","signature":signature,"filename":filename})
+ job=job_manager.submit("ppt-image-text-editor",run,meta={"filename":f"圖片文字修改｜{original.name}","upload_id":uid,"operation":"image-pptx","version_id":"pending","view_url":f"/tools/ppt-image-text-editor/?upload={uid}&version=__JOB_ID__"},request=request)
+ job.meta["version_id"]=job.id;job.meta["view_url"]=f"/tools/ppt-image-text-editor/?upload={uid}&version={job.id}"
+ try:_save_output_version(uid,job.id,status="queued",signature=signature,filename=filename,edits=edits)
  finally:ready.set()
- return _convert_view(uid)
+ return _convert_view(uid,job.id)
 
 @router.get("/output/{uid}")
 @router.get("/editable/{uid}")
@@ -202,9 +210,24 @@ async def output_status(uid:str,request:Request):
  if not job:raise HTTPException(404,"output job not started")
  return job
 
+@router.get("/output/{uid}/version/{job_id}")
+async def output_version(uid:str,job_id:str,request:Request):
+ uid=_safe_id(uid);_uo.require(uid,request);job=_convert_view(uid,job_id)
+ if not job:raise HTTPException(404,"output version not found")
+ return job
+
 @router.get("/output/{uid}/download")
 @router.get("/editable/{uid}/download")
 async def output_download(uid:str,request:Request):
  uid=_safe_id(uid);_uo.require(uid,request);job=_convert_view(uid)
- if not job or job["status"]!="done" or not _output_path(uid).exists():raise HTTPException(409,"修改後 PPTX 尚未完成")
- return FileResponse(str(_output_path(uid)),media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",filename=job["filename"])
+ if not job or job["status"]!="done":raise HTTPException(409,"修改後 PPTX 尚未完成")
+ path=_output_path(uid,job["job_id"])
+ if not path.exists():raise HTTPException(409,"修改後 PPTX 尚未完成")
+ return FileResponse(str(path),media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",filename=job["filename"])
+
+@router.get("/output/{uid}/version/{job_id}/download")
+async def output_version_download(uid:str,job_id:str,request:Request):
+ uid=_safe_id(uid);_uo.require(uid,request);job=_convert_view(uid,job_id);path=_output_path(uid,job_id)
+ if not job or job["status"]!="done" or not path.exists():raise HTTPException(409,"指定版本 PPTX 尚未完成")
+ return FileResponse(str(path),media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",filename=job["filename"])
+
