@@ -63,7 +63,7 @@ async function pollAnalysis(initial=null){
    else if(job.status==='running')$('#status').textContent=`{{ tr("OCR 辨識中") }} ${job.completed||0}/${job.total||'?'}`;
    else if(job.status==='failed'){clearSavedJob();throw new Error(job.error||'OCR failed')}
    else if(job.status==='cancelled'){clearSavedJob();$('#status').textContent='{{ tr("分析已停止") }}';break}
-   else if(job.status==='done'){analyzed=job.images||[];currentPage=0;draftValues.clear();draftStyles.clear();await loadFonts();render();$('#exportPanel').hidden=false;$('#status').textContent=`${analyzed.length} {{ tr("頁圖片；請使用上一頁／下一頁逐頁修改") }}`;tracking(false);return}
+   else if(job.status==='done'){analyzed=job.images||[];currentPage=0;draftValues.clear();draftStyles.clear();await loadFonts();if(linkedVersion)await restoreLinkedVersion();render();$('#exportPanel').hidden=false;$('#status').textContent=linkedVersion?'{{ tr("已開啟指定的修改版本") }}':`${analyzed.length} {{ tr("頁圖片；請使用上一頁／下一頁逐頁修改") }}`;tracking(false);return}
    await sleep(1000);response=null;
   }
  }catch(error){if(token===pollGeneration){$('#status').textContent=error.message||String(error);const text=String(error.message||error);if(/not found|403|404/i.test(text))clearSavedJob()}}
@@ -155,7 +155,15 @@ $('#editableBtn').addEventListener('click',async()=>{
  catch(error){$('#status').textContent=error.message||String(error)}
  finally{button.disabled=false}
 });
-const linkedUpload=new URLSearchParams(location.search).get('upload');
+const linkedParams=new URLSearchParams(location.search),linkedUpload=linkedParams.get('upload'),linkedVersion=linkedParams.get('version');
+async function restoreLinkedVersion(){
+ if(!linkedUpload||!linkedVersion)return;
+ const r=await fetch(`/tools/ppt-image-text-editor/output/${linkedUpload}/version/${linkedVersion}`);
+ if(!r.ok)throw new Error(await responseError(r,'version not found'));
+ const version=await r.json();
+ (version.edits||[]).forEach(e=>{if(e.word_index===undefined||String(e.new_text||'').startsWith('__JT_OVERLAY__'))return;const key=`${e.image_index}:${e.word_index}`;draftValues.set(key,String(e.new_text??''));draftStyles.set(key,{font_family:e.font_family||'',font_size:e.font_size||'',text_color:e.text_color||'',bold:!!e.bold})});
+}
+
 if(linkedUpload){uploadId=linkedUpload;saveJob({upload_id:linkedUpload,status:'linked'});resumeSavedAnalysis()}
 else resumeSavedAnalysis();
 pollEditable();
