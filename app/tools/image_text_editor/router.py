@@ -1,5 +1,5 @@
 from __future__ import annotations
-import io,json,re,uuid
+import io,json,re,uuid,threading
 from pathlib import Path
 from fastapi import APIRouter,File,Form,HTTPException,Request,UploadFile
 from fastapi.responses import FileResponse,HTMLResponse,Response
@@ -7,6 +7,7 @@ from PIL import Image
 from ...config import settings
 from ...core import upload_owner as _uo
 from ...core import ocr_engine as _oe
+from ...core.job_manager import job_manager
 from ..ppt_image_text_editor.image_edit import apply_overlays,available_fonts,edit_text,image_format_for_path,to_png
 router=APIRouter(); _ID_RE=re.compile(r"^[a-f0-9]{32}$"); _ALLOWED={".png",".jpg",".jpeg",".webp",".bmp",".tif",".tiff"}; _MEDIA={"PNG":"image/png","JPEG":"image/jpeg","WEBP":"image/webp","BMP":"image/bmp","TIFF":"image/tiff"};_OVERLAY_PREFIX="__JT_OVERLAY__"
 def _work_dir():
@@ -70,13 +71,25 @@ async def preview(uid:str,request:Request):
 @router.post("/preview/{uid}")
 async def rendered_preview(uid:str,request:Request,edits_json:str=Form(...)):
  _,raw=_load(uid,request);edits=_parse_edits(edits_json);png=_apply(raw,edits,"PNG") if edits else to_png(raw)[0];return Response(png,media_type="image/png",headers={"Cache-Control":"no-store"})
+def _export_path(uid,job_id,suffix):return _work_dir()/f"{uid}_{job_id}_edited{suffix}"
+def _run_export(job,uid,edits,m,raw):
+ try:
+  job.progress=.15;job.message="正在建立修改後圖片…";fmt=image_format_for_path(m["filename"])
+  if edits:out=_apply(raw,edits,fmt)
+  else:
+   with Image.open(io.BytesIO(raw)) as im:
+    buf=io.BytesIO()
+    if fmt=="JPEG" and im.mode not in ("RGB","L"):im=im.convert("RGB")
+    im.save(buf,format=fmt,**({"quality":95} if fmt=="JPEG" else {}));out=buf.getvalue()
+  if job.cancelled:return
+  stem=Path(m["filename"]).stem;out_path=_export_path(uid,job.id,m["suffix"]);out_path.write_bytes(out);job.result_path=out_path;job.result_filename=f"{stem}_edited{m['suffix']}";job.progress=.95;job.message="修改後圖片已完成"
+ except Exception as exc:
+  job.message=f"圖片輸出失敗：{exc}";raise
+
 @router.post("/export/{uid}")
 async def export(uid:str,request:Request,edits_json:str=Form(...)):
- m,raw=_load(uid,request);edits=_parse_edits(edits_json);fmt=image_format_for_path(m["filename"])
- if edits:out=_apply(raw,edits,fmt)
- else:
-  with Image.open(io.BytesIO(raw)) as im:
-   buf=io.BytesIO()
-   if fmt=="JPEG" and im.mode not in ("RGB","L"):im=im.convert("RGB")
-   im.save(buf,format=fmt,**({"quality":95} if fmt=="JPEG" else {}));out=buf.getvalue()
- stem=Path(m["filename"]).stem;out_path=_work_dir()/f"{uid}_edited{m['suffix']}";out_path.write_bytes(out);return FileResponse(str(out_path),media_type=_MEDIA.get(fmt,"application/octet-stream"),filename=f"{stem}_edited{m['suffix']}")
+ m,raw=_load(uid,request);edits=_parse_edits(edits_json);ready=threading.Event()
+ def run(j):ready.wait(timeout=10);_run_export(j,uid,edits,m,raw)
+ job=job_manager.submit("image-text-editor",run,meta={"filename":f"圖片文字修改｜{m['filename']}","upload_id":uid,"operation":"image-edit","view_url":f"/tools/image-text-editor/?upload={uid}&version=__JOB_ID__"},request=request)
+ job.meta["version_id"]=job.id;job.meta["view_url"]=f"/tools/image-text-editor/?upload={uid}&version={job.id}";ready.set()
+ return {"job_id":job.id,"status":"queued","filename":f"{Path(m['filename']).stem}_edited{m['suffix']}"}
